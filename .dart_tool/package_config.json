@@ -56,12 +56,6 @@
       "languageVersion": "3.4"
     },
     {
-      "name": "code_assets",
-      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/code_assets-2.2.0",
-      "packageUri": "lib/",
-      "languageVersion": "3.10"
-    },
-    {
       "name": "collection",
       "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/collection-1.19.1",
       "packageUri": "lib/",
@@ -218,12 +212,6 @@
       "languageVersion": "3.9"
     },
     {
-      "name": "hooks",
-      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/hooks-2.2.0",
-      "packageUri": "lib/",
-      "languageVersion": "3.10"
-    },
-    {
       "name": "http",
       "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/http-1.6.0",
       "packageUri": "lib/",
@@ -327,7 +315,7 @@
     },
     {
       "name": "meta",
-      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/meta-1.19.0",
+      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/meta-1.18.3",
       "packageUri": "lib/",
       "languageVersion": "3.5"
     },
@@ -342,12 +330,6 @@
       "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/mime-2.1.0",
       "packageUri": "lib/",
       "languageVersion": "3.2"
-    },
-    {
-      "name": "objective_c",
-      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/objective_c-9.6.3",
-      "packageUri": "lib/",
-      "languageVersion": "3.10"
     },
     {
       "name": "package_config",
@@ -422,22 +404,10 @@
       "languageVersion": "2.12"
     },
     {
-      "name": "pub_semver",
-      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/pub_semver-2.2.1",
-      "packageUri": "lib/",
-      "languageVersion": "3.4"
-    },
-    {
       "name": "realtime_client",
       "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/realtime_client-2.13.2",
       "packageUri": "lib/",
       "languageVersion": "3.9"
-    },
-    {
-      "name": "record_use",
-      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/record_use-1.1.1",
-      "packageUri": "lib/",
-      "languageVersion": "3.10"
     },
     {
       "name": "riverpod",
@@ -459,9 +429,9 @@
     },
     {
       "name": "shared_preferences_foundation",
-      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_foundation-2.6.1",
+      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_foundation-2.5.7",
       "packageUri": "lib/",
-      "languageVersion": "3.13"
+      "languageVersion": "3.10"
     },
     {
       "name": "shared_preferences_linux",
@@ -627,7 +597,7 @@
     },
     {
       "name": "vector_math",
-      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/vector_math-2.4.4",
+      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/vector_math-2.4.0",
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
@@ -666,12 +636,6 @@
       "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/xdg_directories-1.1.0",
       "packageUri": "lib/",
       "languageVersion": "3.3"
-    },
-    {
-      "name": "yaml",
-      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/yaml-3.1.4",
-      "packageUri": "lib/",
-      "languageVersion": "3.4"
     },
     {
       "name": "yet_another_json_isolate",

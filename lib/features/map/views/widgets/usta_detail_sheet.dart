@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ustaapp/core/services/payment_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/map/controllers/map_controller.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
@@ -346,12 +347,29 @@ class _UstaDetailSheetState extends ConsumerState<UstaDetailSheet> {
               onPressed: mapState.isCreatingCall
                   ? null
                   : () async {
+                      // A. Çağrı kaydını oluştur
                       final cagriId = await mapController.createCagri(
                         usta: usta,
                         adresTarifi: _addressController.text.trim(),
                       );
 
-                      if (cagriId != null && context.mounted) {
+                      if (cagriId == null) return;
+
+                      // B. İyzico Pre-Auth Edge Function üzerinden provizyon bloke et
+                      final paymentService = ref.read(paymentServiceProvider);
+                      final preAuthResult = await paymentService.createPreAuth(cagriId: cagriId);
+
+                      if (!preAuthResult.success && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(preAuthResult.error ?? 'Karttan provizyon alınamadı.'),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (context.mounted) {
                         Navigator.pop(context); // Bottom sheet'i kapat
                         context.push('/customer/active-call/$cagriId');
                       }

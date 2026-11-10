@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
+import 'package:ustaapp/core/services/payment_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/features/orders/models/cagri_model.dart';
 
@@ -41,15 +42,17 @@ class ActiveOrderState {
 final activeOrderControllerProvider = StateNotifierProvider.autoDispose
     .family<ActiveOrderController, ActiveOrderState, String>((ref, cagriId) {
   final supabase = ref.watch(supabaseClientProvider);
-  return ActiveOrderController(supabase, cagriId);
+  final paymentService = ref.watch(paymentServiceProvider);
+  return ActiveOrderController(supabase, paymentService, cagriId);
 });
 
 class ActiveOrderController extends StateNotifier<ActiveOrderState> {
   final SupabaseClient _supabase;
+  final PaymentService _paymentService;
   final String _cagriId;
   RealtimeChannel? _realtimeChannel;
 
-  ActiveOrderController(this._supabase, this._cagriId)
+  ActiveOrderController(this._supabase, this._paymentService, this._cagriId)
       : super(const ActiveOrderState(isLoading: true)) {
     _initAndListen();
   }
