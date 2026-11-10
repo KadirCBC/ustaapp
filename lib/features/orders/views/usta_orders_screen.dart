@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/orders/controllers/usta_dashboard_controller.dart';
+import 'package:ustaapp/features/orders/views/widgets/incoming_call_dialog.dart';
 
 class UstaOrdersScreen extends ConsumerStatefulWidget {
   const UstaOrdersScreen({super.key});
@@ -56,6 +57,14 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),
+        );
+      }
+      // Gelen acil çağrı modalı
+      if (next.incomingCall != null && next.incomingCall != previous?.incomingCall) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => IncomingCallDialog(cagri: next.incomingCall!),
         );
       }
     });

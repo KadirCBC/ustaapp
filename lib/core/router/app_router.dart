@@ -5,6 +5,8 @@ import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/features/auth/models/user_role.dart';
 import 'package:ustaapp/features/auth/views/phone_auth_screen.dart';
 import 'package:ustaapp/features/map/views/customer_map_screen.dart';
+import 'package:ustaapp/features/orders/views/customer_active_call_screen.dart';
+import 'package:ustaapp/features/orders/views/usta_active_job_screen.dart';
 import 'package:ustaapp/features/orders/views/usta_orders_screen.dart';
 import 'package:ustaapp/features/profile/views/profile_screen.dart';
 
@@ -57,9 +59,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const CustomerMapScreen(),
       ),
       GoRoute(
+        path: '/customer/active-call/:cagriId',
+        name: 'customerActiveCall',
+        builder: (context, state) {
+          final cagriId = state.pathParameters['cagriId'] ?? '';
+          return CustomerActiveCallScreen(cagriId: cagriId);
+        },
+      ),
+      GoRoute(
         path: '/usta/orders',
         name: 'ustaOrders',
         builder: (context, state) => const UstaOrdersScreen(),
+      ),
+      GoRoute(
+        path: '/usta/active-job/:cagriId',
+        name: 'ustaActiveJob',
+        builder: (context, state) {
+          final cagriId = state.pathParameters['cagriId'] ?? '';
+          return UstaActiveJobScreen(cagriId: cagriId);
+        },
       ),
       GoRoute(
         path: '/profile',

@@ -86,6 +86,12 @@
       "languageVersion": "3.9"
     },
     {
+      "name": "dart_earcut",
+      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/dart_earcut-1.2.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "dart_jsonwebtoken",
       "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/dart_jsonwebtoken-3.4.1",
       "packageUri": "lib/",
@@ -132,6 +138,12 @@
       "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_lints-4.0.0",
       "packageUri": "lib/",
       "languageVersion": "3.1"
+    },
+    {
+      "name": "flutter_map",
+      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_map-7.0.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
     },
     {
       "name": "flutter_riverpod",
@@ -248,6 +260,12 @@
       "languageVersion": "3.9"
     },
     {
+      "name": "latlong2",
+      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/latlong2-0.9.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "leak_tracker",
       "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/leak_tracker-11.0.2",
       "packageUri": "lib/",
@@ -270,6 +288,18 @@
       "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/lints-4.0.0",
       "packageUri": "lib/",
       "languageVersion": "3.1"
+    },
+    {
+      "name": "lists",
+      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/lists-1.0.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "logger",
+      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/logger-2.8.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.17"
     },
     {
       "name": "logging",
@@ -300,6 +330,12 @@
       "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/meta-1.19.0",
       "packageUri": "lib/",
       "languageVersion": "3.5"
+    },
+    {
+      "name": "mgrs_dart",
+      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/mgrs_dart-2.0.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
     },
     {
       "name": "mime",
@@ -368,10 +404,22 @@
       "languageVersion": "3.2"
     },
     {
+      "name": "polylabel",
+      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/polylabel-1.0.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.13"
+    },
+    {
       "name": "postgrest",
       "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/postgrest-2.9.1",
       "packageUri": "lib/",
       "languageVersion": "3.9"
+    },
+    {
+      "name": "proj4dart",
+      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/proj4dart-2.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
     },
     {
       "name": "pub_semver",
@@ -518,6 +566,12 @@
       "languageVersion": "3.5"
     },
     {
+      "name": "unicode",
+      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/unicode-0.3.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
       "name": "url_launcher",
       "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher-6.3.3",
       "packageUri": "lib/",
@@ -600,6 +654,12 @@
       "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/web_socket_channel-3.0.3",
       "packageUri": "lib/",
       "languageVersion": "3.3"
+    },
+    {
+      "name": "wkt_parser",
+      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/wkt_parser-2.0.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
     },
     {
       "name": "xdg_directories",

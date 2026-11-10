@@ -80,4 +80,12 @@ class NearbyUstaModel {
   }
 
   String get formattedPrice => '${toplamTutar.toStringAsFixed(0)} ₺';
+
+  String get tahminiVarisSuresi {
+    // Şehir içi ortalama sürüş süresi (1 km ~ 2.5 dk) + 5 dk hazırlanma payı
+    final distanceKm = mesafeMetre / 1000.0;
+    final minMinutes = (distanceKm * 2.5 + 5).round();
+    final maxMinutes = minMinutes + 7;
+    return '$minMinutes - $maxMinutes dk';
+  }
 }

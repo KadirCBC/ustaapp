@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
 import 'package:ustaapp/core/services/location_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
+import 'package:ustaapp/features/orders/models/cagri_model.dart';
 
 class UstaDashboardState {
   final bool isOnline;
@@ -12,6 +13,7 @@ class UstaDashboardState {
   final double dailyEarnings;
   final bool isLoading;
   final bool isSavingFee;
+  final CagriModel? incomingCall;
   final String? errorMessage;
   final String? successMessage;
 
@@ -22,6 +24,7 @@ class UstaDashboardState {
     this.dailyEarnings = 0.0,
     this.isLoading = false,
     this.isSavingFee = false,
+    this.incomingCall,
     this.errorMessage,
     this.successMessage,
   });
@@ -33,6 +36,8 @@ class UstaDashboardState {
     double? dailyEarnings,
     bool? isLoading,
     bool? isSavingFee,
+    CagriModel? incomingCall,
+    bool clearIncomingCall = false,
     String? errorMessage,
     String? successMessage,
   }) {
@@ -43,6 +48,7 @@ class UstaDashboardState {
       dailyEarnings: dailyEarnings ?? this.dailyEarnings,
       isLoading: isLoading ?? this.isLoading,
       isSavingFee: isSavingFee ?? this.isSavingFee,
+      incomingCall: clearIncomingCall ? null : (incomingCall ?? this.incomingCall),
       errorMessage: errorMessage,
       successMessage: successMessage,
     );
@@ -59,6 +65,7 @@ final ustaDashboardControllerProvider =
 class UstaDashboardController extends StateNotifier<UstaDashboardState> {
   final SupabaseClient _supabase;
   final LocationService _locationService;
+  RealtimeChannel? _incomingCallsChannel;
 
   UstaDashboardController(this._supabase, this._locationService)
       : super(const UstaDashboardState()) {
@@ -115,9 +122,12 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
         dailyEarnings: totalEarnings,
       );
 
-      // Eğer sistemde online görünüyorsa arka plan konum takibini güvenceye al
-      if (isOnline && !_locationService.isTracking) {
-        await _locationService.startTracking(uid);
+      // Çevrimiçi ise konum takibini ve canlı çağrı dinlemesini başlat
+      if (isOnline) {
+        if (!_locationService.isTracking) {
+          await _locationService.startTracking(uid);
+        }
+        _subscribeToIncomingCalls(uid);
       }
     } catch (e) {
       debugPrint('loadDashboardData hatası: $e');
@@ -128,12 +138,81 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     }
   }
 
+  /// Gelen acil çağrıları Supabase Realtime ile canlı dinler
+  void _subscribeToIncomingCalls(String uid) {
+    _incomingCallsChannel?.unsubscribe();
+    _incomingCallsChannel = _supabase
+        .channel('usta_incoming_$uid')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: AppConstants.cagrilarTable,
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'usta_id',
+            value: uid,
+          ),
+          callback: (payload) {
+            final record = payload.newRecord;
+            if (record['durum'] == 'bekliyor') {
+              final incoming = CagriModel.fromJson(record);
+              state = state.copyWith(incomingCall: incoming);
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  /// Gelen çağrıyı kabul et (`cagri_kabul_et` RPC)
+  Future<bool> acceptIncomingCall(String cagriId) async {
+    try {
+      final response = await _supabase.rpc('cagri_kabul_et', params: {
+        'p_cagri_id': cagriId,
+      });
+
+      final success = response['success'] as bool? ?? false;
+      if (success) {
+        state = state.copyWith(clearIncomingCall: true);
+        await loadDashboardData();
+        return true;
+      } else {
+        state = state.copyWith(
+          clearIncomingCall: true,
+          errorMessage: response['message'] as String? ?? 'Çağrı kabul edilemedi.',
+        );
+        return false;
+      }
+    } catch (e) {
+      debugPrint('acceptIncomingCall hatası: $e');
+      state = state.copyWith(errorMessage: 'Kabul işlemi başarısız: $e');
+      return false;
+    }
+  }
+
+  /// Gelen çağrıyı reddet veya zaman aşımında iptal et
+  Future<void> rejectIncomingCall(String cagriId) async {
+    try {
+      await _supabase
+          .from(AppConstants.cagrilarTable)
+          .update({'durum': 'iptal'})
+          .eq('id', cagriId)
+          .eq('durum', 'bekliyor');
+    } catch (e) {
+      debugPrint('rejectIncomingCall hatası: $e');
+    } finally {
+      state = state.copyWith(clearIncomingCall: true);
+    }
+  }
+
+  void clearIncomingCall() {
+    state = state.copyWith(clearIncomingCall: true);
+  }
+
   /// Müsaitim (Online) / Meşgulüm (Offline) durumunu değiştirir
   Future<void> toggleOnlineStatus(bool targetStatus) async {
     final uid = currentUserId;
     if (uid == null) return;
 
-    // UI'da hemen tepki ver
     state = state.copyWith(
       isOnline: targetStatus,
       errorMessage: null,
@@ -142,7 +221,6 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
 
     try {
       if (targetStatus) {
-        // Online olma isteği: Konum servisini başlat
         final started = await _locationService.startTracking(uid);
         if (!started) {
           state = state.copyWith(
@@ -155,12 +233,13 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
               .eq('id', uid);
           return;
         }
+        _subscribeToIncomingCalls(uid);
       } else {
-        // Offline olma isteği: Konum servisini durdur (pil tasarrufu)
         await _locationService.stopTracking();
+        _incomingCallsChannel?.unsubscribe();
+        _incomingCallsChannel = null;
       }
 
-      // Supabase üzerindeki durum güncellemesi
       await _supabase
           .from(AppConstants.ustalarTable)
           .update({'is_online': targetStatus})
@@ -173,7 +252,6 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       );
     } catch (e) {
       debugPrint('toggleOnlineStatus hatası: $e');
-      // Hata durumunda eski duruma geri al
       state = state.copyWith(
         isOnline: !targetStatus,
         errorMessage: 'Durum güncellenemedi: $e',
@@ -215,5 +293,11 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       );
       return false;
     }
+  }
+
+  @override
+  void dispose() {
+    _incomingCallsChannel?.unsubscribe();
+    super.dispose();
   }
 }
