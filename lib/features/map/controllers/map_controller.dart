@@ -10,6 +10,7 @@ import 'package:ustaapp/features/orders/models/cagri_model.dart';
 class CustomerMapState {
   final double currentLat;
   final double currentLng;
+  final String currentAddressLabel;
   final String selectedCategory; // 'elektrik', 'cilingir', 'tesisat'
   final int searchRadiusMeter; // varsayılan 10000 metre (10km)
   final List<NearbyUstaModel> nearbyUstalar;
@@ -23,6 +24,7 @@ class CustomerMapState {
   const CustomerMapState({
     this.currentLat = 41.0082, // Varsayılan İstanbul
     this.currentLng = 28.9784,
+    this.currentAddressLabel = 'Kadıköy, İstanbul',
     this.selectedCategory = 'elektrik',
     this.searchRadiusMeter = 10000,
     this.nearbyUstalar = const [],
@@ -37,10 +39,12 @@ class CustomerMapState {
   CustomerMapState copyWith({
     double? currentLat,
     double? currentLng,
+    String? currentAddressLabel,
     String? selectedCategory,
     int? searchRadiusMeter,
     List<NearbyUstaModel>? nearbyUstalar,
     NearbyUstaModel? selectedUsta,
+    bool clearSelectedUsta = false,
     bool? isLoadingLocation,
     bool? isLoadingUstalar,
     bool? isCreatingCall,
@@ -50,10 +54,11 @@ class CustomerMapState {
     return CustomerMapState(
       currentLat: currentLat ?? this.currentLat,
       currentLng: currentLng ?? this.currentLng,
+      currentAddressLabel: currentAddressLabel ?? this.currentAddressLabel,
       selectedCategory: selectedCategory ?? this.selectedCategory,
       searchRadiusMeter: searchRadiusMeter ?? this.searchRadiusMeter,
       nearbyUstalar: nearbyUstalar ?? this.nearbyUstalar,
-      selectedUsta: selectedUsta ?? this.selectedUsta,
+      selectedUsta: clearSelectedUsta ? null : (selectedUsta ?? this.selectedUsta),
       isLoadingLocation: isLoadingLocation ?? this.isLoadingLocation,
       isLoadingUstalar: isLoadingUstalar ?? this.isLoadingUstalar,
       isCreatingCall: isCreatingCall ?? this.isCreatingCall,
@@ -129,7 +134,7 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
       state = state.copyWith(
         isLoadingUstalar: false,
         nearbyUstalar: ustalar,
-        selectedUsta: ustalar.isNotEmpty ? ustalar.first : null,
+        clearSelectedUsta: true,
       );
     } catch (e) {
       debugPrint('fetchNearbyUstalar hatası (demo verileri yükleniyor): $e');
@@ -137,7 +142,7 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
       state = state.copyWith(
         isLoadingUstalar: false,
         nearbyUstalar: demoList,
-        selectedUsta: demoList.isNotEmpty ? demoList.first : null,
+        clearSelectedUsta: true,
         errorMessage: null,
       );
     }
@@ -152,46 +157,49 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
       NearbyUstaModel(
         ustaId: 'demo-usta-1',
         fullName: cat == 'elektrik'
-            ? 'Hasan Usta (Elektrik)'
-            : (cat == 'tesisat' ? 'Murat Usta (Sıhhi Tesisat)' : 'Kemal Usta (Çilingir)'),
+            ? 'Ahmet Yılmaz'
+            : (cat == 'tesisat' ? 'Murat Kaya' : 'Kemal Demir'),
         phone: '+90 532 111 22 33',
         kategori: cat,
         puan: 4.9,
-        latitude: lat + 0.0045,
-        longitude: lng + 0.0035,
-        mesafeMetre: 620,
-        ustaHakedis: 650.0,
-        komisyonOrani: 0.15,
-        komisyonTutari: 97.5,
-        toplamTutar: 747.5,
-      ),
-      NearbyUstaModel(
-        ustaId: 'demo-usta-2',
-        fullName: cat == 'elektrik'
-            ? 'Ahmet Usta (Akıllı Ev & Priz)'
-            : (cat == 'tesisat' ? 'Selim Usta (Su Kaçağı & Tıkanıklık)' : 'Oğuz Usta (Oto & Kasa Çilingir)'),
-        phone: '+90 544 222 33 44',
-        kategori: cat,
-        puan: 4.8,
-        latitude: lat - 0.0055,
-        longitude: lng - 0.0040,
-        mesafeMetre: 1100,
+        tamamlananIsSayisi: 142,
+        latitude: lat + 0.0042,
+        longitude: lng + 0.0034,
+        mesafeMetre: 850,
         ustaHakedis: 800.0,
         komisyonOrani: 0.15,
         komisyonTutari: 120.0,
         toplamTutar: 920.0,
       ),
       NearbyUstaModel(
+        ustaId: 'demo-usta-2',
+        fullName: cat == 'elektrik'
+            ? 'Hasan Çelik'
+            : (cat == 'tesisat' ? 'Selim Arslan' : 'Oğuz Şahin'),
+        phone: '+90 544 222 33 44',
+        kategori: cat,
+        puan: 4.8,
+        tamamlananIsSayisi: 96,
+        latitude: lat - 0.0052,
+        longitude: lng - 0.0041,
+        mesafeMetre: 1400,
+        ustaHakedis: 650.0,
+        komisyonOrani: 0.15,
+        komisyonTutari: 97.5,
+        toplamTutar: 747.5,
+      ),
+      NearbyUstaModel(
         ustaId: 'demo-usta-3',
         fullName: cat == 'elektrik'
-            ? 'Serkan Usta (Sigorta & Avize)'
-            : (cat == 'tesisat' ? 'Burak Usta (Kombi & Petek)' : 'İsmail Usta (Kapı Açma)'),
+            ? 'Serkan Yıldız'
+            : (cat == 'tesisat' ? 'Burak Aydın' : 'İsmail Koç'),
         phone: '+90 555 333 44 55',
         kategori: cat,
         puan: 5.0,
-        latitude: lat + 0.0070,
-        longitude: lng - 0.0065,
-        mesafeMetre: 1650,
+        tamamlananIsSayisi: 215,
+        latitude: lat + 0.0068,
+        longitude: lng - 0.0058,
+        mesafeMetre: 2400,
         ustaHakedis: 550.0,
         komisyonOrani: 0.15,
         komisyonTutari: 82.5,
@@ -200,10 +208,21 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     ];
   }
 
+  /// Müşterinin görünen adres/semt başlığını günceller
+  void setAddressLabel(String address) {
+    final trimmed = address.trim();
+    if (trimmed.isNotEmpty) {
+      state = state.copyWith(currentAddressLabel: trimmed);
+    }
+  }
+
   /// Kategori değiştirme ('elektrik', 'cilingir', 'tesisat')
   void setCategory(String category) {
     if (state.selectedCategory != category) {
-      state = state.copyWith(selectedCategory: category, selectedUsta: null);
+      state = state.copyWith(
+        selectedCategory: category,
+        clearSelectedUsta: true,
+      );
       fetchNearbyUstalar();
     }
   }
@@ -219,6 +238,11 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
   /// Harita veya listeden bir usta seçme
   void selectUsta(NearbyUstaModel usta) {
     state = state.copyWith(selectedUsta: usta);
+  }
+
+  /// Usta seçimini kaldırarak özet bara geri dönme
+  void clearSelectedUsta() {
+    state = state.copyWith(clearSelectedUsta: true);
   }
 
   /// Seçili ustaya doğrudan çağrı oluşturma (durum: 'bekliyor')
@@ -241,7 +265,7 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
         musteriLng: state.currentLng,
         adresTarifi: adresTarifi.trim().isNotEmpty
             ? adresTarifi.trim()
-            : 'Kadıköy Merkez Mah. Moda Cad. No:42 Daire:5',
+            : state.currentAddressLabel,
         durum: CagriDurumu.bekliyor,
         ustaHakedis: usta.ustaHakedis,
         komisyonTutari: usta.komisyonTutari,
@@ -269,7 +293,9 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
         'musteri_id': customerId,
         'usta_id': usta.ustaId,
         'musteri_konum': customerPointWkt,
-        'adres_tarifi': adresTarifi.trim(),
+        'adres_tarifi': adresTarifi.trim().isNotEmpty
+            ? adresTarifi.trim()
+            : state.currentAddressLabel,
         'durum': 'bekliyor',
         'usta_hakedis': usta.ustaHakedis,
         'komisyon_tutari': usta.komisyonTutari,

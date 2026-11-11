@@ -5,6 +5,7 @@ class NearbyUstaModel {
   final String? avatarUrl;
   final String kategori;
   final double puan;
+  final int tamamlananIsSayisi;
   final double latitude;
   final double longitude;
   final double mesafeMetre;
@@ -20,6 +21,7 @@ class NearbyUstaModel {
     this.avatarUrl,
     required this.kategori,
     required this.puan,
+    this.tamamlananIsSayisi = 48,
     required this.latitude,
     required this.longitude,
     required this.mesafeMetre,
@@ -62,6 +64,8 @@ class NearbyUstaModel {
       avatarUrl: json['avatar_url'] as String?,
       kategori: json['kategori'] as String? ?? 'elektrik',
       puan: (json['puan'] as num?)?.toDouble() ?? 5.0,
+      tamamlananIsSayisi:
+          (json['tamamlanan_is_sayisi'] as num?)?.toInt() ?? 48,
       latitude: lat,
       longitude: lng,
       mesafeMetre: (json['mesafe_metre'] as num?)?.toDouble() ?? 0.0,
@@ -70,6 +74,16 @@ class NearbyUstaModel {
       komisyonTutari: (json['komisyon_tutari'] as num?)?.toDouble() ?? 0.0,
       toplamTutar: (json['toplam_tutar'] as num?)?.toDouble() ?? 0.0,
     );
+  }
+
+  /// Harita pini üzerinde kompakt isim (Örn: "Ahmet U.")
+  String get shortDisplayName {
+    final cleaned = fullName.replaceAll(RegExp(r'\(.*?\)'), '').trim();
+    final parts = cleaned.split(RegExp(r'\s+'));
+    if (parts.isEmpty) return 'Usta';
+    if (parts.length == 1) return parts.first;
+    final secondInitial = parts[1].isNotEmpty ? '${parts[1][0]}.' : '';
+    return '${parts[0]} $secondInitial'.trim();
   }
 
   String get formattedDistance {
@@ -81,10 +95,13 @@ class NearbyUstaModel {
 
   String get formattedPrice => '${toplamTutar.toStringAsFixed(0)} ₺';
 
-  String get tahminiVarisSuresi {
-    // Şehir içi ortalama sürüş süresi (1 km ~ 2.5 dk) + 5 dk hazırlanma payı
+  int get tahminiVarisDakika {
     final distanceKm = mesafeMetre / 1000.0;
-    final minMinutes = (distanceKm * 2.5 + 5).round();
+    return (distanceKm * 2.5 + 8).round().clamp(5, 60);
+  }
+
+  String get tahminiVarisSuresi {
+    final minMinutes = tahminiVarisDakika;
     final maxMinutes = minMinutes + 7;
     return '$minMinutes - $maxMinutes dk';
   }

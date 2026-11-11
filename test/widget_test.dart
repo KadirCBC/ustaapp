@@ -1,4 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
+import 'package:ustaapp/features/map/views/widgets/category_filter_bar.dart';
+import 'package:ustaapp/features/map/views/widgets/custom_marker.dart';
 import 'package:ustaapp/features/orders/models/cagri_model.dart';
 
 void main() {
@@ -90,6 +94,68 @@ void main() {
       expect(doneWf.completionRequested, isFalse);
       expect(doneWf.receiptId, 'PAY-123456');
       expect(doneWf.ustaAverageRating, 4.92);
+    });
+  });
+
+  group('Modern Customer Map Widgets', () {
+    testWidgets('CustomMarker renders rating, short name and formatted price',
+        (tester) async {
+      final usta = NearbyUstaModel(
+        ustaId: 'usta-1',
+        fullName: 'Ahmet Yılmaz',
+        phone: '+905321112233',
+        kategori: 'elektrik',
+        puan: 4.9,
+        tamamlananIsSayisi: 142,
+        latitude: 41.01,
+        longitude: 28.98,
+        mesafeMetre: 2400,
+        ustaHakedis: 800,
+        komisyonOrani: 0.15,
+        komisyonTutari: 120,
+        toplamTutar: 920,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: CustomMarker(
+                usta: usta,
+                isSelected: true,
+                onTap: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('4.9'), findsOneWidget);
+      expect(find.text('Ahmet Y.'), findsOneWidget);
+      expect(find.text('920 ₺'), findsOneWidget);
+    });
+
+    testWidgets('CategoryFilterBar triggers category selection callback',
+        (tester) async {
+      String selected = 'elektrik';
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CategoryFilterBar(
+              selectedCategory: selected,
+              onCategorySelected: (cat) => selected = cat,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Elektrik'), findsOneWidget);
+      expect(find.text('Çilingir'), findsOneWidget);
+      expect(find.text('Tesisat'), findsOneWidget);
+
+      await tester.tap(find.text('Tesisat'));
+      expect(selected, 'tesisat');
     });
   });
 }
