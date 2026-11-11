@@ -77,7 +77,17 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
   /// Ustanın veritabanındaki güncel durumunu, ücretini ve günlük kazancını çeker
   Future<void> loadDashboardData() async {
     final uid = currentUserId;
-    if (uid == null) return;
+    if (uid == null) {
+      // Demo / Test modunda çalışan varsayılan usta verileri
+      state = state.copyWith(
+        isLoading: false,
+        isOnline: false,
+        servisUcreti: 750.00,
+        dailyCompletedJobs: 4,
+        dailyEarnings: 2850.00,
+      );
+      return;
+    }
 
     state = state.copyWith(isLoading: true, errorMessage: null);
 
@@ -211,7 +221,16 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
   /// Müsaitim (Online) / Meşgulüm (Offline) durumunu değiştirir
   Future<void> toggleOnlineStatus(bool targetStatus) async {
     final uid = currentUserId;
-    if (uid == null) return;
+    if (uid == null) {
+      // Demo modunda toggle işlemi
+      state = state.copyWith(
+        isOnline: targetStatus,
+        successMessage: targetStatus
+            ? 'Çevrimiçi moddasınız. Yeni çağrılar için hazırsınız!'
+            : 'Çevrimdışı moddasınız. Konum takibi durduruldu.',
+      );
+      return;
+    }
 
     state = state.copyWith(
       isOnline: targetStatus,
@@ -262,13 +281,20 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
   /// Taban servis ücretini günceller (300 TL ile 5.000 TL aralığında validasyon)
   Future<bool> updateServisUcreti(double newFee) async {
     final uid = currentUserId;
-    if (uid == null) return false;
-
     if (newFee < 300.00 || newFee > 5000.00) {
       state = state.copyWith(
         errorMessage: 'Servis ücreti en az 300 ₺, en fazla 5.000 ₺ olabilir.',
       );
       return false;
+    }
+
+    if (uid == null) {
+      // Demo modunda ücret kaydı
+      state = state.copyWith(
+        servisUcreti: newFee,
+        successMessage: 'Servis ücretiniz ${newFee.toStringAsFixed(0)} ₺ olarak güncellendi.',
+      );
+      return true;
     }
 
     state = state.copyWith(isSavingFee: true, errorMessage: null, successMessage: null);

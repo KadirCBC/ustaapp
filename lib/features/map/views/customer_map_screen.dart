@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
+import 'package:ustaapp/features/auth/controllers/auth_controller.dart';
 import 'package:ustaapp/features/map/controllers/map_controller.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:ustaapp/features/map/views/widgets/usta_detail_sheet.dart';
@@ -74,7 +75,13 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Çıkış Yap',
-            onPressed: () async => await ref.read(supabaseServiceProvider).signOut(),
+            onPressed: () async {
+              await ref.read(authStateProvider.notifier).signOut();
+              ref.read(phoneAuthControllerProvider.notifier).reset();
+              if (context.mounted) {
+                context.go('/auth');
+              }
+            },
           ),
         ],
       ),

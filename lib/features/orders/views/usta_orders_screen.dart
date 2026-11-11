@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
+import 'package:ustaapp/features/auth/controllers/auth_controller.dart';
 import 'package:ustaapp/features/orders/controllers/usta_dashboard_controller.dart';
 import 'package:ustaapp/features/orders/views/widgets/incoming_call_dialog.dart';
 
@@ -89,7 +90,11 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Çıkış Yap',
             onPressed: () async {
-              await ref.read(supabaseServiceProvider).signOut();
+              await ref.read(authStateProvider.notifier).signOut();
+              ref.read(phoneAuthControllerProvider.notifier).reset();
+              if (context.mounted) {
+                context.go('/auth');
+              }
             },
           ),
         ],

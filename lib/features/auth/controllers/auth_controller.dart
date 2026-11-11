@@ -284,12 +284,17 @@ class PhoneAuthController extends StateNotifier<PhoneAuthState> {
 
   /// Hızlı demo testi için rol seçip doğrudan giriş yap
   void directDemoLogin(UserRole role, {String fullName = 'Demo Kullanıcı'}) {
-    _authNotifier.setRole(role);
+    _authNotifier.setDemoSession(role);
     state = state.copyWith(
       selectedRole: role,
       fullName: fullName,
       step: AuthStep.completed,
     );
+  }
+
+  void reset() {
+    _countdownTimer?.cancel();
+    state = const PhoneAuthState();
   }
 
   /// Telefon numarasını değiştirmek için ilk adıma geri dön

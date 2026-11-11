@@ -25,15 +25,17 @@ class AppAuthState {
   final User? user;
   final UserRole? role;
   final String? errorMessage;
+  final bool isDemo;
 
   const AppAuthState({
-    this.isLoading = true,
+    this.isLoading = false,
     this.user,
     this.role,
     this.errorMessage,
+    this.isDemo = false,
   });
 
-  bool get isAuthenticated => user != null;
+  bool get isAuthenticated => user != null || isDemo;
   bool get hasSelectedRole => role != null;
 
   AppAuthState copyWith({
@@ -41,12 +43,14 @@ class AppAuthState {
     User? user,
     UserRole? role,
     String? errorMessage,
+    bool? isDemo,
   }) {
     return AppAuthState(
       isLoading: isLoading ?? this.isLoading,
       user: user ?? this.user,
       role: role ?? this.role,
       errorMessage: errorMessage,
+      isDemo: isDemo ?? this.isDemo,
     );
   }
 }
@@ -65,7 +69,7 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
     if (currentUser != null) {
       _loadUserRole(currentUser);
     } else {
-      state = state.copyWith(isLoading: false, user: null, role: null);
+      state = state.copyWith(isLoading: false, user: null, role: null, isDemo: false);
     }
 
     // Oturum değişikliklerini dinle
@@ -74,7 +78,9 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
       if (user != null) {
         await _loadUserRole(user);
       } else {
-        state = state.copyWith(isLoading: false, user: null, role: null);
+        if (!state.isDemo) {
+          state = state.copyWith(isLoading: false, user: null, role: null);
+        }
       }
     });
   }
@@ -97,7 +103,20 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
   }
 
   void setRole(UserRole role) {
-    state = state.copyWith(role: role);
+    state = state.copyWith(role: role, isDemo: true, isLoading: false);
+  }
+
+  void setDemoSession(UserRole role) {
+    state = state.copyWith(
+      role: role,
+      isDemo: true,
+      isLoading: false,
+    );
+  }
+
+  Future<void> signOut() async {
+    state = const AppAuthState(isLoading: false, user: null, role: null, isDemo: false);
+    await _service.signOut();
   }
 
   @override
