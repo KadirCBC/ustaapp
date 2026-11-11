@@ -171,6 +171,13 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
           .update({'durum': newStatus.toDbValue()})
           .eq('id', _cagriId);
 
+      // Ödeme ve hakediş entegrasyonu
+      if (newStatus == CagriDurumu.tamamlandi) {
+        await _paymentService.completeAndSplitPayment(cagriId: _cagriId);
+      } else if (newStatus == CagriDurumu.iptal) {
+        await _paymentService.cancelAndReverseAuth(cagriId: _cagriId);
+      }
+
       await fetchCagriDetails();
       state = state.copyWith(
         isActionInProgress: false,

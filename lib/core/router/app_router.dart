@@ -11,7 +11,6 @@ import 'package:ustaapp/features/orders/views/usta_orders_screen.dart';
 import 'package:ustaapp/features/profile/views/profile_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authNotifier = ref.watch(authStateProvider.notifier);
   final authState = ref.watch(authStateProvider);
 
   return GoRouter(

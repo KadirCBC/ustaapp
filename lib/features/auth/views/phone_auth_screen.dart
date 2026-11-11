@@ -27,18 +27,12 @@ class PhoneAuthScreen extends ConsumerWidget {
     });
 
     return Scaffold(
-      backgroundColor: AppTheme.customerBackground,
-      appBar: AppBar(
-        title: const Text('UstamBurada'),
-        backgroundColor: Colors.transparent,
-      ),
-      body: SafeArea(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          switchInCurve: Curves.easeInOut,
-          switchOutCurve: Curves.easeInOut,
-          child: _buildCurrentStep(state.step),
-        ),
+      backgroundColor: const Color(0xFF0F172A),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 350),
+        switchInCurve: Curves.easeInOutCubic,
+        switchOutCurve: Curves.easeInOutCubic,
+        child: _buildCurrentStep(state.step),
       ),
     );
   }
@@ -53,7 +47,9 @@ class PhoneAuthScreen extends ConsumerWidget {
         return const RoleSelectionStep(key: ValueKey('RoleSelectionStep'));
       case AuthStep.completed:
         return const Center(
-          child: CircularProgressIndicator(),
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
         );
     }
   }

@@ -36,7 +36,7 @@ class AppTheme {
         titleTextStyle: TextStyle(
           color: customerTextDark,
           fontSize: 18,
-          fontWeight: FontWeight.w640,
+          fontWeight: FontWeight.w600,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -90,7 +90,7 @@ class AppTheme {
         ),
         hintStyle: const TextStyle(color: customerTextMuted, fontSize: 15),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 1,
         shadowColor: Colors.black.withValues(alpha: 0.04),
@@ -188,7 +188,7 @@ class AppTheme {
         ),
         hintStyle: const TextStyle(color: ustaTextMuted, fontSize: 15),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: ustaSurface,
         elevation: 0,
         shape: RoundedRectangleBorder(
