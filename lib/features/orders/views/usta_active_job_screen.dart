@@ -6,7 +6,6 @@ import 'package:latlong2/latlong.dart' hide Path;
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/orders/controllers/active_order_controller.dart';
 import 'package:ustaapp/features/orders/controllers/usta_dashboard_controller.dart';
-import 'package:ustaapp/features/orders/models/cagri_model.dart';
 
 class UstaActiveJobScreen extends ConsumerWidget {
   final String cagriId;
@@ -311,37 +310,212 @@ class UstaActiveJobScreen extends ConsumerWidget {
 
                   const SizedBox(height: 22),
 
-                  // Durum İlerleme Aksiyon Butonları
-                  if (cagri.isAccepted) ...[
+                  // Müşteri sorun bildirdiyse uyarı kartı
+                  if (state.reportedIssue != null && !cagri.isCompleted) ...[
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.orangeAccent),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.report_problem_rounded, color: Colors.orangeAccent),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Müşteri Sorun Bildirdi',
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orangeAccent,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  state.reportedIssue!,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppTheme.ustaTextLight,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  // ROTA HARİTASI ALTINDA İKİ AŞAMALI USTA OPERASYON BUTONLARI
+                  if (!cagri.isCompleted && !state.ustaArrived) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.ustaPrimary.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        'Aşama 1/2 • Müşteri adresine ulaştığınızda bildirin',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.ustaSecondary,
+                        ),
+                      ),
+                    ),
                     ElevatedButton.icon(
                       onPressed: state.isActionInProgress
                           ? null
-                          : () => controller.updateStatus(CagriDurumu.yolda),
+                          : () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              final ok = await controller.markUstaArrived();
+                              if (ok) {
+                                messenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Müşteriye adrese ulaştığınız bildirildi.'),
+                                    backgroundColor: Color(0xFF16A34A),
+                                  ),
+                                );
+                              }
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.ustaPrimary,
-                        minimumSize: const Size.fromHeight(54),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(56),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
-                      icon: const Icon(Icons.navigation_rounded),
+                      icon: state.isActionInProgress
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.location_on_rounded),
                       label: const Text(
-                        'Yola Çıktım',
+                        'Adrese Ulaştım',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                     ),
-                  ] else if (cagri.isOnTheWay) ...[
-                    ElevatedButton.icon(
-                      onPressed: state.isActionInProgress
-                          ? null
-                          : () => controller.updateStatus(CagriDurumu.tamamlandi),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        minimumSize: const Size.fromHeight(54),
+                  ] else if (!cagri.isCompleted && state.ustaArrived) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green.withValues(alpha: 0.45)),
                       ),
-                      icon: const Icon(Icons.check_circle_outline_rounded),
-                      label: const Text(
-                        'İşi Tamamla (Ödemeyi Al)',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.check_circle_rounded, size: 18, color: Colors.greenAccent),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Adrese ulaşıldı • Müşteriye varış bildirimi gönderildi',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.greenAccent,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                    if (!state.completionRequested) ...[
+                      ElevatedButton.icon(
+                        onPressed: state.isActionInProgress
+                            ? null
+                            : () async {
+                                final messenger = ScaffoldMessenger.of(context);
+                                final ok = await controller.requestCompletionConfirmation();
+                                if (ok) {
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Müşteriden iş tamamlama onayı istendi.'),
+                                      backgroundColor: Color(0xFF16A34A),
+                                    ),
+                                  );
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF16A34A),
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(58),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        icon: state.isActionInProgress
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.verified_user_rounded),
+                        label: const Text(
+                          'İşi Tamamladım ve Müşteriden Onay İste',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ] else ...[
+                      Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: AppTheme.ustaSurface,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: AppTheme.ustaSecondary),
+                        ),
+                        child: const Column(
+                          children: [
+                            SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3,
+                                color: AppTheme.ustaSecondary,
+                              ),
+                            ),
+                            SizedBox(height: 12),
+                            Text(
+                              'Müşteri Onayı Bekleniyor...',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.ustaTextLight,
+                              ),
+                            ),
+                            SizedBox(height: 6),
+                            Text(
+                              'Müşterinizin ekranında onay penceresi açıldı. Onaylandığında hakedişiniz hesabınıza aktarılacaktır.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: AppTheme.ustaTextMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ] else if (cagri.isCompleted) ...[
                     Container(
                       padding: const EdgeInsets.all(20),

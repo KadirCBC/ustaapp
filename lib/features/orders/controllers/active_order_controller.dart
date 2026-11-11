@@ -15,6 +15,12 @@ class ActiveOrderState {
   final bool isTimedOut;
   final double? ustaLat;
   final double? ustaLng;
+  final bool ustaArrived;
+  final DateTime? arrivedAt;
+  final bool completionRequested;
+  final String? reportedIssue;
+  final String? receiptId;
+  final SplitPaymentResult? paymentResult;
   final String? errorMessage;
   final String? successMessage;
 
@@ -26,6 +32,12 @@ class ActiveOrderState {
     this.isTimedOut = false,
     this.ustaLat,
     this.ustaLng,
+    this.ustaArrived = false,
+    this.arrivedAt,
+    this.completionRequested = false,
+    this.reportedIssue,
+    this.receiptId,
+    this.paymentResult,
     this.errorMessage,
     this.successMessage,
   });
@@ -38,6 +50,13 @@ class ActiveOrderState {
     bool? isTimedOut,
     double? ustaLat,
     double? ustaLng,
+    bool? ustaArrived,
+    DateTime? arrivedAt,
+    bool? completionRequested,
+    String? reportedIssue,
+    bool clearReportedIssue = false,
+    String? receiptId,
+    SplitPaymentResult? paymentResult,
     String? errorMessage,
     String? successMessage,
   }) {
@@ -50,6 +69,13 @@ class ActiveOrderState {
       isTimedOut: isTimedOut ?? this.isTimedOut,
       ustaLat: ustaLat ?? this.ustaLat,
       ustaLng: ustaLng ?? this.ustaLng,
+      ustaArrived: ustaArrived ?? this.ustaArrived,
+      arrivedAt: arrivedAt ?? this.arrivedAt,
+      completionRequested: completionRequested ?? this.completionRequested,
+      reportedIssue:
+          clearReportedIssue ? null : (reportedIssue ?? this.reportedIssue),
+      receiptId: receiptId ?? this.receiptId,
+      paymentResult: paymentResult ?? this.paymentResult,
       errorMessage: errorMessage,
       successMessage: successMessage,
     );
@@ -70,6 +96,7 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
 
   StreamSubscription<List<Map<String, dynamic>>>? _cagriStreamSub;
   StreamSubscription<List<Map<String, dynamic>>>? _ustaLocationStreamSub;
+  RealtimeChannel? _workflowChannel;
   Timer? _pendingTimer;
   Timer? _demoAutoAcceptTimer;
 
@@ -88,6 +115,7 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
 
     await fetchCagriDetails();
     _subscribeToCagriRealtimeStream();
+    _subscribeToWorkflowBroadcast();
   }
 
   void _initDemoMode() {
@@ -100,16 +128,21 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
       return;
     }
 
+    final wf = DemoCallRepository.getWorkflow(_cagriId);
     state = state.copyWith(
       isLoading: false,
       cagri: demoCall,
       ustaLat: demoCall.musteriLat + 0.0045,
       ustaLng: demoCall.musteriLng + 0.0035,
+      ustaArrived: wf.ustaArrived,
+      arrivedAt: wf.arrivedAt,
+      completionRequested: wf.completionRequested,
+      reportedIssue: wf.reportedIssue,
+      receiptId: wf.receiptId,
     );
 
     if (demoCall.isPending) {
       _startPendingCountdown();
-      // Demo akışında 4. saniyede ustanın çağrıyı kabul etmesini simüle et
       _demoAutoAcceptTimer = Timer(const Duration(seconds: 4), () {
         if (!mounted) return;
         final current = state.cagri;
@@ -177,7 +210,7 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
     }
   }
 
-  /// Supabase Realtime Stream üzerinden çağrı tablosunu anlık dinler
+  /// Supabase Realtime Stream üzerinden `cagrilar` tablosunu anlık dinler
   void _subscribeToCagriRealtimeStream() {
     _cagriStreamSub?.cancel();
     _cagriStreamSub = _supabase
@@ -214,6 +247,78 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
             debugPrint('Cagri Realtime Stream hatası: $err');
           },
         );
+  }
+
+  /// Varış bildirimi, müşteri onay isteği ve itiraz olayları için Realtime Broadcast kanalı
+  void _subscribeToWorkflowBroadcast() {
+    if (_workflowChannel != null || _isDemo) return;
+
+    _workflowChannel = _supabase
+        .channel('cagri_workflow:$_cagriId')
+        .onBroadcast(
+          event: 'usta_arrived',
+          callback: (payload) {
+            if (!mounted) return;
+            state = state.copyWith(
+              ustaArrived: true,
+              arrivedAt: DateTime.tryParse(payload['arrived_at'] as String? ?? '') ??
+                  DateTime.now(),
+              successMessage: 'Ustanız adrese ulaştı!',
+            );
+          },
+        )
+        .onBroadcast(
+          event: 'completion_requested',
+          callback: (_) {
+            if (!mounted) return;
+            state = state.copyWith(
+              ustaArrived: true,
+              completionRequested: true,
+              clearReportedIssue: true,
+            );
+          },
+        )
+        .onBroadcast(
+          event: 'issue_reported',
+          callback: (payload) {
+            if (!mounted) return;
+            final reason = payload['reason'] as String? ?? 'Müşteri sorun bildirdi.';
+            state = state.copyWith(
+              completionRequested: false,
+              reportedIssue: reason,
+              errorMessage: 'Müşteri sorun bildirdi: $reason',
+            );
+          },
+        )
+        .onBroadcast(
+          event: 'payment_confirmed',
+          callback: (payload) {
+            if (!mounted) return;
+            final receiptId = payload['receipt_id'] as String?;
+            state = state.copyWith(
+              completionRequested: false,
+              receiptId: receiptId,
+              cagri: state.cagri?.copyWith(durum: CagriDurumu.tamamlandi),
+              successMessage: 'Müşteri işi onayladı, ödemeniz hakedişinize aktarıldı!',
+            );
+          },
+        )
+        .subscribe();
+  }
+
+  Future<void> _broadcastWorkflowEvent(
+    String event,
+    Map<String, dynamic> payload,
+  ) async {
+    if (_isDemo || _workflowChannel == null) return;
+    try {
+      await _workflowChannel!.sendBroadcastMessage(
+        event: event,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('[ActiveOrderController] Broadcast ($event) hatası: $e');
+    }
   }
 
   /// Ustanın canlı GPS koordinatlarını `ustalar` tablosundan dinler (Usta Yolda ekranı için)
@@ -271,6 +376,200 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
       errorMessage: 'Usta yanıt vermediği için çağrı zaman aşımına uğradı.',
     );
     await cancelCall(reason: '30 saniye içinde yanıt alınamadığı için zaman aşımı');
+  }
+
+  /// USTA AŞAMA 1: 'Adrese Ulaştım' -> Müşteriye varış bildirimi gönderir
+  Future<bool> markUstaArrived() async {
+    final now = DateTime.now();
+    state = state.copyWith(isActionInProgress: true, errorMessage: null);
+
+    try {
+      if (state.cagri?.isAccepted == true) {
+        await _persistStatusChange(CagriDurumu.yolda);
+      }
+
+      if (_isDemo) {
+        final wf = DemoCallRepository.getWorkflow(_cagriId).copyWith(
+          ustaArrived: true,
+          arrivedAt: now,
+        );
+        DemoCallRepository.saveWorkflow(_cagriId, wf);
+      } else {
+        await _broadcastWorkflowEvent('usta_arrived', {
+          'cagri_id': _cagriId,
+          'arrived_at': now.toIso8601String(),
+        });
+      }
+
+      state = state.copyWith(
+        isActionInProgress: false,
+        ustaArrived: true,
+        arrivedAt: now,
+        cagri: state.cagri?.isAccepted == true
+            ? state.cagri?.copyWith(durum: CagriDurumu.yolda)
+            : state.cagri,
+        successMessage: 'Adrese ulaştığınız müşteriye bildirildi!',
+      );
+      return true;
+    } catch (e) {
+      debugPrint('markUstaArrived hatası: $e');
+      state = state.copyWith(
+        isActionInProgress: false,
+        errorMessage: 'Varış bildirimi gönderilemedi: $e',
+      );
+      return false;
+    }
+  }
+
+  /// USTA AŞAMA 2: 'İşi Tamamladım ve Müşteriden Onay İste'
+  Future<bool> requestCompletionConfirmation() async {
+    state = state.copyWith(
+      isActionInProgress: true,
+      clearReportedIssue: true,
+      errorMessage: null,
+    );
+
+    try {
+      if (_isDemo) {
+        final wf = DemoCallRepository.getWorkflow(_cagriId).copyWith(
+          ustaArrived: true,
+          completionRequested: true,
+          clearIssue: true,
+        );
+        DemoCallRepository.saveWorkflow(_cagriId, wf);
+      } else {
+        await _broadcastWorkflowEvent('completion_requested', {
+          'cagri_id': _cagriId,
+          'requested_at': DateTime.now().toIso8601String(),
+        });
+      }
+
+      state = state.copyWith(
+        isActionInProgress: false,
+        ustaArrived: true,
+        completionRequested: true,
+        clearReportedIssue: true,
+        successMessage: 'Müşteriye iş tamamlama onay penceresi gönderildi.',
+      );
+      return true;
+    } catch (e) {
+      debugPrint('requestCompletionConfirmation hatası: $e');
+      state = state.copyWith(
+        isActionInProgress: false,
+        errorMessage: 'Onay isteği gönderilemedi: $e',
+      );
+      return false;
+    }
+  }
+
+  /// MÜŞTERİ: 'Evet, Tamamlandı' -> `complete-and-split-payment` Edge Function tetiklenir
+  Future<SplitPaymentResult> confirmCompletionAndCapturePayment() async {
+    state = state.copyWith(isActionInProgress: true, errorMessage: null);
+
+    try {
+      final result = await _paymentService.completeAndSplitPayment(
+        cagriId: _cagriId,
+      );
+
+      if (!result.success) {
+        state = state.copyWith(
+          isActionInProgress: false,
+          errorMessage: result.error ?? 'Ödeme tahsilatı tamamlanamadı.',
+        );
+        return result;
+      }
+
+      final fallbackCode = _cagriId.replaceAll('-', '').toUpperCase();
+      final shortCode =
+          fallbackCode.length >= 8 ? fallbackCode.substring(0, 8) : fallbackCode;
+      final receiptId = result.paymentId ??
+          state.cagri?.paymentIntentId ??
+          'DKT-$shortCode';
+
+      await _persistStatusChange(CagriDurumu.tamamlandi);
+
+      if (_isDemo) {
+        final wf = DemoCallRepository.getWorkflow(_cagriId).copyWith(
+          completionRequested: false,
+          receiptId: receiptId,
+          clearIssue: true,
+        );
+        DemoCallRepository.saveWorkflow(_cagriId, wf);
+      } else {
+        await _broadcastWorkflowEvent('payment_confirmed', {
+          'cagri_id': _cagriId,
+          'receipt_id': receiptId,
+        });
+      }
+
+      state = state.copyWith(
+        isActionInProgress: false,
+        completionRequested: false,
+        receiptId: receiptId,
+        paymentResult: result,
+        cagri: state.cagri?.copyWith(durum: CagriDurumu.tamamlandi),
+        successMessage: 'İş onaylandı ve ödeme güvenli şekilde tamamlandı.',
+      );
+      return result;
+    } catch (e) {
+      debugPrint('confirmCompletionAndCapturePayment hatası: $e');
+      state = state.copyWith(
+        isActionInProgress: false,
+        errorMessage: 'Ödeme onayı sırasında hata oluştu: $e',
+      );
+      return SplitPaymentResult(success: false, error: e.toString());
+    }
+  }
+
+  /// MÜŞTERİ: 'Sorun Var, Bildir' -> Ödeme blokede kalır, ustaya ve desteğe iletilir
+  Future<bool> reportCompletionIssue(String reason) async {
+    final trimmed = reason.trim();
+    if (trimmed.isEmpty) return false;
+
+    state = state.copyWith(isActionInProgress: true, errorMessage: null);
+
+    try {
+      if (_isDemo) {
+        final wf = DemoCallRepository.getWorkflow(_cagriId).copyWith(
+          completionRequested: false,
+          reportedIssue: trimmed,
+        );
+        DemoCallRepository.saveWorkflow(_cagriId, wf);
+      } else {
+        await _broadcastWorkflowEvent('issue_reported', {
+          'cagri_id': _cagriId,
+          'reason': trimmed,
+          'reported_at': DateTime.now().toIso8601String(),
+        });
+      }
+
+      state = state.copyWith(
+        isActionInProgress: false,
+        completionRequested: false,
+        reportedIssue: trimmed,
+        successMessage:
+            'Sorun bildiriminiz alındı. İnceleme tamamlanana kadar ödeme askıda tutulacaktır.',
+      );
+      return true;
+    } catch (e) {
+      debugPrint('reportCompletionIssue hatası: $e');
+      state = state.copyWith(
+        isActionInProgress: false,
+        errorMessage: 'Sorun bildirimi gönderilemedi: $e',
+      );
+      return false;
+    }
+  }
+
+  Future<void> _persistStatusChange(CagriDurumu status) async {
+    if (_isDemo) {
+      DemoCallRepository.updateStatus(_cagriId, status);
+      return;
+    }
+    await _supabase
+        .from(AppConstants.cagrilarTable)
+        .update({'durum': status.toDbValue()})
+        .eq('id', _cagriId);
   }
 
   /// Usta için: Çağrıyı atomik olarak kabul et (`cagri_kabul_et` RPC)
@@ -336,12 +635,8 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
     state = state.copyWith(isActionInProgress: true, errorMessage: null);
 
     try {
-      await _supabase
-          .from(AppConstants.cagrilarTable)
-          .update({'durum': newStatus.toDbValue()})
-          .eq('id', _cagriId);
+      await _persistStatusChange(newStatus);
 
-      // Ödeme ve hakediş entegrasyonu
       if (newStatus == CagriDurumu.tamamlandi) {
         await _paymentService.completeAndSplitPayment(cagriId: _cagriId);
       } else if (newStatus == CagriDurumu.iptal) {
@@ -376,6 +671,10 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
   void dispose() {
     _cagriStreamSub?.cancel();
     _ustaLocationStreamSub?.cancel();
+    if (_workflowChannel != null) {
+      _supabase.removeChannel(_workflowChannel!);
+      _workflowChannel = null;
+    }
     _pendingTimer?.cancel();
     _demoAutoAcceptTimer?.cancel();
     super.dispose();

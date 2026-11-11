@@ -9,5 +9,6 @@ class AppConstants {
   static const String profilesTable = 'profiles';
   static const String ustalarTable = 'ustalar';
   static const String cagrilarTable = 'cagrilar';
+  static const String degerlendirmelerTable = 'degerlendirmeler';
   static const String sistemAyarlariTable = 'sistem_ayarlari';
 }

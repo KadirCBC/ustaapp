@@ -195,9 +195,47 @@ class CagriModel {
   }
 }
 
+class DemoWorkflowState {
+  final bool ustaArrived;
+  final DateTime? arrivedAt;
+  final bool completionRequested;
+  final String? reportedIssue;
+  final String? receiptId;
+  final double? ustaAverageRating;
+
+  const DemoWorkflowState({
+    this.ustaArrived = false,
+    this.arrivedAt,
+    this.completionRequested = false,
+    this.reportedIssue,
+    this.receiptId,
+    this.ustaAverageRating,
+  });
+
+  DemoWorkflowState copyWith({
+    bool? ustaArrived,
+    DateTime? arrivedAt,
+    bool? completionRequested,
+    String? reportedIssue,
+    String? receiptId,
+    double? ustaAverageRating,
+    bool clearIssue = false,
+  }) {
+    return DemoWorkflowState(
+      ustaArrived: ustaArrived ?? this.ustaArrived,
+      arrivedAt: arrivedAt ?? this.arrivedAt,
+      completionRequested: completionRequested ?? this.completionRequested,
+      reportedIssue: clearIssue ? null : (reportedIssue ?? this.reportedIssue),
+      receiptId: receiptId ?? this.receiptId,
+      ustaAverageRating: ustaAverageRating ?? this.ustaAverageRating,
+    );
+  }
+}
+
 /// Çevrimdışı / Demo modunda çağrı eşleşme döngüsünü tutan bellek içi depo
 class DemoCallRepository {
   static final Map<String, CagriModel> _calls = {};
+  static final Map<String, DemoWorkflowState> _workflows = {};
 
   static void save(CagriModel call) {
     _calls[call.id] = call;
@@ -210,5 +248,12 @@ class DemoCallRepository {
     if (existing != null) {
       _calls[id] = existing.copyWith(durum: status);
     }
+  }
+
+  static DemoWorkflowState getWorkflow(String id) =>
+      _workflows[id] ?? const DemoWorkflowState();
+
+  static void saveWorkflow(String id, DemoWorkflowState state) {
+    _workflows[id] = state;
   }
 }

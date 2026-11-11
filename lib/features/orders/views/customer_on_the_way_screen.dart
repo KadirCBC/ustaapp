@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/orders/controllers/active_order_controller.dart';
-import 'package:ustaapp/features/orders/models/cagri_model.dart';
-import 'package:ustaapp/features/orders/views/widgets/rating_review_dialog.dart';
+import 'package:ustaapp/features/orders/views/widgets/customer_completion_dialog.dart';
 
 class CustomerOnTheWayScreen extends ConsumerStatefulWidget {
   final String cagriId;
@@ -32,13 +32,34 @@ class _CustomerOnTheWayScreenState extends ConsumerState<CustomerOnTheWayScreen>
     final controller = ref.read(activeOrderControllerProvider(widget.cagriId).notifier);
 
     ref.listen<ActiveOrderState>(activeOrderControllerProvider(widget.cagriId), (previous, next) {
-      if (next.cagri?.isCompleted == true && previous?.cagri?.isCompleted != true) {
+      // Usta 'Adrese Ulaştım' dediğinde bildirim düşür
+      if (next.ustaArrived && previous?.ustaArrived != true) {
+        HapticFeedback.mediumImpact();
+        SystemSound.play(SystemSoundType.alert);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ustanız adrese ulaştı!'),
+            backgroundColor: Color(0xFF16A34A),
+          ),
+        );
+      }
+
+      // Usta 'İşi Tamamladım ve Müşteriden Onay İste' dediğinde kilitli onay diyaloğunu aç
+      if (next.completionRequested &&
+          previous?.completionRequested != true &&
+          next.cagri != null) {
         showDialog(
           context: context,
           barrierDismissible: false,
-          builder: (ctx) => RatingReviewDialog(cagri: next.cagri!),
+          builder: (ctx) => CustomerCompletionDialog(cagri: next.cagri!),
         );
       }
+
+      // Çağrı tamamlandığında Özet & Değerlendirme sayfasına yönlendir
+      if (next.cagri?.isCompleted == true && previous?.cagri?.isCompleted != true) {
+        context.go('/customer/summary/${widget.cagriId}');
+      }
+
       if (next.cagri?.isCancelled == true && previous?.cagri?.isCancelled != true) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -213,17 +234,23 @@ class _CustomerOnTheWayScreenState extends ConsumerState<CustomerOnTheWayScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                cagri.isOnTheWay
-                                    ? 'Ustanız konumunuza doğru ilerliyor'
-                                    : 'Usta çağrıyı kabul etti, yola çıkıyor',
-                                style: const TextStyle(
+                                state.ustaArrived
+                                    ? 'Ustanız adrese ulaştı!'
+                                    : (cagri.isOnTheWay
+                                        ? 'Ustanız konumunuza doğru ilerliyor'
+                                        : 'Usta çağrıyı kabul etti, yola çıkıyor'),
+                                style: TextStyle(
                                   fontSize: 13.5,
                                   fontWeight: FontWeight.bold,
-                                  color: AppTheme.customerTextDark,
+                                  color: state.ustaArrived
+                                      ? const Color(0xFF15803D)
+                                      : AppTheme.customerTextDark,
                                 ),
                               ),
                               Text(
-                                'Kalan Mesafe: $distanceStr • Tahmini 7 - 12 dk',
+                                state.ustaArrived
+                                    ? 'Hizmet başladıktan sonra onay istenecektir'
+                                    : 'Kalan Mesafe: $distanceStr • Tahmini 7 - 12 dk',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: AppTheme.customerTextMuted,
@@ -324,7 +351,13 @@ class _CustomerOnTheWayScreenState extends ConsumerState<CustomerOnTheWayScreen>
                       child: ElevatedButton.icon(
                         onPressed: state.isActionInProgress
                             ? null
-                            : () => controller.updateStatus(CagriDurumu.tamamlandi),
+                            : () {
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (ctx) => CustomerCompletionDialog(cagri: cagri),
+                                );
+                              },
                         icon: const Icon(Icons.verified_rounded),
                         label: const Text('İş Tamamlandı Onayla'),
                       ),

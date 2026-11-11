@@ -61,5 +61,35 @@ void main() {
       DemoCallRepository.updateStatus('demo-cagri-1', CagriDurumu.iptal);
       expect(DemoCallRepository.get('demo-cagri-1')?.isCancelled, isTrue);
     });
+
+    test('DemoWorkflowState tracks arrival, completion request, receipt and rating', () {
+      const cagriId = 'demo-workflow-1';
+      DemoCallRepository.saveWorkflow(
+        cagriId,
+        DemoWorkflowState(
+          ustaArrived: true,
+          arrivedAt: DateTime(2026, 11, 11, 21, 0),
+          completionRequested: true,
+        ),
+      );
+
+      final arrivedWf = DemoCallRepository.getWorkflow(cagriId);
+      expect(arrivedWf.ustaArrived, isTrue);
+      expect(arrivedWf.completionRequested, isTrue);
+
+      DemoCallRepository.saveWorkflow(
+        cagriId,
+        arrivedWf.copyWith(
+          completionRequested: false,
+          receiptId: 'PAY-123456',
+          ustaAverageRating: 4.92,
+        ),
+      );
+
+      final doneWf = DemoCallRepository.getWorkflow(cagriId);
+      expect(doneWf.completionRequested, isFalse);
+      expect(doneWf.receiptId, 'PAY-123456');
+      expect(doneWf.ustaAverageRating, 4.92);
+    });
   });
 }
