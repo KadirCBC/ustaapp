@@ -1,7 +1,11 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ustaapp/core/constants/app_constants.dart';
 import 'package:ustaapp/core/services/location_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
@@ -215,12 +219,200 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     ];
   }
 
-  /// Müşterinin görünen adres/semt başlığını günceller
-  void setAddressLabel(String address) {
-    final trimmed = address.trim();
-    if (trimmed.isNotEmpty) {
-      state = state.copyWith(currentAddressLabel: trimmed);
+  static const Map<String, ({double lat, double lng, String label})>
+      _knownLocations = {
+    'kadikoy, istanbul': (lat: 40.9905, lng: 29.0270, label: 'Kadıköy, İstanbul'),
+    'kadikoy': (lat: 40.9905, lng: 29.0270, label: 'Kadıköy, İstanbul'),
+    'besiktas, istanbul': (lat: 41.0430, lng: 29.0072, label: 'Beşiktaş, İstanbul'),
+    'besiktas': (lat: 41.0430, lng: 29.0072, label: 'Beşiktaş, İstanbul'),
+    'uskudar, istanbul': (lat: 41.0233, lng: 29.0153, label: 'Üsküdar, İstanbul'),
+    'sisli, istanbul': (lat: 41.0602, lng: 28.9877, label: 'Şişli, İstanbul'),
+    'sandikli, afyonkarahisar': (
+      lat: 38.4647,
+      lng: 30.2719,
+      label: 'Sandıklı, Afyonkarahisar',
+    ),
+    'sandikli': (lat: 38.4647, lng: 30.2719, label: 'Sandıklı, Afyonkarahisar'),
+    'afyonkarahisar': (lat: 38.7507, lng: 30.5567, label: 'Afyonkarahisar'),
+    'afyon': (lat: 38.7507, lng: 30.5567, label: 'Afyonkarahisar'),
+    'cankaya, ankara': (lat: 39.9035, lng: 32.8597, label: 'Çankaya, Ankara'),
+    'cankaya': (lat: 39.9035, lng: 32.8597, label: 'Çankaya, Ankara'),
+    'ankara': (lat: 39.9334, lng: 32.8597, label: 'Ankara'),
+    'karsiyaka, izmir': (lat: 38.4590, lng: 27.1100, label: 'Karşıyaka, İzmir'),
+    'karsiyaka': (lat: 38.4590, lng: 27.1100, label: 'Karşıyaka, İzmir'),
+    'izmir': (lat: 38.4237, lng: 27.1428, label: 'İzmir'),
+    'istanbul': (lat: 41.0082, lng: 28.9784, label: 'İstanbul'),
+  };
+
+  static String _normalizeAddressKey(String input) {
+    return input
+        .trim()
+        .replaceAll('İ', 'i')
+        .replaceAll('I', 'i')
+        .toLowerCase()
+        .replaceAll('ı', 'i')
+        .replaceAll('ğ', 'g')
+        .replaceAll('ü', 'u')
+        .replaceAll('ş', 's')
+        .replaceAll('ö', 'o')
+        .replaceAll('ç', 'c')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceAll(RegExp(r'\s*,\s*'), ', ');
+  }
+
+  Future<({double lat, double lng, String label})?> _queryMapboxGeocoding(
+    String pathSegment,
+    Map<String, String> queryParams,
+  ) async {
+    final client = HttpClient();
+    client.connectionTimeout = const Duration(seconds: 5);
+    try {
+      final uri = Uri.https(
+        'api.mapbox.com',
+        '/geocoding/v5/mapbox.places/$pathSegment.json',
+        {
+          'language': 'tr',
+          'limit': '1',
+          'access_token': AppConstants.mapboxAccessToken,
+          ...queryParams,
+        },
+      );
+      final request = await client.getUrl(uri).timeout(const Duration(seconds: 5));
+      final response = await request.close().timeout(const Duration(seconds: 5));
+      if (response.statusCode != 200) return null;
+
+      final body = await response.transform(utf8.decoder).join();
+      final decoded = jsonDecode(body) as Map<String, dynamic>;
+      final features = decoded['features'] as List<dynamic>?;
+      if (features == null || features.isEmpty) return null;
+
+      final first = features.first as Map<String, dynamic>;
+      final center = first['center'] as List<dynamic>?;
+      if (center == null || center.length < 2) return null;
+
+      final lng = (center[0] as num).toDouble();
+      final lat = (center[1] as num).toDouble();
+      final placeName =
+          (first['place_name_tr'] ?? first['place_name'] ?? '') as String;
+      final parts = placeName
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty && e != 'Türkiye' && e != 'Turkey')
+          .toList();
+      final shortLabel = parts.take(2).join(', ');
+      return (lat: lat, lng: lng, label: shortLabel);
+    } catch (e) {
+      debugPrint('Mapbox geocoding hatası: $e');
+      return null;
+    } finally {
+      client.close(force: true);
     }
+  }
+
+  Future<({double lat, double lng, String label})?> _geocodeAddressWithMapbox(
+    String query,
+  ) {
+    return _queryMapboxGeocoding(
+      Uri.encodeComponent(query),
+      const {'country': 'tr'},
+    );
+  }
+
+  Future<String?> _reverseGeocodeWithMapbox(double lat, double lng) async {
+    final result = await _queryMapboxGeocoding(
+      '$lng,$lat',
+      const {'types': 'district,place,locality'},
+    );
+    return (result != null && result.label.isNotEmpty) ? result.label : null;
+  }
+
+  /// Bilinen ilçe/şehir isimlerini veya normalleştirilmiş sorguyu koordinata çözer.
+  static ({double lat, double lng, String label})? resolveKnownLocation(
+    String address,
+  ) {
+    final normalized = _normalizeAddressKey(address);
+    final exact = _knownLocations[normalized];
+    if (exact != null) return exact;
+
+    for (final entry in _knownLocations.entries) {
+      if (normalized.contains(entry.key) && entry.key.contains(',')) {
+        return entry.value;
+      }
+    }
+    return null;
+  }
+
+  /// Seçilen veya yazılan adresi koordinata çözer, haritayı ve yakındaki ustaları günceller.
+  Future<bool> updateLocationByAddress(String address) async {
+    final trimmed = address.trim();
+    if (trimmed.isEmpty) return false;
+
+    state = state.copyWith(isLoadingLocation: true, errorMessage: null);
+
+    var resolved = resolveKnownLocation(trimmed);
+    resolved ??= await _geocodeAddressWithMapbox(trimmed);
+    if (!mounted) return false;
+
+    if (resolved == null) {
+      state = state.copyWith(isLoadingLocation: false);
+      return false;
+    }
+
+    state = state.copyWith(
+      currentLat: resolved.lat,
+      currentLng: resolved.lng,
+      currentAddressLabel: trimmed.contains(',') ? trimmed : resolved.label,
+      clearSelectedUsta: true,
+      isLoadingLocation: false,
+    );
+
+    await fetchNearbyUstalar();
+    return true;
+  }
+
+  /// Cihaz GPS konumunu alarak haritayı ve yakındaki ustaları günceller.
+  Future<bool> useCurrentGpsLocation() async {
+    state = state.copyWith(isLoadingLocation: true, errorMessage: null);
+    try {
+      final hasPermission = await _locationService.checkAndRequestPermissions();
+      if (!mounted) return false;
+      if (!hasPermission) {
+        state = state.copyWith(isLoadingLocation: false);
+        return false;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 5),
+      );
+      if (!mounted) return false;
+
+      final label = await _reverseGeocodeWithMapbox(
+        position.latitude,
+        position.longitude,
+      );
+      if (!mounted) return false;
+
+      state = state.copyWith(
+        currentLat: position.latitude,
+        currentLng: position.longitude,
+        currentAddressLabel: label ?? 'Mevcut Konumum',
+        clearSelectedUsta: true,
+        isLoadingLocation: false,
+      );
+      await fetchNearbyUstalar();
+      return true;
+    } catch (e) {
+      debugPrint('GPS konumu alınamadı: $e');
+      if (!mounted) return false;
+      state = state.copyWith(isLoadingLocation: false);
+      return false;
+    }
+  }
+
+  /// Müşterinin görünen adres/semt başlığını günceller ve haritayı o konuma taşır.
+  Future<void> setAddressLabel(String address) async {
+    await updateLocationByAddress(address);
   }
 
   /// Kategori değiştirme ('elektrik', 'cilingir', 'tesisat')

@@ -5,6 +5,9 @@ class AppConstants {
   static const int otpLength = 6;
   static const int otpResendSeconds = 60;
 
+  static const String mapboxAccessToken =
+      'pk.eyJ1IjoiYnlncmFmMDEiLCJhIjoiY213Y2o2dnpmMDM3OTJ5c2M4cjV3NThsZyJ9.3asuElOYlUMITRxJLGh2Hw';
+
   // Supabase Tablo İsimleri
   static const String profilesTable = 'profiles';
   static const String ustalarTable = 'ustalar';

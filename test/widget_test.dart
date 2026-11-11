@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ustaapp/features/map/controllers/map_controller.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:ustaapp/features/map/views/widgets/category_filter_bar.dart';
 import 'package:ustaapp/features/map/views/widgets/custom_marker.dart';
@@ -156,6 +157,23 @@ void main() {
 
       await tester.tap(find.text('Tesisat'));
       expect(selected, 'tesisat');
+    });
+
+    test('resolveKnownLocation resolves Turkish districts with normalization', () {
+      final sandikli =
+          CustomerMapController.resolveKnownLocation('Sandıklı, Afyonkarahisar');
+      expect(sandikli, isNotNull);
+      expect(sandikli!.lat, closeTo(38.4647, 0.001));
+      expect(sandikli.lng, closeTo(30.2719, 0.001));
+
+      final asciiSandikli = CustomerMapController.resolveKnownLocation('sandikli');
+      expect(asciiSandikli, isNotNull);
+      expect(asciiSandikli!.label, 'Sandıklı, Afyonkarahisar');
+
+      final besiktas =
+          CustomerMapController.resolveKnownLocation('Beşiktaş, İstanbul');
+      expect(besiktas, isNotNull);
+      expect(besiktas!.lat, closeTo(41.0430, 0.001));
     });
   });
 }

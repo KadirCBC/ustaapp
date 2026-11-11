@@ -1,10 +1,12 @@
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'package:ustaapp/core/constants/app_constants.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/map/controllers/map_controller.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
@@ -19,11 +21,17 @@ class CustomerMapScreen extends ConsumerStatefulWidget {
 }
 
 class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
-  static const String _mapboxPublicToken =
-      'pk.eyJ1IjoiYnlncmFmMDEiLCJhIjoiY213Y2o2dnpmMDM3OTJ5c2M4cjV3NThsZyJ9.3asuElOYlUMITRxJLGh2Hw';
   static const double _defaultKadikoyLat = 40.9905;
   static const double _defaultKadikoyLng = 29.0270;
   static const double _defaultZoom = 13.5;
+
+  // Sabit ilk viewport referansı: build() tetiklendiğinde haritanın kamerasını sıfırlamamasını sağlar.
+  late final CameraViewportState _initialViewport = CameraViewportState(
+    center: Point(
+      coordinates: Position(_defaultKadikoyLng, _defaultKadikoyLat),
+    ),
+    zoom: _defaultZoom,
+  );
 
   MapboxMap? _mapboxMap;
   PointAnnotationManager? _pointAnnotationManager;
@@ -41,7 +49,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
   @override
   void initState() {
     super.initState();
-    MapboxOptions.setAccessToken(_mapboxPublicToken);
+    MapboxOptions.setAccessToken(AppConstants.mapboxAccessToken);
     _initCustomerIcon();
   }
 
@@ -61,6 +69,22 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
 
   Future<void> _onMapCreated(MapboxMap mapboxMap) async {
     _mapboxMap = mapboxMap;
+
+    // Üst durum çubuğuyla çakışmaması için varsayılan ölçek çubuğu ve pusulayı gizle
+    await mapboxMap.scaleBar.updateSettings(ScaleBarSettings(enabled: false));
+    await mapboxMap.compass.updateSettings(CompassSettings(enabled: false));
+
+    // Yakınlaştırma / kaydırma / çift dokunma jestlerini açıkça etkinleştir
+    await mapboxMap.gestures.updateSettings(
+      GesturesSettings(
+        scrollEnabled: true,
+        pinchToZoomEnabled: true,
+        doubleTapToZoomInEnabled: true,
+        doubleTouchToZoomOutEnabled: true,
+        quickZoomEnabled: true,
+        rotateEnabled: true,
+      ),
+    );
 
     // Arka plan haritaya dokunulduğunda seçili ustayı temizle
     mapboxMap.addInteraction(
@@ -89,13 +113,27 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
 
     final state = _latestMapState;
     if (mounted && state != null) {
+      if (state.currentLat != _defaultKadikoyLat ||
+          state.currentLng != _defaultKadikoyLng) {
+        await mapboxMap.setCamera(
+          CameraOptions(
+            center: Point(
+              coordinates: Position(state.currentLng, state.currentLat),
+            ),
+            zoom: _defaultZoom,
+          ),
+        );
+      }
       await _syncAnnotations(state, force: true);
     }
   }
 
   String _buildSyncSignature(CustomerMapState mapState) {
     final ids = mapState.nearbyUstalar
-        .map((u) => '${u.ustaId}:${u.formattedPrice}:${u.puan}')
+        .map(
+          (u) =>
+              '${u.ustaId}:${u.latitude.toStringAsFixed(5)}:${u.longitude.toStringAsFixed(5)}:${u.formattedPrice}:${u.puan}',
+        )
         .join(',');
     return '${mapState.currentLat}_${mapState.currentLng}_'
         '${mapState.selectedUsta?.ustaId}_$ids';
@@ -131,7 +169,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
           ),
           image: _customerPinBytes,
           iconAnchor: IconAnchor.CENTER,
-          iconSize: 0.48,
+          iconSize: 0.85,
         ),
       );
 
@@ -151,7 +189,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
             ),
             image: bytes,
             iconAnchor: IconAnchor.BOTTOM,
-            iconSize: isSelected ? 0.50 : 0.44,
+            iconSize: isSelected ? 1.15 : 1.00,
             symbolSortKey: isSelected ? 10.0 : 5.0,
           ),
         );
@@ -201,9 +239,9 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
     required bool isSelected,
   }) async {
     const double scale = 2.6;
-    const double width = 148 * scale;
-    const double badgeHeight = 58 * scale;
-    const double pointerHeight = 10 * scale;
+    const double width = 166 * scale;
+    const double badgeHeight = 64 * scale;
+    const double pointerHeight = 11 * scale;
     const double totalHeight = badgeHeight + pointerHeight + 12 * scale;
 
     final recorder = ui.PictureRecorder();
@@ -251,7 +289,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
           TextSpan(
             text: '★ ',
             style: TextStyle(
-              fontSize: 12.5 * scale,
+              fontSize: 14 * scale,
               fontWeight: FontWeight.bold,
               color: isSelected ? Colors.amber.shade200 : Colors.amber.shade600,
             ),
@@ -259,14 +297,14 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
           TextSpan(
             text: '${usta.puan.toStringAsFixed(1)} ${usta.shortDisplayName}',
             style: TextStyle(
-              fontSize: 11.8 * scale,
+              fontSize: 13.5 * scale,
               fontWeight: FontWeight.w800,
               color: textColor,
             ),
           ),
         ],
       ),
-    )..layout(maxWidth: width - 36);
+    )..layout(maxWidth: width - 32);
 
     topTextPainter.paint(
       canvas,
@@ -278,17 +316,17 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
       text: TextSpan(
         text: usta.formattedPrice,
         style: TextStyle(
-          fontSize: 12 * scale,
+          fontSize: 14 * scale,
           fontWeight: FontWeight.w900,
           color: pillTextColor,
         ),
       ),
     )..layout();
 
-    final double pillW = priceTextPainter.width + 24 * scale;
-    const double pillH = 22 * scale;
+    final double pillW = priceTextPainter.width + 26 * scale;
+    const double pillH = 25 * scale;
     final double pillLeft = (width - pillW) / 2;
-    const double pillTop = 30 * scale;
+    const double pillTop = 33 * scale;
 
     canvas.drawRRect(
       RRect.fromRectAndRadius(
@@ -358,6 +396,20 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
     );
   }
 
+  Future<void> _zoomBy(double delta) async {
+    final map = _mapboxMap;
+    if (map == null) return;
+    final camera = await map.getCameraState();
+    final targetZoom = (camera.zoom + delta).clamp(3.0, 20.0);
+    await map.flyTo(
+      CameraOptions(
+        center: camera.center,
+        zoom: targetZoom,
+      ),
+      MapAnimationOptions(duration: 280),
+    );
+  }
+
   Future<void> _showAddressChangeDialog(
     String currentAddress,
     CustomerMapController mapNotifier,
@@ -412,6 +464,8 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: textController,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (val) => Navigator.of(ctx).pop(val.trim()),
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.location_on_outlined),
                   hintText: 'İlçe, Şehir veya Mahalle yazın...',
@@ -424,13 +478,45 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: presetDistricts.map((district) {
-                  return ActionChip(
-                    label: Text(district, style: const TextStyle(fontSize: 12)),
-                    backgroundColor: const Color(0xFFF8FAFC),
-                    onPressed: () => Navigator.of(ctx).pop(district),
-                  );
-                }).toList(),
+                children: [
+                  ActionChip(
+                    avatar: const Icon(
+                      Icons.my_location_rounded,
+                      size: 16,
+                      color: AppTheme.customerPrimary,
+                    ),
+                    label: const Text(
+                      'Mevcut GPS Konumum',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.customerPrimary,
+                      ),
+                    ),
+                    backgroundColor: const Color(0xFFEEF2FF),
+                    onPressed: () => Navigator.of(ctx).pop('__USE_GPS__'),
+                  ),
+                  ...presetDistricts.map((district) {
+                    final isCurrent = district == currentAddress;
+                    return ActionChip(
+                      label: Text(
+                        district,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight:
+                              isCurrent ? FontWeight.w700 : FontWeight.w500,
+                          color: isCurrent
+                              ? Colors.white
+                              : AppTheme.customerTextDark,
+                        ),
+                      ),
+                      backgroundColor: isCurrent
+                          ? AppTheme.customerPrimary
+                          : const Color(0xFFF8FAFC),
+                      onPressed: () => Navigator.of(ctx).pop(district),
+                    );
+                  }),
+                ],
               ),
               const SizedBox(height: 16),
               ElevatedButton(
@@ -445,8 +531,29 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
     );
 
     textController.dispose();
-    if (updated != null && updated.isNotEmpty) {
-      mapNotifier.setAddressLabel(updated);
+    if (updated == null || updated.isEmpty) return;
+
+    final bool moved;
+    if (updated == '__USE_GPS__') {
+      moved = await mapNotifier.useCurrentGpsLocation();
+      if (!moved && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('GPS konumu alınamadı. Konum iznini kontrol edin.'),
+          ),
+        );
+      }
+    } else {
+      moved = await mapNotifier.updateLocationByAddress(updated);
+      if (!moved && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Adres haritada bulunamadı. Lütfen geçerli bir ilçe veya şehir yazın.',
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -503,12 +610,12 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
             child: MapWidget(
               key: const ValueKey('customer_mapbox_map'),
               styleUri: MapboxStyles.LIGHT, // mapbox://styles/mapbox/light-v11
-              viewport: CameraViewportState(
-                center: Point(
-                  coordinates: Position(_defaultKadikoyLng, _defaultKadikoyLat),
+              viewport: _initialViewport,
+              gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+                Factory<OneSequenceGestureRecognizer>(
+                  () => EagerGestureRecognizer(),
                 ),
-                zoom: _defaultZoom,
-              ),
+              },
               onMapCreated: _onMapCreated,
             ),
           ),
@@ -535,7 +642,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
           ),
 
           // 3. YÜKLENİYOR HAP GÖSTERGESİ
-          if (mapState.isLoadingUstalar)
+          if (mapState.isLoadingUstalar || mapState.isLoadingLocation)
             Positioned(
               top: MediaQuery.of(context).padding.top + 132,
               left: 0,
@@ -594,36 +701,31 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
               children: [
                 Padding(
                   padding: const EdgeInsets.only(right: 16, bottom: 12),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 10,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _MapCircleControlButton(
+                        icon: Icons.add_rounded,
+                        tooltip: 'Yakınlaştır',
+                        onTap: () => _zoomBy(1.2),
+                      ),
+                      const SizedBox(height: 8),
+                      _MapCircleControlButton(
+                        icon: Icons.remove_rounded,
+                        tooltip: 'Uzaklaştır',
+                        onTap: () => _zoomBy(-1.2),
+                      ),
+                      const SizedBox(height: 10),
+                      _MapCircleControlButton(
+                        icon: Icons.my_location_rounded,
+                        iconColor: AppTheme.customerPrimary,
+                        tooltip: 'Konumuma Git',
                         onTap: () => _animateToCustomerLocation(
                           mapState,
                           mapNotifier,
                         ),
-                        child: const Icon(
-                          Icons.my_location_rounded,
-                          size: 22,
-                          color: AppTheme.customerPrimary,
-                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
                 MechanicBottomCard(
@@ -638,6 +740,55 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MapCircleControlButton extends StatelessWidget {
+  const _MapCircleControlButton({
+    required this.icon,
+    required this.onTap,
+    required this.tooltip,
+    this.iconColor = const Color(0xFF0F172A),
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final String tooltip;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Container(
+        width: 46,
+        height: 46,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: Icon(
+              icon,
+              size: 22,
+              color: iconColor,
+            ),
+          ),
+        ),
       ),
     );
   }

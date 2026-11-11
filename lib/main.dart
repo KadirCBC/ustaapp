@@ -13,9 +13,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Mapbox Public Token yapılandırması
-  MapboxOptions.setAccessToken(
-    'pk.eyJ1IjoiYnlncmFmMDEiLCJhIjoiY213Y2o2dnpmMDM3OTJ5c2M4cjV3NThsZyJ9.3asuElOYlUMITRxJLGh2Hw',
-  );
+  MapboxOptions.setAccessToken(AppConstants.mapboxAccessToken);
 
   // 1. Çevresel değişkenleri (.env) yükle
   try {
