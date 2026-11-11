@@ -1,3 +1,5 @@
+import 'package:geolocator/geolocator.dart';
+
 enum CagriDurumu {
   bekliyor,
   kabulEdildi,
@@ -139,4 +141,74 @@ class CagriModel {
   bool get isOnTheWay => durum == CagriDurumu.yolda;
   bool get isCompleted => durum == CagriDurumu.tamamlandi;
   bool get isCancelled => durum == CagriDurumu.iptal;
+
+  CagriModel copyWith({
+    String? id,
+    String? musteriId,
+    String? ustaId,
+    double? musteriLat,
+    double? musteriLng,
+    String? adresTarifi,
+    CagriDurumu? durum,
+    double? ustaHakedis,
+    double? komisyonTutari,
+    double? toplamTutar,
+    String? paymentIntentId,
+    DateTime? createdAt,
+    String? ustaFullName,
+    String? ustaPhone,
+    String? musteriFullName,
+    String? musteriPhone,
+  }) {
+    return CagriModel(
+      id: id ?? this.id,
+      musteriId: musteriId ?? this.musteriId,
+      ustaId: ustaId ?? this.ustaId,
+      musteriLat: musteriLat ?? this.musteriLat,
+      musteriLng: musteriLng ?? this.musteriLng,
+      adresTarifi: adresTarifi ?? this.adresTarifi,
+      durum: durum ?? this.durum,
+      ustaHakedis: ustaHakedis ?? this.ustaHakedis,
+      komisyonTutari: komisyonTutari ?? this.komisyonTutari,
+      toplamTutar: toplamTutar ?? this.toplamTutar,
+      paymentIntentId: paymentIntentId ?? this.paymentIntentId,
+      createdAt: createdAt ?? this.createdAt,
+      ustaFullName: ustaFullName ?? this.ustaFullName,
+      ustaPhone: ustaPhone ?? this.ustaPhone,
+      musteriFullName: musteriFullName ?? this.musteriFullName,
+      musteriPhone: musteriPhone ?? this.musteriPhone,
+    );
+  }
+
+  /// Usta konumu ile müşteri evi arasındaki mesafe (metre)
+  double distanceInMetersFrom(double fromLat, double fromLng) {
+    return Geolocator.distanceBetween(fromLat, fromLng, musteriLat, musteriLng);
+  }
+
+  /// Formatlanmış mesafe metni (Örn: "850 m" veya "1.4 km")
+  String formattedDistanceFrom(double fromLat, double fromLng) {
+    final meters = distanceInMetersFrom(fromLat, fromLng);
+    if (meters < 1000) {
+      return '${meters.toStringAsFixed(0)} metre';
+    }
+    return '${(meters / 1000).toStringAsFixed(1)} km';
+  }
+}
+
+/// Çevrimdışı / Demo modunda çağrı eşleşme döngüsünü tutan bellek içi depo
+class DemoCallRepository {
+  static final Map<String, CagriModel> _calls = {};
+
+  static void save(CagriModel call) {
+    _calls[call.id] = call;
+  }
+
+  static CagriModel? get(String id) => _calls[id];
+
+  static void updateStatus(String id, CagriDurumu status) {
+    final existing = _calls[id];
+    if (existing != null) {
+      _calls[id] = existing.copyWith(durum: status);
+    }
+  }
 }

@@ -1,31 +1,65 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:ustaapp/main.dart';
+import 'package:ustaapp/features/orders/models/cagri_model.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const ProviderScope(child: UstamBuradaApp()));
+  group('CagriDurumu & CagriModel Tests', () {
+    test('DB string conversions map bekliyor, kabul_edildi and iptal correctly', () {
+      expect(CagriDurumu.fromDbValue('bekliyor'), CagriDurumu.bekliyor);
+      expect(CagriDurumu.fromDbValue('kabul_edildi'), CagriDurumu.kabulEdildi);
+      expect(CagriDurumu.fromDbValue('yolda'), CagriDurumu.yolda);
+      expect(CagriDurumu.fromDbValue('tamamlandi'), CagriDurumu.tamamlandi);
+      expect(CagriDurumu.fromDbValue('iptal'), CagriDurumu.iptal);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+      expect(CagriDurumu.bekliyor.toDbValue(), 'bekliyor');
+      expect(CagriDurumu.kabulEdildi.toDbValue(), 'kabul_edildi');
+      expect(CagriDurumu.iptal.toDbValue(), 'iptal');
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    test('CagriModel.fromJson parses coordinates, earnings and address', () {
+      final model = CagriModel.fromJson({
+        'id': 'cagri-101',
+        'musteri_id': 'musteri-1',
+        'usta_id': 'usta-1',
+        'musteri_lat': 41.0082,
+        'musteri_lng': 28.9784,
+        'adres_tarifi': 'Moda Cd. No:14 Kadıköy/İstanbul',
+        'durum': 'bekliyor',
+        'usta_hakedis': 750.0,
+        'komisyon_tutari': 150.0,
+        'toplam_tutar': 900.0,
+        'musteri_full_name': 'Ahmet Yılmaz',
+      });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+      expect(model.id, 'cagri-101');
+      expect(model.isPending, isTrue);
+      expect(model.ustaHakedis, 750.0);
+      expect(model.adresTarifi, 'Moda Cd. No:14 Kadıköy/İstanbul');
+      expect(model.distanceInMetersFrom(41.0082, 28.9784), closeTo(0.0, 0.1));
+      expect(model.formattedDistanceFrom(41.0082, 28.9784), '0 metre');
+      expect(model.formattedDistanceFrom(41.0200, 28.9900), contains('km'));
+    });
+
+    test('DemoCallRepository handles accept and reject/timeout transitions', () {
+      final call = CagriModel(
+        id: 'demo-cagri-1',
+        musteriId: 'musteri-demo',
+        ustaId: 'usta-demo',
+        musteriLat: 41.01,
+        musteriLng: 28.98,
+        adresTarifi: 'Bağdat Cd. No:42',
+        durum: CagriDurumu.bekliyor,
+        ustaHakedis: 850.0,
+        createdAt: DateTime.now(),
+      );
+
+      DemoCallRepository.save(call);
+      expect(DemoCallRepository.get('demo-cagri-1')?.durum, CagriDurumu.bekliyor);
+
+      DemoCallRepository.updateStatus('demo-cagri-1', CagriDurumu.kabulEdildi);
+      expect(DemoCallRepository.get('demo-cagri-1')?.isAccepted, isTrue);
+
+      DemoCallRepository.updateStatus('demo-cagri-1', CagriDurumu.iptal);
+      expect(DemoCallRepository.get('demo-cagri-1')?.isCancelled, isTrue);
+    });
   });
 }

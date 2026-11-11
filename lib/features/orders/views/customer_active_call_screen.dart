@@ -16,7 +16,7 @@ class CustomerActiveCallScreen extends ConsumerWidget {
     final state = ref.watch(activeOrderControllerProvider(cagriId));
     final controller = ref.read(activeOrderControllerProvider(cagriId).notifier);
 
-    // Bildirim dinleyicisi
+    // Realtime karar dinleyicisi
     ref.listen<ActiveOrderState>(activeOrderControllerProvider(cagriId), (previous, next) {
       if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -29,17 +29,21 @@ class CustomerActiveCallScreen extends ConsumerWidget {
         );
       }
 
-      // Usta kabul ettiğinde bildirim
-      if (next.cagri?.isAccepted == true && previous?.cagri?.isAccepted != true) {
+      // 1. Usta kabul ettiğinde -> Doğrudan 'Usta Yolda' rotasına geç
+      if ((next.cagri?.isAccepted == true || next.cagri?.isOnTheWay == true) &&
+          previous?.cagri?.isAccepted != true &&
+          previous?.cagri?.isOnTheWay != true) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Usta çağrınızı kabul etti ve hazırlıklara başladı!'),
+            content: Text('Usta çağrınızı kabul etti! Usta Yolda ekranına geçiliyor...'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
         );
+        context.go('/customer/on-the-way/$cagriId');
       }
 
-      // İşlem tamamlandığında değerlendirme diyaloğunu aç
+      // 2. İşlem tamamlandığında değerlendirme diyaloğunu aç
       if (next.cagri?.isCompleted == true && previous?.cagri?.isCompleted != true) {
         showDialog(
           context: context,
@@ -48,13 +52,18 @@ class CustomerActiveCallScreen extends ConsumerWidget {
         );
       }
 
-      // Çağrı reddedildiğinde veya zaman aşımında haritaya geri dön
-      if (next.cagri?.isCancelled == true && previous?.cagri?.isCancelled != true) {
+      // 3. Çağrı reddedildiğinde veya zaman aşımında hata gösterip haritaya geri dön
+      if ((next.cagri?.isCancelled == true && previous?.cagri?.isCancelled != true) ||
+          (next.isTimedOut && previous?.isTimedOut != true)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Çağrı kabul edilmedi veya zaman aşımına uğradı. Haritaya dönülüyor...'),
+          SnackBar(
+            content: Text(
+              next.isTimedOut
+                  ? 'Zaman aşımı: Usta 30 saniye içinde yanıt vermedi. Haritaya dönülüyor...'
+                  : 'Çağrı reddedildi veya iptal edildi. Haritaya dönülüyor...',
+            ),
             backgroundColor: Colors.redAccent,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
           ),
         );
         Future.delayed(const Duration(seconds: 2), () {
@@ -301,7 +310,7 @@ class CustomerActiveCallScreen extends ConsumerWidget {
     );
   }
 
-  /// Bekleme Radarı
+  /// Bekleme Radarı ('Usta aranıyor...' animasyonu)
   Widget _buildPendingRadarCard(
     CagriModel cagri,
     ActiveOrderController controller,
@@ -311,39 +320,47 @@ class CustomerActiveCallScreen extends ConsumerWidget {
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.customerPrimary.withValues(alpha: 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppTheme.customerSecondary.withOpacity(0.1),
-            ),
-            child: const Center(
-              child: SizedBox(
-                width: 36,
-                height: 36,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.customerSecondary),
-                ),
-              ),
+          const _AnimatedRadarPulse(),
+          const SizedBox(height: 20),
+          const Text(
+            'Usta aranıyor...',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.customerTextDark,
             ),
           ),
-          const SizedBox(height: 18),
-          const Text(
-            'Usta Yanıtı Bekleniyor...',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Talebiniz çevredeki en yakın ustaya iletildi. Birkaç dakika içinde yanıtlanacaktır.',
+          const SizedBox(height: 8),
+          Text(
+            'Talebiniz ${cagri.ustaFullName ?? 'en yakın ustaya'} iletildi.\nOnay bekleniyor (${state.pendingRemainingSeconds} sn)',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: AppTheme.customerTextMuted),
+            style: const TextStyle(
+              fontSize: 13.5,
+              color: AppTheme.customerTextMuted,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: state.pendingRemainingSeconds / 35,
+              minHeight: 6,
+              backgroundColor: const Color(0xFFE2E8F0),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.customerSecondary),
+            ),
           ),
         ],
       ),
@@ -465,6 +482,83 @@ class CustomerActiveCallScreen extends ConsumerWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AnimatedRadarPulse extends StatefulWidget {
+  const _AnimatedRadarPulse();
+
+  @override
+  State<_AnimatedRadarPulse> createState() => _AnimatedRadarPulseState();
+}
+
+class _AnimatedRadarPulseState extends State<_AnimatedRadarPulse>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 110,
+      height: 110,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              // Dış halka
+              Container(
+                width: 60 + (_controller.value * 50),
+                height: 60 + (_controller.value * 50),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.customerSecondary.withValues(alpha: (1 - _controller.value) * 0.25),
+                ),
+              ),
+              // Orta halka
+              Container(
+                width: 48 + (_controller.value * 30),
+                height: 48 + (_controller.value * 30),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.customerSecondary.withValues(alpha: (1 - _controller.value) * 0.4),
+                ),
+              ),
+              // Merkez ikon
+              Container(
+                width: 58,
+                height: 58,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.customerPrimary,
+                ),
+                child: const Icon(
+                  Icons.radar_rounded,
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

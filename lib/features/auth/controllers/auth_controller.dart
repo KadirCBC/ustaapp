@@ -31,7 +31,7 @@ class PhoneAuthState {
     this.e164Phone = '',
     this.otpCode = '',
     this.fullName = '',
-    this.selectedRole,
+    this.selectedRole = UserRole.musteri,
     this.isLoading = false,
     this.errorMessage,
     this.resendCountdown = AppConstants.otpResendSeconds,

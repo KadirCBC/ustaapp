@@ -17,286 +17,414 @@ class IncomingCallDialog extends ConsumerStatefulWidget {
 }
 
 class _IncomingCallDialogState extends ConsumerState<IncomingCallDialog> {
-  static const int _totalDuration = 30; // 30 saniye
-  int _countdown = _totalDuration;
-  Timer? _timer;
+  static const int _totalSeconds = 30;
+  int _remainingMs = _totalSeconds * 1000;
+  Timer? _countdownTimer;
+  Timer? _alertLoopTimer;
   bool _isProcessing = false;
+  bool _isClosing = false;
 
   @override
   void initState() {
     super.initState();
-    _triggerAlert();
-    _startCountdown();
+    _triggerSoundAndVibration();
+    _startAlertLoop();
+    _startSmoothCountdown();
   }
 
-  /// Ses ve titreşimli acil çağrı uyarısı
-  void _triggerAlert() {
+  /// Sesli ve titreşimli acil çağrı uyarısı
+  void _triggerSoundAndVibration() {
     HapticFeedback.heavyImpact();
     SystemSound.play(SystemSoundType.alert);
   }
 
-  void _startCountdown() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
-      // Her 5 saniyede bir titreşimi tekrarla
-      if (_countdown % 5 == 0) {
-        HapticFeedback.mediumImpact();
+  /// Modal açıkken her 2.5 saniyede bir ses ve titreşimi yineler
+  void _startAlertLoop() {
+    _alertLoopTimer = Timer.periodic(const Duration(milliseconds: 2500), (_) {
+      if (mounted && !_isProcessing && !_isClosing) {
+        _triggerSoundAndVibration();
+      }
+    });
+  }
+
+  /// 30 saniyelik akıcı dairesel geri sayım sayacı
+  void _startSmoothCountdown() {
+    const tick = Duration(milliseconds: 100);
+    _countdownTimer = Timer.periodic(tick, (timer) async {
+      if (!mounted) {
+        timer.cancel();
+        return;
       }
 
-      if (_countdown <= 1) {
+      if (_remainingMs <= 100) {
         timer.cancel();
-        if (mounted) {
-          // 30 saniye doldu -> Otomatik reddet / iptal et
-          await ref.read(ustaDashboardControllerProvider.notifier).rejectIncomingCall(widget.cagri.id);
+        _alertLoopTimer?.cancel();
+        if (!_isProcessing && !_isClosing) {
+          _isClosing = true;
+          await ref
+              .read(ustaDashboardControllerProvider.notifier)
+              .rejectIncomingCall(widget.cagri.id);
           if (mounted) {
             Navigator.of(context, rootNavigator: true).pop();
           }
         }
       } else {
-        if (mounted) {
-          setState(() => _countdown--);
-        }
+        setState(() => _remainingMs -= 100);
       }
     });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _countdownTimer?.cancel();
+    _alertLoopTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final cagri = widget.cagri;
+    final dashboardState = ref.watch(ustaDashboardControllerProvider);
     final controller = ref.read(ustaDashboardControllerProvider.notifier);
-    final progress = _countdown / _totalDuration;
 
-    return Dialog(
+    // Eğer müşteri çağrıyı iptal ettiyse tam ekran modalı otomatik kapat
+    ref.listen<UstaDashboardState>(ustaDashboardControllerProvider, (prev, next) {
+      if (prev?.incomingCall != null && next.incomingCall == null && !_isClosing && !_isProcessing) {
+        _isClosing = true;
+        _countdownTimer?.cancel();
+        _alertLoopTimer?.cancel();
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+      }
+    });
+
+    final int remainingSeconds = (_remainingMs / 1000).ceil();
+    final double progress = _remainingMs / (_totalSeconds * 1000);
+    final bool isUrgent = remainingSeconds <= 10;
+    final String distanceText = cagri.formattedDistanceFrom(
+      dashboardState.ustaLat,
+      dashboardState.ustaLng,
+    );
+
+    return Dialog.fullscreen(
       backgroundColor: AppTheme.ustaDarkBackground,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(28),
-        side: const BorderSide(color: AppTheme.ustaPrimary, width: 2),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ACİL ÇAĞRI BAŞLIĞI
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.redAccent.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.notifications_active_rounded, color: Colors.redAccent, size: 18),
-                  SizedBox(width: 6),
-                  Text(
-                    'YENİ ACİL ÇAĞRI GELDİ',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.8,
-                      color: Colors.redAccent,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // 30 SANİYELİK DAİRESEL GERİ SAYIM SAYACI (Circular Countdown Timer)
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: 90,
-                  height: 90,
-                  child: CircularProgressIndicator(
-                    value: progress,
-                    strokeWidth: 7,
-                    backgroundColor: const Color(0xFF3F3F46),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      _countdown <= 10 ? Colors.redAccent : AppTheme.ustaPrimary,
-                    ),
-                  ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '$_countdown',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        color: _countdown <= 10 ? Colors.redAccent : AppTheme.ustaTextLight,
-                      ),
-                    ),
-                    const Text(
-                      'saniye',
-                      style: TextStyle(fontSize: 10, color: AppTheme.ustaTextMuted),
-                    ),
-                  ],
-                ),
+      child: SafeArea(
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.ustaDarkBackground,
+                isUrgent
+                    ? const Color(0xFF450A0A).withValues(alpha: 0.4)
+                    : const Color(0xFF27272A),
+                AppTheme.ustaDarkBackground,
               ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
             ),
-
-            const SizedBox(height: 22),
-
-            // KAZANILACAK NET HAKEDİŞ
-            const Text(
-              'Kazanacağınız Net Tutar',
-              style: TextStyle(fontSize: 13, color: AppTheme.ustaTextMuted),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${cagri.ustaHakedis?.toStringAsFixed(0) ?? '0'} ₺',
-              style: const TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.w900,
-                color: Colors.greenAccent,
-                letterSpacing: 0.5,
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // MÜŞTERİ BİLGİSİ VE AÇIK ADRES
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.ustaSurface,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppTheme.ustaSurfaceBorder),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 1. ÜST ACİL ÇAĞRI ROZETİ
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.person_outline, size: 16, color: AppTheme.ustaSecondary),
-                      const SizedBox(width: 8),
+                      Icon(Icons.notifications_active_rounded, color: Colors.redAccent, size: 20),
+                      SizedBox(width: 8),
                       Text(
-                        cagri.musteriFullName ?? 'Müşteri',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.ustaTextLight,
+                        'YENİ ACİL İŞ ÇAĞRISI',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.0,
+                          color: Colors.redAccent,
                         ),
                       ),
                     ],
                   ),
-                  const Divider(height: 20, color: AppTheme.ustaSurfaceBorder),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.location_on_rounded, size: 18, color: Colors.redAccent),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+              ),
+
+              const Spacer(),
+
+              // 2. 30 SANİYELİK DAİRESEL GERİ SAYIM SAYACI (Circular Countdown Timer)
+              Center(
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: 152,
+                      height: 152,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: (isUrgent ? Colors.redAccent : AppTheme.ustaPrimary)
+                                .withValues(alpha: 0.25),
+                            blurRadius: 28,
+                            spreadRadius: 4,
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: 140,
+                      height: 140,
+                      child: CircularProgressIndicator(
+                        value: progress,
+                        strokeWidth: 10,
+                        strokeCap: StrokeCap.round,
+                        backgroundColor: const Color(0xFF3F3F46),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          isUrgent ? Colors.redAccent : AppTheme.ustaPrimary,
+                        ),
+                      ),
+                    ),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '$remainingSeconds',
+                          style: TextStyle(
+                            fontSize: 44,
+                            fontWeight: FontWeight.w900,
+                            color: isUrgent ? Colors.redAccent : Colors.white,
+                            height: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'SANİYE',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                            color: AppTheme.ustaTextMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              // 3. KAZANILACAK NET HAKEDİŞ TUTARI
+              Column(
+                children: [
+                  const Text(
+                    'KAZANACAĞINIZ NET HAKEDİŞ',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      color: AppTheme.ustaTextMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${cagri.ustaHakedis?.toStringAsFixed(0) ?? '0'} ₺',
+                    style: const TextStyle(
+                      fontSize: 46,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.greenAccent,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 28),
+
+              // 4. MÜŞTERİ MESAFESİ & AÇIK ADRES KARTI
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppTheme.ustaSurface,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppTheme.ustaSurfaceBorder, width: 1.5),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
                           children: [
-                            const Text(
-                              'Açık Adres / Arıza Tarifi:',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.ustaTextMuted,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
+                            const Icon(Icons.person_rounded, size: 20, color: AppTheme.ustaSecondary),
+                            const SizedBox(width: 8),
                             Text(
-                              (cagri.adresTarifi != null && cagri.adresTarifi!.isNotEmpty)
-                                  ? cagri.adresTarifi!
-                                  : 'Konum harita üzerinden iletildi.',
+                              cagri.musteriFullName ?? 'Müşteri',
                               style: const TextStyle(
-                                fontSize: 13,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                                 color: AppTheme.ustaTextLight,
-                                height: 1.35,
                               ),
                             ),
                           ],
                         ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: AppTheme.ustaPrimary.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.near_me_rounded, size: 14, color: AppTheme.ustaSecondary),
+                              const SizedBox(width: 5),
+                              Text(
+                                distanceText,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.ustaSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 24, color: AppTheme.ustaSurfaceBorder),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.location_on_rounded, size: 22, color: Colors.redAccent),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'MÜŞTERİ AÇIK ADRESİ & ARIZA NOTU',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.6,
+                                  color: AppTheme.ustaTextMuted,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                (cagri.adresTarifi != null && cagri.adresTarifi!.isNotEmpty)
+                                    ? cagri.adresTarifi!
+                                    : 'Müşteri konumu harita üzerinden iletildi.',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.ustaTextLight,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const Spacer(),
+
+              // 5. AKSİYON BUTONLARI (Kabul Et & Reddet)
+              Row(
+                children: [
+                  // Reddet Butonu -> durum = 'iptal', ekran normale döner
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isProcessing
+                          ? null
+                          : () async {
+                              final rootNavigator = Navigator.of(context, rootNavigator: true);
+                              setState(() {
+                                _isProcessing = true;
+                                _isClosing = true;
+                              });
+                              _countdownTimer?.cancel();
+                              _alertLoopTimer?.cancel();
+                              await controller.rejectIncomingCall(cagri.id);
+                              if (mounted) {
+                                rootNavigator.pop();
+                              }
+                            },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.redAccent,
+                        side: const BorderSide(color: Colors.redAccent, width: 1.5),
+                        minimumSize: const Size.fromHeight(58),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                       ),
-                    ],
+                      child: const Text(
+                        'Reddet',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+
+                  // Kabul Et Butonu -> durum = 'kabul_edildi', doğrudan navigasyon ekranı açılır
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: _isProcessing
+                          ? null
+                          : () async {
+                              final rootNavigator = Navigator.of(context, rootNavigator: true);
+                              final router = GoRouter.of(context);
+                              setState(() {
+                                _isProcessing = true;
+                                _isClosing = true;
+                              });
+                              _countdownTimer?.cancel();
+                              _alertLoopTimer?.cancel();
+                              final success = await controller.acceptIncomingCall(cagri.id);
+                              if (mounted) {
+                                rootNavigator.pop();
+                                if (success) {
+                                  router.go('/usta/active-job/${cagri.id}');
+                                }
+                              }
+                            },
+                      icon: _isProcessing
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                            )
+                          : const Icon(Icons.check_circle_rounded, size: 22),
+                      label: Text(
+                        _isProcessing ? 'Onaylanıyor...' : 'Kabul Et ve Yola Çık',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF16A34A),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(58),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                        elevation: 6,
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // AKSİYON BUTONLARI (Kabul Et & Reddet)
-            Row(
-              children: [
-                // Reddet Butonu
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _isProcessing
-                        ? null
-                        : () async {
-                            setState(() => _isProcessing = true);
-                            _timer?.cancel();
-                            await controller.rejectIncomingCall(cagri.id);
-                            if (mounted) {
-                              Navigator.of(context, rootNavigator: true).pop();
-                            }
-                          },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.redAccent,
-                      side: const BorderSide(color: Colors.redAccent),
-                      minimumSize: const Size.fromHeight(52),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    child: const Text('Reddet', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-
-                // Kabul Et Butonu
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton(
-                    onPressed: _isProcessing
-                        ? null
-                        : () async {
-                            setState(() => _isProcessing = true);
-                            _timer?.cancel();
-                            final success = await controller.acceptIncomingCall(cagri.id);
-                            if (mounted) {
-                              Navigator.of(context, rootNavigator: true).pop();
-                              if (success) {
-                                context.push('/usta/active-job/${cagri.id}');
-                              }
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(52),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 4,
-                    ),
-                    child: _isProcessing
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Text(
-                            'Kabul Et',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );

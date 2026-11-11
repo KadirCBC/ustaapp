@@ -1,0 +1,20 @@
+{
+  "name": "ustaapp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "UstamBurada Mobil Uygulaması",
+  "scripts": {
+    "start": "node scripts/start.js",
+    "emulator": "flutter emulators --launch Pixel_9_Pro_XL",
+    "flutter": "flutter run",
+    "clean": "flutter clean && flutter pub get",
+    "build": "flutter build apk"
+  },
+  "keywords": [
+    "flutter",
+    "ustaapp",
+    "ustamburada"
+  ],
+  "author": "",
+  "license": "ISC"
+}

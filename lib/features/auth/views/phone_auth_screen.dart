@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/auth/controllers/auth_controller.dart';
 import 'package:ustaapp/features/auth/models/user_role.dart';
 import 'package:ustaapp/features/auth/views/widgets/otp_verification_step.dart';
@@ -27,7 +26,7 @@ class PhoneAuthScreen extends ConsumerWidget {
     });
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 350),
         switchInCurve: Curves.easeInOutCubic,

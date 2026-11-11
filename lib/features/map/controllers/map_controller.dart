@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ustaapp/core/services/location_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
+import 'package:ustaapp/features/orders/models/cagri_model.dart';
 
 class CustomerMapState {
   final double currentLat;
@@ -226,12 +227,39 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     required String adresTarifi,
   }) async {
     final customerId = _supabase.auth.currentUser?.id;
-    if (customerId == null) {
-      state = state.copyWith(errorMessage: 'Lütfen çağrı açmak için giriş yapın.');
-      return null;
-    }
 
     state = state.copyWith(isCreatingCall: true, errorMessage: null);
+
+    // Demo oturumunda yerel çağrı kaydı oluştur
+    if (customerId == null) {
+      final demoId = 'demo-cagri-${DateTime.now().millisecondsSinceEpoch}';
+      final demoCall = CagriModel(
+        id: demoId,
+        musteriId: 'demo-musteri-id',
+        ustaId: usta.ustaId,
+        musteriLat: state.currentLat,
+        musteriLng: state.currentLng,
+        adresTarifi: adresTarifi.trim().isNotEmpty
+            ? adresTarifi.trim()
+            : 'Kadıköy Merkez Mah. Moda Cad. No:42 Daire:5',
+        durum: CagriDurumu.bekliyor,
+        ustaHakedis: usta.ustaHakedis,
+        komisyonTutari: usta.komisyonTutari,
+        toplamTutar: usta.toplamTutar,
+        createdAt: DateTime.now(),
+        ustaFullName: usta.fullName,
+        ustaPhone: usta.phone,
+        musteriFullName: 'Ahmet Demir',
+        musteriPhone: '+90 532 999 88 77',
+      );
+      DemoCallRepository.save(demoCall);
+
+      state = state.copyWith(
+        isCreatingCall: false,
+        activeCallId: demoId,
+      );
+      return demoId;
+    }
 
     try {
       final customerPointWkt =

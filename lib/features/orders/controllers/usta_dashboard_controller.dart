@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
 import 'package:ustaapp/core/services/location_service.dart';
@@ -11,6 +13,8 @@ class UstaDashboardState {
   final double servisUcreti;
   final int dailyCompletedJobs;
   final double dailyEarnings;
+  final double ustaLat;
+  final double ustaLng;
   final bool isLoading;
   final bool isSavingFee;
   final CagriModel? incomingCall;
@@ -22,6 +26,8 @@ class UstaDashboardState {
     this.servisUcreti = 500.00,
     this.dailyCompletedJobs = 0,
     this.dailyEarnings = 0.0,
+    this.ustaLat = 41.0082,
+    this.ustaLng = 28.9784,
     this.isLoading = false,
     this.isSavingFee = false,
     this.incomingCall,
@@ -34,6 +40,8 @@ class UstaDashboardState {
     double? servisUcreti,
     int? dailyCompletedJobs,
     double? dailyEarnings,
+    double? ustaLat,
+    double? ustaLng,
     bool? isLoading,
     bool? isSavingFee,
     CagriModel? incomingCall,
@@ -46,6 +54,8 @@ class UstaDashboardState {
       servisUcreti: servisUcreti ?? this.servisUcreti,
       dailyCompletedJobs: dailyCompletedJobs ?? this.dailyCompletedJobs,
       dailyEarnings: dailyEarnings ?? this.dailyEarnings,
+      ustaLat: ustaLat ?? this.ustaLat,
+      ustaLng: ustaLng ?? this.ustaLng,
       isLoading: isLoading ?? this.isLoading,
       isSavingFee: isSavingFee ?? this.isSavingFee,
       incomingCall: clearIncomingCall ? null : (incomingCall ?? this.incomingCall),
@@ -65,7 +75,8 @@ final ustaDashboardControllerProvider =
 class UstaDashboardController extends StateNotifier<UstaDashboardState> {
   final SupabaseClient _supabase;
   final LocationService _locationService;
-  RealtimeChannel? _incomingCallsChannel;
+  StreamSubscription<List<Map<String, dynamic>>>? _incomingCallsStreamSub;
+  final Set<String> _handledCallIds = {};
 
   UstaDashboardController(this._supabase, this._locationService)
       : super(const UstaDashboardState()) {
@@ -73,6 +84,21 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
   }
 
   String? get currentUserId => _supabase.auth.currentUser?.id;
+
+  /// Ustanın mevcut konumunu günceller (mesafe hesaplaması için)
+  Future<void> _updateCurrentUstaCoordinates() async {
+    try {
+      final hasPermission = await _locationService.checkAndRequestPermissions();
+      if (hasPermission) {
+        final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium,
+        );
+        if (mounted) {
+          state = state.copyWith(ustaLat: pos.latitude, ustaLng: pos.longitude);
+        }
+      }
+    } catch (_) {}
+  }
 
   /// Ustanın veritabanındaki güncel durumunu, ücretini ve günlük kazancını çeker
   Future<void> loadDashboardData() async {
@@ -86,12 +112,15 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
         dailyCompletedJobs: 4,
         dailyEarnings: 2850.00,
       );
+      await _updateCurrentUstaCoordinates();
       return;
     }
 
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
+      await _updateCurrentUstaCoordinates();
+
       // 1. ustalar tablosundan is_online ve servis_ucreti bilgilerini çek
       final ustaData = await _supabase
           .from(AppConstants.ustalarTable)
@@ -108,7 +137,7 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       }
 
       // 2. Günlük tamamlanan siparişleri ve toplam kazancı hesapla
-      final todayStart = DateTime.now().toUtc().toIso8601String().substring(0, 10); // YYYY-MM-DD
+      final todayStart = DateTime.now().toUtc().toIso8601String().substring(0, 10);
       final completedCalls = await _supabase
           .from(AppConstants.cagrilarTable)
           .select('usta_hakedis, durum, created_at')
@@ -132,12 +161,12 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
         dailyEarnings: totalEarnings,
       );
 
-      // Çevrimiçi ise konum takibini ve canlı çağrı dinlemesini başlat
+      // Çevrimiçi ise konum takibini ve Supabase Realtime Stream çağrı dinlemesini başlat
       if (isOnline) {
         if (!_locationService.isTracking) {
           await _locationService.startTracking(uid);
         }
-        _subscribeToIncomingCalls(uid);
+        _subscribeToIncomingCallsStream(uid);
       }
     } catch (e) {
       debugPrint('loadDashboardData hatası: $e');
@@ -148,33 +177,103 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     }
   }
 
-  /// Gelen acil çağrıları Supabase Realtime ile canlı dinler
-  void _subscribeToIncomingCalls(String uid) {
-    _incomingCallsChannel?.unsubscribe();
-    _incomingCallsChannel = _supabase
-        .channel('usta_incoming_$uid')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: AppConstants.cagrilarTable,
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'usta_id',
-            value: uid,
-          ),
-          callback: (payload) {
-            final record = payload.newRecord;
-            if (record['durum'] == 'bekliyor') {
-              final incoming = CagriModel.fromJson(record);
+  /// Supabase Realtime Stream üzerinden `cagrilar` tablosunda `usta_id = me` ve `durum = 'bekliyor'` dinler
+  void _subscribeToIncomingCallsStream(String uid) {
+    _incomingCallsStreamSub?.cancel();
+    _incomingCallsStreamSub = _supabase
+        .from(AppConstants.cagrilarTable)
+        .stream(primaryKey: ['id'])
+        .eq('usta_id', uid)
+        .listen(
+          (List<Map<String, dynamic>> rows) async {
+            // İstemci tarafında durum = 'bekliyor' olan çağrıları filtrele
+            final pendingRows = rows
+                .where((r) => r['durum'] == 'bekliyor')
+                .toList();
+
+            if (pendingRows.isEmpty) {
+              // Bekleyen çağrı yoksa (iptal/kabul edildiyse) açık modalı temizle
+              if (state.incomingCall != null && !state.incomingCall!.id.startsWith('demo-')) {
+                state = state.copyWith(clearIncomingCall: true);
+              }
+              return;
+            }
+
+            final record = pendingRows.first;
+            final callId = record['id'] as String;
+
+            // Eğer bu çağrı zaten işlendiyse veya halihazırda ekrandaysa tekrar açma
+            if (_handledCallIds.contains(callId) || state.incomingCall?.id == callId) {
+              return;
+            }
+
+            var incoming = CagriModel.fromJson(record);
+
+            // Müşteri adını/telefonunu profiles tablosundan zenginleştir
+            try {
+              final profile = await _supabase
+                  .from(AppConstants.profilesTable)
+                  .select('full_name, phone')
+                  .eq('id', incoming.musteriId)
+                  .maybeSingle();
+              if (profile != null) {
+                incoming = incoming.copyWith(
+                  musteriFullName: profile['full_name'] as String?,
+                  musteriPhone: profile['phone'] as String?,
+                );
+              }
+            } catch (_) {}
+
+            if (mounted) {
               state = state.copyWith(incomingCall: incoming);
             }
           },
-        )
-        .subscribe();
+          onError: (err) {
+            debugPrint('Usta Realtime Stream hatası: $err');
+          },
+        );
   }
 
-  /// Gelen çağrıyı kabul et (`cagri_kabul_et` RPC)
+  /// Demo Modu için gelen acil çağrı simülasyonu (Tam ekran modal & 30 sn sayaç testi)
+  void simulateIncomingCall({
+    String title = 'Elektrik Sigortası Sürekli Atıyor',
+    String customerName = 'Kerem T.',
+    String address = 'Göztepe Mah. Bağdat Cad. No:114 Daire:6, Kadıköy',
+    double fee = 750.0,
+  }) {
+    final demoId = 'demo-call-${DateTime.now().millisecondsSinceEpoch}';
+    final demoCagri = CagriModel(
+      id: demoId,
+      musteriId: 'demo-musteri-1',
+      ustaId: currentUserId ?? 'demo-usta-id',
+      musteriLat: state.ustaLat + 0.0065,
+      musteriLng: state.ustaLng + 0.0052,
+      adresTarifi: '$title • $address',
+      durum: CagriDurumu.bekliyor,
+      ustaHakedis: fee,
+      komisyonTutari: fee * 0.15,
+      toplamTutar: fee * 1.15,
+      createdAt: DateTime.now(),
+      musteriFullName: customerName,
+      musteriPhone: '+90 532 456 78 90',
+    );
+    DemoCallRepository.save(demoCagri);
+    state = state.copyWith(incomingCall: demoCagri);
+  }
+
+  /// Gelen çağrıyı kabul et (`durum = 'kabul_edildi'`)
   Future<bool> acceptIncomingCall(String cagriId) async {
+    _handledCallIds.add(cagriId);
+
+    if (cagriId.startsWith('demo-')) {
+      DemoCallRepository.updateStatus(cagriId, CagriDurumu.kabulEdildi);
+      state = state.copyWith(
+        clearIncomingCall: true,
+        successMessage: 'Çağrı kabul edildi! Navigasyona yönlendiriliyorsunuz...',
+      );
+      return true;
+    }
+
     try {
       final response = await _supabase.rpc('cagri_kabul_et', params: {
         'p_cagri_id': cagriId,
@@ -199,8 +298,16 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     }
   }
 
-  /// Gelen çağrıyı reddet veya zaman aşımında iptal et
+  /// Gelen çağrıyı reddet veya 30 saniye zaman aşımında iptal et (`durum = 'iptal'`)
   Future<void> rejectIncomingCall(String cagriId) async {
+    _handledCallIds.add(cagriId);
+
+    if (cagriId.startsWith('demo-')) {
+      DemoCallRepository.updateStatus(cagriId, CagriDurumu.iptal);
+      state = state.copyWith(clearIncomingCall: true);
+      return;
+    }
+
     try {
       await _supabase
           .from(AppConstants.cagrilarTable)
@@ -252,11 +359,11 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
               .eq('id', uid);
           return;
         }
-        _subscribeToIncomingCalls(uid);
+        _subscribeToIncomingCallsStream(uid);
       } else {
         await _locationService.stopTracking();
-        _incomingCallsChannel?.unsubscribe();
-        _incomingCallsChannel = null;
+        await _incomingCallsStreamSub?.cancel();
+        _incomingCallsStreamSub = null;
       }
 
       await _supabase
@@ -289,7 +396,6 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     }
 
     if (uid == null) {
-      // Demo modunda ücret kaydı
       state = state.copyWith(
         servisUcreti: newFee,
         successMessage: 'Servis ücretiniz ${newFee.toStringAsFixed(0)} ₺ olarak güncellendi.',
@@ -323,7 +429,7 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
 
   @override
   void dispose() {
-    _incomingCallsChannel?.unsubscribe();
+    _incomingCallsStreamSub?.cancel();
     super.dispose();
   }
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
-import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/auth/controllers/auth_controller.dart';
 
 class OtpVerificationStep extends ConsumerStatefulWidget {

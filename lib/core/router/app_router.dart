@@ -6,6 +6,7 @@ import 'package:ustaapp/features/auth/models/user_role.dart';
 import 'package:ustaapp/features/auth/views/phone_auth_screen.dart';
 import 'package:ustaapp/features/map/views/customer_map_screen.dart';
 import 'package:ustaapp/features/orders/views/customer_active_call_screen.dart';
+import 'package:ustaapp/features/orders/views/customer_on_the_way_screen.dart';
 import 'package:ustaapp/features/orders/views/usta_active_job_screen.dart';
 import 'package:ustaapp/features/orders/views/usta_orders_screen.dart';
 import 'package:ustaapp/features/profile/views/profile_screen.dart';
@@ -63,6 +64,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final cagriId = state.pathParameters['cagriId'] ?? '';
           return CustomerActiveCallScreen(cagriId: cagriId);
+        },
+      ),
+      GoRoute(
+        path: '/customer/on-the-way/:cagriId',
+        name: 'customerOnTheWay',
+        builder: (context, state) {
+          final cagriId = state.pathParameters['cagriId'] ?? '';
+          return CustomerOnTheWayScreen(cagriId: cagriId);
         },
       ),
       GoRoute(
