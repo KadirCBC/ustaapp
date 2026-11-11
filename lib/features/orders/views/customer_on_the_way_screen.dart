@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:latlong2/latlong.dart' hide Path;
 import 'package:ustaapp/core/theme/app_theme.dart';
+import 'package:ustaapp/features/map/views/widgets/map_widget.dart';
 import 'package:ustaapp/features/orders/controllers/active_order_controller.dart';
 import 'package:ustaapp/features/orders/views/widgets/customer_completion_dialog.dart';
 
@@ -18,13 +17,6 @@ class CustomerOnTheWayScreen extends ConsumerStatefulWidget {
 }
 
 class _CustomerOnTheWayScreenState extends ConsumerState<CustomerOnTheWayScreen> {
-  final MapController _mapController = MapController();
-
-  @override
-  void dispose() {
-    _mapController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,12 +71,11 @@ class _CustomerOnTheWayScreenState extends ConsumerState<CustomerOnTheWayScreen>
       );
     }
 
-    final customerLatLng = LatLng(cagri.musteriLat, cagri.musteriLng);
-    final ustaLatLng = LatLng(
-      state.ustaLat ?? (cagri.musteriLat + 0.0042),
-      state.ustaLng ?? (cagri.musteriLng + 0.0032),
-    );
-    final distanceStr = cagri.formattedDistanceFrom(ustaLatLng.latitude, ustaLatLng.longitude);
+    final customerLat = cagri.musteriLat;
+    final customerLng = cagri.musteriLng;
+    final ustaLat = state.ustaLat ?? (cagri.musteriLat + 0.0042);
+    final ustaLng = state.ustaLng ?? (cagri.musteriLng + 0.0032);
+    final distanceStr = cagri.formattedDistanceFrom(ustaLat, ustaLng);
 
     return Scaffold(
       backgroundColor: AppTheme.customerBackground,
@@ -129,75 +120,15 @@ class _CustomerOnTheWayScreenState extends ConsumerState<CustomerOnTheWayScreen>
             flex: 5,
             child: Stack(
               children: [
-                FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: LatLng(
-                      (customerLatLng.latitude + ustaLatLng.latitude) / 2,
-                      (customerLatLng.longitude + ustaLatLng.longitude) / 2,
-                    ),
-                    initialZoom: 14.2,
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.example.ustaapp',
-                    ),
-                    PolylineLayer(
-                      polylines: [
-                        Polyline(
-                          points: [ustaLatLng, customerLatLng],
-                          strokeWidth: 4.5,
-                          color: AppTheme.customerPrimary,
-                          pattern: const StrokePattern.dotted(),
-                        ),
-                      ],
-                    ),
-                    MarkerLayer(
-                      markers: [
-                        // Müşteri Evi Pini
-                        Marker(
-                          point: customerLatLng,
-                          width: 48,
-                          height: 48,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: AppTheme.customerPrimary,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 3),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.2),
-                                  blurRadius: 8,
-                                ),
-                              ],
-                            ),
-                            child: const Icon(Icons.home_rounded, color: Colors.white, size: 22),
-                          ),
-                        ),
-                        // Canlı Usta Pini
-                        Marker(
-                          point: ustaLatLng,
-                          width: 54,
-                          height: 54,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEA580C),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 3),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFFEA580C).withValues(alpha: 0.4),
-                                  blurRadius: 12,
-                                ),
-                              ],
-                            ),
-                            child: const Icon(Icons.handyman_rounded, color: Colors.white, size: 24),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                UstaRouteMapWidget(
+                  ustaLat: ustaLat,
+                  ustaLng: ustaLng,
+                  customerLat: customerLat,
+                  customerLng: customerLng,
+                  routeColor: AppTheme.customerPrimary,
+                  ustaMarkerColor: AppTheme.ustaPrimary,
+                  customerMarkerColor: AppTheme.customerPrimary,
+                  zoom: 14.2,
                 ),
 
                 // Tahmini Varış Banner'ı

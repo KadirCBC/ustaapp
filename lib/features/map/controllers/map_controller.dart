@@ -22,8 +22,8 @@ class CustomerMapState {
   final String? errorMessage;
 
   const CustomerMapState({
-    this.currentLat = 41.0082, // Varsayılan İstanbul
-    this.currentLng = 28.9784,
+    this.currentLat = 40.9905, // Varsayılan Kadıköy, İstanbul
+    this.currentLng = 29.0270,
     this.currentAddressLabel = 'Kadıköy, İstanbul',
     this.selectedCategory = 'elektrik',
     this.searchRadiusMeter = 10000,
@@ -90,10 +90,13 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
 
     try {
       final hasPermission = await _locationService.checkAndRequestPermissions();
+      if (!mounted) return;
       if (hasPermission) {
         final position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 4),
         );
+        if (!mounted) return;
         state = state.copyWith(
           currentLat: position.latitude,
           currentLng: position.longitude,
@@ -104,9 +107,11 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
       }
     } catch (e) {
       debugPrint('Müşteri konumu alınamadı (varsayılan kullanılıyor): $e');
+      if (!mounted) return;
       state = state.copyWith(isLoadingLocation: false);
     }
 
+    if (!mounted) return;
     await fetchNearbyUstalar();
   }
 
@@ -120,7 +125,8 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
         'p_lng': state.currentLng,
         'p_kategori': state.selectedCategory,
         'p_radius_meter': state.searchRadiusMeter,
-      });
+      }).timeout(const Duration(seconds: 4));
+      if (!mounted) return;
 
       final List<dynamic> data = response as List<dynamic>? ?? [];
       List<NearbyUstaModel> ustalar = data
@@ -138,6 +144,7 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
       );
     } catch (e) {
       debugPrint('fetchNearbyUstalar hatası (demo verileri yükleniyor): $e');
+      if (!mounted) return;
       final demoList = _getDemoUstalar();
       state = state.copyWith(
         isLoadingUstalar: false,

@@ -1,89 +1,138 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart' hide Path;
-import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
-import 'package:ustaapp/features/map/views/widgets/custom_marker.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mapbox;
 
-/// Minimalist CartoDB Positron açık temalı harita katmanı + müşteri & usta pinleri
-class MapWidget extends StatelessWidget {
-  final MapController mapController;
-  final LatLng customerLatLng;
-  final List<NearbyUstaModel> ustalar;
-  final NearbyUstaModel? selectedUsta;
-  final ValueChanged<NearbyUstaModel> onUstaTap;
-  final VoidCallback onMapBackgroundTap;
+/// Resmi mapbox_maps_flutter tabanlı yeniden kullanılabilir harita kapsayıcısı.
+class UstaMapWidget extends StatelessWidget {
+  final double centerLat;
+  final double centerLng;
+  final double zoom;
+  final String styleUri;
+  final mapbox.MapCreatedCallback? onMapCreated;
 
-  const MapWidget({
+  const UstaMapWidget({
     super.key,
-    required this.mapController,
-    required this.customerLatLng,
-    required this.ustalar,
-    required this.selectedUsta,
-    required this.onUstaTap,
-    required this.onMapBackgroundTap,
+    required this.centerLat,
+    required this.centerLng,
+    this.zoom = 13.5,
+    this.styleUri = mapbox.MapboxStyles.LIGHT,
+    this.onMapCreated,
   });
-
-  // Minimalist CartoDB Positron light theme (yolları ve pinleri öne çıkaran sade görünüm)
-  static const String _cartoPositronLightUrl =
-      'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png';
 
   @override
   Widget build(BuildContext context) {
-    return FlutterMap(
-      mapController: mapController,
-      options: MapOptions(
-        initialCenter: customerLatLng,
-        initialZoom: 14.2,
-        minZoom: 6.0,
-        maxZoom: 18.0,
-        onTap: (_, __) => onMapBackgroundTap(),
+    return mapbox.MapWidget(
+      styleUri: styleUri,
+      viewport: mapbox.CameraViewportState(
+        center: mapbox.Point(
+          coordinates: mapbox.Position(centerLng, centerLat),
+        ),
+        zoom: zoom,
       ),
-      children: [
-        TileLayer(
-          urlTemplate: _cartoPositronLightUrl,
-          userAgentPackageName: 'com.ustamburada.app',
-        ),
-        MarkerLayer(
-          markers: [
-            // A. Müşteri Konum Pin'i
-            Marker(
-              point: customerLatLng,
-              width: 48,
-              height: 48,
-              child: const CustomerLocationMarker(),
-            ),
-
-            // B. Yakındaki Online Ustalar (Seçili olan üstte render edilir)
-            ..._orderedMarkers(),
-          ],
-        ),
-      ],
+      onMapCreated: onMapCreated,
     );
   }
+}
 
-  List<Marker> _orderedMarkers() {
-    final sorted = [...ustalar];
-    if (selectedUsta != null) {
-      sorted.sort((a, b) {
-        if (a.ustaId == selectedUsta!.ustaId) return 1;
-        if (b.ustaId == selectedUsta!.ustaId) return -1;
-        return 0;
-      });
+/// Usta ve müşteri konumları arasındaki rota çizgisini ve noktalarını Mapbox ile gösteren widget.
+class UstaRouteMapWidget extends StatefulWidget {
+  final double ustaLat;
+  final double ustaLng;
+  final double customerLat;
+  final double customerLng;
+  final Color routeColor;
+  final Color ustaMarkerColor;
+  final Color customerMarkerColor;
+  final double zoom;
+
+  const UstaRouteMapWidget({
+    super.key,
+    required this.ustaLat,
+    required this.ustaLng,
+    required this.customerLat,
+    required this.customerLng,
+    required this.routeColor,
+    required this.ustaMarkerColor,
+    required this.customerMarkerColor,
+    this.zoom = 14.0,
+  });
+
+  @override
+  State<UstaRouteMapWidget> createState() => _UstaRouteMapWidgetState();
+}
+
+class _UstaRouteMapWidgetState extends State<UstaRouteMapWidget> {
+  mapbox.PolylineAnnotationManager? _polylineManager;
+  mapbox.CircleAnnotationManager? _circleManager;
+
+  Future<void> _onMapCreated(mapbox.MapboxMap mapboxMap) async {
+    _polylineManager =
+        await mapboxMap.annotations.createPolylineAnnotationManager();
+    _circleManager =
+        await mapboxMap.annotations.createCircleAnnotationManager();
+    await _syncRouteAnnotations();
+  }
+
+  @override
+  void didUpdateWidget(covariant UstaRouteMapWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.ustaLat != widget.ustaLat ||
+        oldWidget.ustaLng != widget.ustaLng ||
+        oldWidget.customerLat != widget.customerLat ||
+        oldWidget.customerLng != widget.customerLng) {
+      _syncRouteAnnotations();
     }
+  }
 
-    return sorted.map((usta) {
-      final isSelected = selectedUsta?.ustaId == usta.ustaId;
-      return Marker(
-        point: LatLng(usta.latitude, usta.longitude),
-        width: 158,
-        height: 70,
-        alignment: Alignment.topCenter,
-        child: CustomMarker(
-          usta: usta,
-          isSelected: isSelected,
-          onTap: () => onUstaTap(usta),
+  Future<void> _syncRouteAnnotations() async {
+    final polylineManager = _polylineManager;
+    final circleManager = _circleManager;
+    if (polylineManager == null || circleManager == null) return;
+
+    await polylineManager.deleteAll();
+    await polylineManager.create(
+      mapbox.PolylineAnnotationOptions(
+        geometry: mapbox.LineString(
+          coordinates: [
+            mapbox.Position(widget.ustaLng, widget.ustaLat),
+            mapbox.Position(widget.customerLng, widget.customerLat),
+          ],
         ),
-      );
-    }).toList();
+        lineColor: widget.routeColor.toARGB32(),
+        lineWidth: 5.0,
+        lineJoin: mapbox.LineJoin.ROUND,
+      ),
+    );
+
+    await circleManager.deleteAll();
+    await circleManager.createMulti([
+      mapbox.CircleAnnotationOptions(
+        geometry: mapbox.Point(
+          coordinates: mapbox.Position(widget.customerLng, widget.customerLat),
+        ),
+        circleRadius: 10.0,
+        circleColor: widget.customerMarkerColor.toARGB32(),
+        circleStrokeColor: Colors.white.toARGB32(),
+        circleStrokeWidth: 3.0,
+      ),
+      mapbox.CircleAnnotationOptions(
+        geometry: mapbox.Point(
+          coordinates: mapbox.Position(widget.ustaLng, widget.ustaLat),
+        ),
+        circleRadius: 10.0,
+        circleColor: widget.ustaMarkerColor.toARGB32(),
+        circleStrokeColor: Colors.white.toARGB32(),
+        circleStrokeWidth: 3.0,
+      ),
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return UstaMapWidget(
+      centerLat: (widget.ustaLat + widget.customerLat) / 2,
+      centerLng: (widget.ustaLng + widget.customerLng) / 2,
+      zoom: widget.zoom,
+      onMapCreated: _onMapCreated,
+    );
   }
 }
