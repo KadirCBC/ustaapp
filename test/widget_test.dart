@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ustaapp/features/map/controllers/map_controller.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:ustaapp/features/map/views/widgets/category_filter_bar.dart';
 import 'package:ustaapp/features/map/views/widgets/custom_marker.dart';
+import 'package:ustaapp/features/orders/controllers/usta_dashboard_controller.dart';
 import 'package:ustaapp/features/orders/models/cagri_model.dart';
+import 'package:ustaapp/features/orders/views/usta_orders_screen.dart';
 
 void main() {
   group('CagriDurumu & CagriModel Tests', () {
@@ -175,5 +178,33 @@ void main() {
       expect(besiktas, isNotNull);
       expect(besiktas!.lat, closeTo(41.0430, 0.001));
     });
+
+    testWidgets('UstaOrdersScreen renders without crash or infinite layout', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            ustaDashboardControllerProvider.overrideWith((ref) {
+              return _MockUstaDashboardController();
+            }),
+          ],
+          child: const MaterialApp(
+            home: UstaOrdersScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Usta Kontrol Paneli'), findsOneWidget);
+      expect(find.text('Hizmet & İlan Tarifem'), findsOneWidget);
+    });
   });
+}
+
+class _MockUstaDashboardController extends StateNotifier<UstaDashboardState>
+    implements UstaDashboardController {
+  _MockUstaDashboardController({bool isLoading = false})
+      : super(UstaDashboardState(isLoading: isLoading));
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
