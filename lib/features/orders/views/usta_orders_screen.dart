@@ -56,10 +56,13 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
 
   void _showHizmetDialog({UstaHizmetIlan? existingHizmet}) {
     final isEditing = existingHizmet != null;
-    final titleController = TextEditingController(text: existingHizmet?.baslik ?? '');
-    final descController = TextEditingController(text: existingHizmet?.aciklama ?? '');
+    final titleController =
+        TextEditingController(text: existingHizmet?.baslik ?? '');
+    final descController =
+        TextEditingController(text: existingHizmet?.aciklama ?? '');
     final priceController = TextEditingController(
-      text: existingHizmet != null ? existingHizmet.fiyat.toStringAsFixed(0) : '',
+      text:
+          existingHizmet != null ? existingHizmet.fiyat.toStringAsFixed(0) : '',
     );
     final durationController = TextEditingController(
       text: existingHizmet?.tahminiSure ?? '30 dk',
@@ -67,7 +70,20 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
     String selectedIcon = existingHizmet?.ikon ?? '⚡';
     bool isDefault = existingHizmet?.isDefault ?? false;
 
-    const availableIcons = ['⚡', '🔌', '💡', '🛡️', '🔧', '🔑', '🚗', '🚰', '🚿', '🚽', '🔥', '🔔'];
+    const availableIcons = [
+      '⚡',
+      '🔌',
+      '💡',
+      '🛡️',
+      '🔧',
+      '🔑',
+      '🚗',
+      '🚰',
+      '🚿',
+      '🚽',
+      '🔥',
+      '🔔'
+    ];
 
     showModalBottomSheet(
       context: context,
@@ -106,7 +122,9 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          isEditing ? 'Hizmeti Düzenle' : 'Yeni Hizmet / İş Ekle',
+                          isEditing
+                              ? 'Hizmeti Düzenle'
+                              : 'Yeni Hizmet / İş Ekle',
                           style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
@@ -115,7 +133,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                         ),
                         IconButton(
                           onPressed: () => Navigator.of(ctx).pop(),
-                          icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                          icon: const Icon(Icons.close_rounded,
+                              color: Colors.white70),
                         ),
                       ],
                     ),
@@ -124,7 +143,10 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                     // İkon Seçici
                     const Text(
                       'Hizmet İkonu Seçin:',
-                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF94A3B8)),
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF94A3B8)),
                     ),
                     const SizedBox(height: 8),
                     SizedBox(
@@ -137,21 +159,27 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                           final icon = availableIcons[idx];
                           final isSelected = selectedIcon == icon;
                           return InkWell(
-                            onTap: () => setModalState(() => selectedIcon = icon),
+                            onTap: () =>
+                                setModalState(() => selectedIcon = icon),
                             borderRadius: BorderRadius.circular(10),
                             child: Container(
                               width: 44,
                               height: 44,
                               decoration: BoxDecoration(
-                                color: isSelected ? AppTheme.ustaPrimary : const Color(0xFF0F172A),
+                                color: isSelected
+                                    ? AppTheme.ustaPrimary
+                                    : const Color(0xFF0F172A),
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
-                                  color: isSelected ? Colors.white : const Color(0xFF334155),
+                                  color: isSelected
+                                      ? Colors.white
+                                      : const Color(0xFF334155),
                                   width: isSelected ? 1.8 : 1.0,
                                 ),
                               ),
                               child: Center(
-                                child: Text(icon, style: const TextStyle(fontSize: 20)),
+                                child: Text(icon,
+                                    style: const TextStyle(fontSize: 20)),
                               ),
                             ),
                           );
@@ -163,7 +191,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                     // Hizmet Başlığı
                     TextField(
                       controller: titleController,
-                      style: const TextStyle(color: Colors.white, fontSize: 13.5),
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 13.5),
                       decoration: InputDecoration(
                         labelText: 'Hizmet / İş Başlığı',
                         labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
@@ -173,7 +202,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                         fillColor: const Color(0xFF0F172A),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF334155)),
+                          borderSide:
+                              const BorderSide(color: Color(0xFF334155)),
                         ),
                       ),
                     ),
@@ -186,20 +216,30 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                           child: TextField(
                             controller: priceController,
                             keyboardType: TextInputType.number,
-                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly
+                            ],
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold),
                             decoration: InputDecoration(
                               labelText: 'Hizmet Ücreti (₺)',
-                              labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                              labelStyle:
+                                  const TextStyle(color: Color(0xFF94A3B8)),
                               suffixText: '₺',
-                              suffixStyle: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold),
+                              suffixStyle: const TextStyle(
+                                  color: Colors.amber,
+                                  fontWeight: FontWeight.bold),
                               hintText: '500',
-                              hintStyle: const TextStyle(color: Color(0xFF64748B)),
+                              hintStyle:
+                                  const TextStyle(color: Color(0xFF64748B)),
                               filled: true,
                               fillColor: const Color(0xFF0F172A),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFF334155)),
+                                borderSide:
+                                    const BorderSide(color: Color(0xFF334155)),
                               ),
                             ),
                           ),
@@ -208,17 +248,21 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                         Expanded(
                           child: TextField(
                             controller: durationController,
-                            style: const TextStyle(color: Colors.white, fontSize: 13.5),
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 13.5),
                             decoration: InputDecoration(
                               labelText: 'Tahmini Süre',
-                              labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                              labelStyle:
+                                  const TextStyle(color: Color(0xFF94A3B8)),
                               hintText: '30-45 dk',
-                              hintStyle: const TextStyle(color: Color(0xFF64748B)),
+                              hintStyle:
+                                  const TextStyle(color: Color(0xFF64748B)),
                               filled: true,
                               fillColor: const Color(0xFF0F172A),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFF334155)),
+                                borderSide:
+                                    const BorderSide(color: Color(0xFF334155)),
                               ),
                             ),
                           ),
@@ -235,13 +279,15 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                       decoration: InputDecoration(
                         labelText: 'Hizmet Açıklaması & Kapsamı',
                         labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                        hintText: 'Örn: Tavana sağlam dübelleme ve dimmer bağlantısı dahil.',
+                        hintText:
+                            'Örn: Tavana sağlam dübelleme ve dimmer bağlantısı dahil.',
                         hintStyle: const TextStyle(color: Color(0xFF64748B)),
                         filled: true,
                         fillColor: const Color(0xFF0F172A),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF334155)),
+                          borderSide:
+                              const BorderSide(color: Color(0xFF334155)),
                         ),
                       ),
                     ),
@@ -264,17 +310,23 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                     ElevatedButton(
                       onPressed: () {
                         final title = titleController.text.trim();
-                        final price = double.tryParse(priceController.text.trim()) ?? 0.0;
+                        final price =
+                            double.tryParse(priceController.text.trim()) ?? 0.0;
                         if (title.isEmpty || price <= 0) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Lütfen geçerli bir başlık ve ücret giriniz.')),
+                            const SnackBar(
+                                content: Text(
+                                    'Lütfen geçerli bir başlık ve ücret giriniz.')),
                           );
                           return;
                         }
 
-                        final controller = ref.read(ustaDashboardControllerProvider.notifier);
+                        final controller =
+                            ref.read(ustaDashboardControllerProvider.notifier);
                         final item = UstaHizmetIlan(
-                          id: isEditing ? existingHizmet.id : 'hizmet-${DateTime.now().millisecondsSinceEpoch}',
+                          id: isEditing
+                              ? existingHizmet.id
+                              : 'hizmet-${DateTime.now().millisecondsSinceEpoch}',
                           baslik: title,
                           aciklama: descController.text.trim(),
                           fiyat: price,
@@ -295,11 +347,13 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.ustaPrimary,
                         minimumSize: const Size.fromHeight(48),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                       child: Text(
                         isEditing ? 'Hizmeti Güncelle' : 'Hizmeti Kaydet',
-                        style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            fontSize: 14.5, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -319,8 +373,10 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
     _syncControllers(state);
 
     // Başarı ve hata bildirimlerini dinle
-    ref.listen<UstaDashboardState>(ustaDashboardControllerProvider, (previous, next) {
-      if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
+    ref.listen<UstaDashboardState>(ustaDashboardControllerProvider,
+        (previous, next) {
+      if (next.errorMessage != null &&
+          next.errorMessage != previous?.errorMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(next.errorMessage!),
@@ -329,7 +385,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
           ),
         );
       }
-      if (next.successMessage != null && next.successMessage != previous?.successMessage) {
+      if (next.successMessage != null &&
+          next.successMessage != previous?.successMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(next.successMessage!),
@@ -339,7 +396,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
         );
       }
       // Gelen acil çağrı modalı
-      if (next.incomingCall != null && next.incomingCall != previous?.incomingCall) {
+      if (next.incomingCall != null &&
+          next.incomingCall != previous?.incomingCall) {
         showDialog(
           context: context,
           barrierDismissible: false,
@@ -362,12 +420,17 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
               decoration: BoxDecoration(
-                color: state.isOnline ? const Color(0xFF15803D) : const Color(0xFF334155),
+                color: state.isOnline
+                    ? const Color(0xFF15803D)
+                    : const Color(0xFF334155),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
                 state.isOnline ? 'ONLINE' : 'OFFLINE',
-                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white),
+                style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white),
               ),
             ),
           ],
@@ -380,7 +443,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                 child: LinearProgressIndicator(
                   minHeight: 3,
                   backgroundColor: Colors.transparent,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.ustaPrimary),
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(AppTheme.ustaPrimary),
                 ),
               )
             : null,
@@ -462,10 +526,13 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
           duration: const Duration(milliseconds: 300),
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: isOnline ? const Color(0xFF064E3B).withValues(alpha: 0.35) : const Color(0xFF1E293B),
+            color: isOnline
+                ? const Color(0xFF064E3B).withValues(alpha: 0.35)
+                : const Color(0xFF1E293B),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isOnline ? const Color(0xFF10B981) : const Color(0xFF334155),
+              color:
+                  isOnline ? const Color(0xFF10B981) : const Color(0xFF334155),
               width: isOnline ? 2.0 : 1.2,
             ),
             boxShadow: isOnline
@@ -492,11 +559,14 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                 height: 52,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isOnline ? const Color(0xFF10B981) : const Color(0xFF334155),
+                  color: isOnline
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFF334155),
                   boxShadow: isOnline
                       ? [
                           BoxShadow(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.6),
+                            color:
+                                const Color(0xFF10B981).withValues(alpha: 0.6),
                             blurRadius: 14,
                             spreadRadius: 2,
                           ),
@@ -504,7 +574,9 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                       : [],
                 ),
                 child: Icon(
-                  isOnline ? Icons.bolt_rounded : Icons.power_settings_new_rounded,
+                  isOnline
+                      ? Icons.bolt_rounded
+                      : Icons.power_settings_new_rounded,
                   color: isOnline ? Colors.black : Colors.white60,
                   size: 30,
                 ),
@@ -520,7 +592,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                         fontSize: 16.5,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.6,
-                        color: isOnline ? const Color(0xFF34D399) : Colors.white,
+                        color:
+                            isOnline ? const Color(0xFF34D399) : Colors.white,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -540,7 +613,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
               Switch(
                 value: isOnline,
                 activeThumbColor: const Color(0xFF10B981),
-                activeTrackColor: const Color(0xFF10B981).withValues(alpha: 0.3),
+                activeTrackColor:
+                    const Color(0xFF10B981).withValues(alpha: 0.3),
                 inactiveThumbColor: Colors.grey,
                 inactiveTrackColor: const Color(0xFF334155),
                 onChanged: (val) => controller.toggleOnlineStatus(val),
@@ -631,7 +705,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.inventory_2_rounded, size: 20, color: AppTheme.ustaPrimary),
+                  Icon(Icons.inventory_2_rounded,
+                      size: 20, color: AppTheme.ustaPrimary),
                   SizedBox(width: 8),
                   Text(
                     'Hizmet & İlan Tarifem',
@@ -648,8 +723,10 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.ustaPrimary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                   elevation: 0,
                 ),
                 icon: const Icon(Icons.add_rounded, size: 16),
@@ -666,7 +743,6 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
             style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
           ),
           const SizedBox(height: 14),
-
           if (state.hizmetler.isEmpty)
             Container(
               padding: const EdgeInsets.all(16),
@@ -695,7 +771,9 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                     color: const Color(0xFF0F172A),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: hizmet.isDefault ? AppTheme.ustaPrimary.withValues(alpha: 0.6) : const Color(0xFF334155),
+                      color: hizmet.isDefault
+                          ? AppTheme.ustaPrimary.withValues(alpha: 0.6)
+                          : const Color(0xFF334155),
                       width: hizmet.isDefault ? 1.5 : 1.0,
                     ),
                   ),
@@ -709,7 +787,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Center(
-                          child: Text(hizmet.ikon, style: const TextStyle(fontSize: 20)),
+                          child: Text(hizmet.ikon,
+                              style: const TextStyle(fontSize: 20)),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -734,9 +813,11 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                                 if (hizmet.isDefault)
                                   Container(
                                     margin: const EdgeInsets.only(left: 6),
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 1.5),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.ustaPrimary.withValues(alpha: 0.2),
+                                      color: AppTheme.ustaPrimary
+                                          .withValues(alpha: 0.2),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: const Text(
@@ -755,7 +836,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                               hizmet.aciklama,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                              style: const TextStyle(
+                                  fontSize: 11, color: Color(0xFF94A3B8)),
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -785,19 +867,23 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF94A3B8)),
+                                icon: const Icon(Icons.edit_outlined,
+                                    size: 16, color: Color(0xFF94A3B8)),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
                                 tooltip: 'Düzenle',
-                                onPressed: () => _showHizmetDialog(existingHizmet: hizmet),
+                                onPressed: () =>
+                                    _showHizmetDialog(existingHizmet: hizmet),
                               ),
                               const SizedBox(width: 10),
                               IconButton(
-                                icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.redAccent),
+                                icon: const Icon(Icons.delete_outline_rounded,
+                                    size: 16, color: Colors.redAccent),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
                                 tooltip: 'Sil',
-                                onPressed: () => controller.deleteHizmet(hizmet.id),
+                                onPressed: () =>
+                                    controller.deleteHizmet(hizmet.id),
                               ),
                             ],
                           ),
@@ -908,11 +994,17 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
             children: [
               const Text(
                 'Maksimum Çalışma Yarıçapı:',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF94A3B8)),
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF94A3B8)),
               ),
               Text(
                 '${_radiusKm.toStringAsFixed(0)} km',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFF38BDF8)),
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF38BDF8)),
               ),
             ],
           ),
@@ -942,12 +1034,16 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.calculate_outlined, size: 20, color: Color(0xFF38BDF8)),
+                const Icon(Icons.calculate_outlined,
+                    size: 20, color: Color(0xFF38BDF8)),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'Örnek 8 km çağrıda: ${_tabanFeeController.text} ₺ taban + ${sampleTravel.toStringAsFixed(0)} ₺ yol (${(sampleDistance - state.ucretsizMesafeKm).toStringAsFixed(0)} km x ${state.kmBasiYakitUcreti.toStringAsFixed(0)} ₺) = ${sampleTotal.toStringAsFixed(0)} ₺ Hakediş',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1)),
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFCBD5E1)),
                   ),
                 ),
               ],
@@ -963,10 +1059,16 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
               onPressed: state.isSavingFee
                   ? null
                   : () {
-                      final taban = double.tryParse(_tabanFeeController.text.trim()) ?? 750.0;
-                      final kmFee = double.tryParse(_kmFeeController.text.trim()) ?? 18.0;
-                      final freeKm = double.tryParse(_freeKmController.text.trim()) ?? 3.0;
-                      final emergency = double.tryParse(_emergencyFeeController.text.trim()) ?? 250.0;
+                      final taban =
+                          double.tryParse(_tabanFeeController.text.trim()) ??
+                              750.0;
+                      final kmFee =
+                          double.tryParse(_kmFeeController.text.trim()) ?? 18.0;
+                      final freeKm =
+                          double.tryParse(_freeKmController.text.trim()) ?? 3.0;
+                      final emergency = double.tryParse(
+                              _emergencyFeeController.text.trim()) ??
+                          250.0;
 
                       controller.updateTarifeAyarlari(
                         tabanServis: taban,
@@ -979,17 +1081,20 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2563EB),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: state.isSavingFee
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
                     )
                   : const Text(
                       'Tarife & Yakıt Ayarlarını Kaydet',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
             ),
           ),
@@ -1011,23 +1116,29 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
           children: [
             const Text(
               'Gelen Acil Çağrılar',
-              style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: Colors.white),
+              style: TextStyle(
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white),
             ),
             if (state.isOnline)
               InkWell(
                 onTap: () => controller.simulateIncomingCall(),
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                   decoration: BoxDecoration(
                     color: AppTheme.ustaPrimary.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.ustaPrimary.withValues(alpha: 0.45)),
+                    border: Border.all(
+                        color: AppTheme.ustaPrimary.withValues(alpha: 0.45)),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.notifications_active_rounded, size: 14, color: AppTheme.ustaPrimary),
+                      Icon(Icons.notifications_active_rounded,
+                          size: 14, color: AppTheme.ustaPrimary),
                       SizedBox(width: 4),
                       Text(
                         'Çağrı Simüle Et',
@@ -1044,7 +1155,6 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
           ],
         ),
         const SizedBox(height: 12),
-
         if (!state.isOnline)
           _buildOfflineNotice(controller)
         else
@@ -1064,11 +1174,15 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
       child: Center(
         child: Column(
           children: [
-            const Icon(Icons.visibility_off_rounded, size: 36, color: Color(0xFF64748B)),
+            const Icon(Icons.visibility_off_rounded,
+                size: 36, color: Color(0xFF64748B)),
             const SizedBox(height: 10),
             const Text(
               'Şu Anda Çevrimdışısınız',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
             ),
             const SizedBox(height: 4),
             const Text(
@@ -1085,10 +1199,12 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                   minimumSize: const Size(180, 44),
                   foregroundColor: const Color(0xFF10B981),
                   side: const BorderSide(color: Color(0xFF10B981)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
                 icon: const Icon(Icons.bolt_rounded, size: 16),
-                label: const Text('Şimdi Çevrimiçi Ol', style: TextStyle(fontWeight: FontWeight.bold)),
+                label: const Text('Şimdi Çevrimiçi Ol',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -1102,7 +1218,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
 
     // Mesafeye göre yakıtlı ücret hesaplamaları
     const sampleDistance1 = 1.2;
-    final fee1 = state.calculateTotalQuote(basePrice: state.servisUcreti, distanceKm: sampleDistance1);
+    final fee1 = state.calculateTotalQuote(
+        basePrice: state.servisUcreti, distanceKm: sampleDistance1);
     final fee2 = state.calculateTotalQuote(basePrice: 950.0, distanceKm: 4.8);
 
     return Column(
@@ -1122,7 +1239,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
               ustaId: controller.currentUserId ?? 'demo-usta',
               musteriLat: state.ustaLat + 0.0075,
               musteriLng: state.ustaLng + 0.0055,
-              adresTarifi: 'Göztepe Mah. Bağdat Cad. No:114 D:6, Kadıköy (Daire 6 • Sigorta kutusundan ses geliyor)',
+              adresTarifi:
+                  'Göztepe Mah. Bağdat Cad. No:114 D:6, Kadıköy (Daire 6 • Sigorta kutusundan ses geliyor)',
               durum: CagriDurumu.bekliyor,
               ustaHakedis: fee1,
               komisyonTutari: fee1 * 0.15,
@@ -1155,7 +1273,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
               ustaId: controller.currentUserId ?? 'demo-usta',
               musteriLat: state.ustaLat + 0.0140,
               musteriLng: state.ustaLng - 0.0080,
-              adresTarifi: 'Moda Sahil Sk. No:8 D:3, Kadıköy (Tavan yüksek, merdiven ve dübel gerekebilir)',
+              adresTarifi:
+                  'Moda Sahil Sk. No:8 D:3, Kadıköy (Tavan yüksek, merdiven ve dübel gerekebilir)',
               durum: CagriDurumu.bekliyor,
               ustaHakedis: fee2,
               komisyonTutari: fee2 * 0.15,
@@ -1241,7 +1360,10 @@ class _CallItemCardState extends State<_CallItemCard> {
               Expanded(
                 child: Text(
                   widget.title,
-                  style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: Colors.white),
+                  style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white),
                 ),
               ),
               Container(
@@ -1253,7 +1375,10 @@ class _CallItemCardState extends State<_CallItemCard> {
                 ),
                 child: Text(
                   widget.distance,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8)),
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF38BDF8)),
                 ),
               ),
             ],
@@ -1261,18 +1386,23 @@ class _CallItemCardState extends State<_CallItemCard> {
           const SizedBox(height: 6),
           Row(
             children: [
-              const Icon(Icons.person_outline, size: 14, color: Color(0xFF94A3B8)),
+              const Icon(Icons.person_outline,
+                  size: 14, color: Color(0xFF94A3B8)),
               const SizedBox(width: 4),
-              Text(widget.customer, style: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8))),
+              Text(widget.customer,
+                  style: const TextStyle(
+                      fontSize: 12.5, color: Color(0xFF94A3B8))),
               const SizedBox(width: 10),
-              const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF94A3B8)),
+              const Icon(Icons.location_on_outlined,
+                  size: 14, color: Color(0xFF94A3B8)),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   widget.address,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
+                  style:
+                      const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
                 ),
               ),
             ],
@@ -1298,10 +1428,15 @@ class _CallItemCardState extends State<_CallItemCard> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Tahmini Hakediş', style: TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8))),
+                  const Text('Tahmini Hakediş',
+                      style:
+                          TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8))),
                   Text(
                     widget.fee,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF34D399)),
+                    style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF34D399)),
                   ),
                 ],
               ),
@@ -1320,7 +1455,8 @@ class _CallItemCardState extends State<_CallItemCard> {
                   minimumSize: const Size(110, 40),
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   backgroundColor: AppTheme.ustaPrimary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
                 child: _isLoading
                     ? const SizedBox(
@@ -1331,7 +1467,8 @@ class _CallItemCardState extends State<_CallItemCard> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text('Kabul Et', style: TextStyle(fontWeight: FontWeight.bold)),
+                    : const Text('Kabul Et',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -1375,7 +1512,10 @@ class _MetricCard extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8)),
+                style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF94A3B8)),
               ),
               Icon(icon, size: 18, color: iconColor),
             ],
@@ -1383,7 +1523,8 @@ class _MetricCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             value,
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: accentColor),
+            style: TextStyle(
+                fontSize: 20, fontWeight: FontWeight.w900, color: accentColor),
           ),
           const SizedBox(height: 3),
           Text(
@@ -1420,22 +1561,28 @@ class _TarifeInputField extends StatelessWidget {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8)),
+          style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF94A3B8)),
         ),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+              color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
           decoration: InputDecoration(
             suffixText: suffix,
-            suffixStyle: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold),
+            suffixStyle: const TextStyle(
+                color: Color(0xFF38BDF8), fontWeight: FontWeight.bold),
             hintText: hint,
             hintStyle: const TextStyle(color: Color(0xFF64748B)),
             filled: true,
             fillColor: const Color(0xFF0F172A),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: Color(0xFF334155)),

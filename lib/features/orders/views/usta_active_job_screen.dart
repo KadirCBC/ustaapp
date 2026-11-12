@@ -1,18 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ustaapp/core/services/route_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/map/views/widgets/map_widget.dart';
 import 'package:ustaapp/features/orders/controllers/active_order_controller.dart';
 import 'package:ustaapp/features/orders/controllers/usta_dashboard_controller.dart';
 
-class UstaActiveJobScreen extends ConsumerWidget {
+class UstaActiveJobScreen extends ConsumerStatefulWidget {
   final String cagriId;
 
   const UstaActiveJobScreen({super.key, required this.cagriId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<UstaActiveJobScreen> createState() => _UstaActiveJobScreenState();
+}
+
+class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
+  RouteResult? _routeResult;
+
+  @override
+  Widget build(BuildContext context) {
+    final cagriId = widget.cagriId;
     final state = ref.watch(activeOrderControllerProvider(cagriId));
     final controller = ref.read(activeOrderControllerProvider(cagriId).notifier);
     final dashboardState = ref.watch(ustaDashboardControllerProvider);
@@ -92,6 +101,9 @@ class UstaActiveJobScreen extends ConsumerWidget {
                   ustaMarkerColor: AppTheme.ustaPrimary,
                   customerMarkerColor: Colors.redAccent,
                   zoom: 13.8,
+                  onRouteCalculated: (result) {
+                    if (mounted) setState(() => _routeResult = result);
+                  },
                 ),
                 Positioned(
                   top: 12,
@@ -110,7 +122,9 @@ class UstaActiveJobScreen extends ConsumerWidget {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Müşteri Konumuna Rota • $distanceText',
+                            _routeResult != null
+                                ? 'Canlı Sürüş Rotası • ${_routeResult!.formattedDistance} (~${_routeResult!.formattedDuration})'
+                                : 'Müşteri Konumuna Rota • $distanceText',
                             style: const TextStyle(
                               fontSize: 13.5,
                               fontWeight: FontWeight.bold,

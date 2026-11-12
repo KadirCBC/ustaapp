@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mapbox;
+import 'package:ustaapp/core/services/route_service.dart';
 
 /// Resmi mapbox_maps_flutter tabanlı yeniden kullanılabilir harita kapsayıcısı.
 class UstaMapWidget extends StatelessWidget {
@@ -33,7 +34,8 @@ class UstaMapWidget extends StatelessWidget {
   }
 }
 
-/// Usta ve müşteri konumları arasındaki rota çizgisini ve noktalarını Mapbox ile gösteren widget.
+/// Usta ve müşteri konumları arasındaki %100 gerçek sürüş rotasını (caddeleri ve sokakları takip eden)
+/// ve varış noktalarını Mapbox ile gösteren canlı navigasyon widget'ı.
 class UstaRouteMapWidget extends StatefulWidget {
   final double ustaLat;
   final double ustaLng;
@@ -43,6 +45,7 @@ class UstaRouteMapWidget extends StatefulWidget {
   final Color ustaMarkerColor;
   final Color customerMarkerColor;
   final double zoom;
+  final ValueChanged<RouteResult>? onRouteCalculated;
 
   const UstaRouteMapWidget({
     super.key,
@@ -54,6 +57,7 @@ class UstaRouteMapWidget extends StatefulWidget {
     required this.ustaMarkerColor,
     required this.customerMarkerColor,
     this.zoom = 14.0,
+    this.onRouteCalculated,
   });
 
   @override
@@ -61,15 +65,18 @@ class UstaRouteMapWidget extends StatefulWidget {
 }
 
 class _UstaRouteMapWidgetState extends State<UstaRouteMapWidget> {
+  mapbox.MapboxMap? _mapboxMap;
   mapbox.PolylineAnnotationManager? _polylineManager;
   mapbox.CircleAnnotationManager? _circleManager;
+  bool _isRouteFetching = false;
 
   Future<void> _onMapCreated(mapbox.MapboxMap mapboxMap) async {
+    _mapboxMap = mapboxMap;
     _polylineManager =
         await mapboxMap.annotations.createPolylineAnnotationManager();
     _circleManager =
         await mapboxMap.annotations.createCircleAnnotationManager();
-    await _syncRouteAnnotations();
+    await _syncRealDrivingRoute();
   }
 
   @override
@@ -79,51 +86,85 @@ class _UstaRouteMapWidgetState extends State<UstaRouteMapWidget> {
         oldWidget.ustaLng != widget.ustaLng ||
         oldWidget.customerLat != widget.customerLat ||
         oldWidget.customerLng != widget.customerLng) {
-      _syncRouteAnnotations();
+      _syncRealDrivingRoute();
     }
   }
 
-  Future<void> _syncRouteAnnotations() async {
+  /// Mapbox Directions API üzerinden gerçek sürüş rotasını çeker ve haritaya giydirir.
+  Future<void> _syncRealDrivingRoute() async {
     final polylineManager = _polylineManager;
     final circleManager = _circleManager;
-    if (polylineManager == null || circleManager == null) return;
+    if (polylineManager == null || circleManager == null || _isRouteFetching) return;
 
-    await polylineManager.deleteAll();
-    await polylineManager.create(
-      mapbox.PolylineAnnotationOptions(
-        geometry: mapbox.LineString(
-          coordinates: [
-            mapbox.Position(widget.ustaLng, widget.ustaLat),
-            mapbox.Position(widget.customerLng, widget.customerLat),
-          ],
-        ),
-        lineColor: widget.routeColor.toARGB32(),
-        lineWidth: 5.0,
-        lineJoin: mapbox.LineJoin.ROUND,
-      ),
-    );
+    _isRouteFetching = true;
 
-    await circleManager.deleteAll();
-    await circleManager.createMulti([
-      mapbox.CircleAnnotationOptions(
-        geometry: mapbox.Point(
-          coordinates: mapbox.Position(widget.customerLng, widget.customerLat),
+    try {
+      final route = await RouteService.fetchDrivingRoute(
+        startLat: widget.ustaLat,
+        startLng: widget.ustaLng,
+        endLat: widget.customerLat,
+        endLng: widget.customerLng,
+      );
+
+      if (!mounted) return;
+
+      // Çizgileri temizle ve gerçek sokak rotasını çiz
+      await polylineManager.deleteAll();
+
+      // 1. Alt gölge/kontur çizgisi (daha net ve profesyonel navigasyon görünümü)
+      await polylineManager.create(
+        mapbox.PolylineAnnotationOptions(
+          geometry: mapbox.LineString(coordinates: route.coordinates),
+          lineColor: const Color(0xFF0F172A).toARGB32(),
+          lineWidth: 8.5,
+          lineJoin: mapbox.LineJoin.ROUND,
         ),
-        circleRadius: 10.0,
-        circleColor: widget.customerMarkerColor.toARGB32(),
-        circleStrokeColor: Colors.white.toARGB32(),
-        circleStrokeWidth: 3.0,
-      ),
-      mapbox.CircleAnnotationOptions(
-        geometry: mapbox.Point(
-          coordinates: mapbox.Position(widget.ustaLng, widget.ustaLat),
+      );
+
+      // 2. Ana rota çizgisi (canlı renk)
+      await polylineManager.create(
+        mapbox.PolylineAnnotationOptions(
+          geometry: mapbox.LineString(coordinates: route.coordinates),
+          lineColor: widget.routeColor.toARGB32(),
+          lineWidth: 5.5,
+          lineJoin: mapbox.LineJoin.ROUND,
         ),
-        circleRadius: 10.0,
-        circleColor: widget.ustaMarkerColor.toARGB32(),
-        circleStrokeColor: Colors.white.toARGB32(),
-        circleStrokeWidth: 3.0,
-      ),
-    ]);
+      );
+
+      // 3. Usta ve Müşteri pinleri
+      await circleManager.deleteAll();
+      await circleManager.createMulti([
+        // Müşteri hedef pini (dış beyaz çeperli kırmızı nokta)
+        mapbox.CircleAnnotationOptions(
+          geometry: mapbox.Point(
+            coordinates: mapbox.Position(widget.customerLng, widget.customerLat),
+          ),
+          circleRadius: 11.0,
+          circleColor: widget.customerMarkerColor.toARGB32(),
+          circleStrokeColor: Colors.white.toARGB32(),
+          circleStrokeWidth: 3.5,
+        ),
+        // Usta başlangıç pini (turuncu/mavi usta noktası)
+        mapbox.CircleAnnotationOptions(
+          geometry: mapbox.Point(
+            coordinates: mapbox.Position(widget.ustaLng, widget.ustaLat),
+          ),
+          circleRadius: 10.0,
+          circleColor: widget.ustaMarkerColor.toARGB32(),
+          circleStrokeColor: Colors.white.toARGB32(),
+          circleStrokeWidth: 3.0,
+        ),
+      ]);
+
+      // Rota sonucunu üst bileşene bildir
+      if (widget.onRouteCalculated != null) {
+        widget.onRouteCalculated!(route);
+      }
+    } catch (e) {
+      debugPrint('Rota çizim hatası: $e');
+    } finally {
+      _isRouteFetching = false;
+    }
   }
 
   @override
