@@ -54,5 +54,58 @@ void main() {
     expect(find.text('UstamBurada Güvence & Platform Komisyonu (%15):'), findsOneWidget);
     expect(find.text('+262.50 ₺'), findsWidgets);
     expect(find.text('Müşteri Kartından Çekilen Toplam Tutar:'), findsOneWidget);
+
+    // Modalı kapat
+    await tester.tap(find.text('Kapat'));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // 1. Düzenle (Edit) Modalı Testi
+    final editButton = find.byTooltip('İşlemi & Hizmet Akışını Düzenle').first;
+    expect(editButton, findsOneWidget);
+    await tester.tap(editButton);
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('demo_pay_1794610203985 — İşlemi & Akışı Düzenle'), findsOneWidget);
+    expect(find.text('Değişiklikleri Kaydet'), findsOneWidget);
+    await tester.tap(find.text('İptal'));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // 2. Tekil Silme Onay Penceresi Testi
+    final deleteButton = find.byTooltip('İşlem Kaydını Sil').first;
+    expect(deleteButton, findsOneWidget);
+    await tester.tap(deleteButton);
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('İşlem Kaydını Sil'), findsOneWidget);
+    expect(find.text('Vazgeç'), findsOneWidget);
+    await tester.tap(find.text('Vazgeç'));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // 3. Checkbox ile Toplu Seçim ve Toplu İşlem Çubuğu Testi
+    // İlk satırın checkbox'ına tıkla
+    final rowCheckbox = find.byType(Checkbox).at(1);
+    await tester.tap(rowCheckbox);
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('1 işlem seçildi'), findsOneWidget);
+    expect(find.text('Toplu Durum / Aşama Değiştir'), findsOneWidget);
+    expect(find.text('Toplu Hakediş Onayla'), findsOneWidget);
+    expect(find.text('Seçilenleri Sil (1)'), findsOneWidget);
+    expect(find.text('Seçimi Kaldır'), findsOneWidget);
+
+    // Seçimi kaldır
+    await tester.tap(find.text('Seçimi Kaldır'));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('1 işlem seçildi'), findsNothing);
+
+    // 4. Tüm Kayıtları Temizle Butonu Testi
+    final clearAllButton = find.text('Tüm Kayıtları Temizle');
+    expect(clearAllButton, findsOneWidget);
+    await tester.tap(clearAllButton);
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('Tüm Finans Masasını Temizle'), findsOneWidget);
+    await tester.tap(find.text('Vazgeç'));
+    await tester.pump(const Duration(milliseconds: 500));
   });
 }

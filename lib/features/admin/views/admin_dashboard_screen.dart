@@ -81,6 +81,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   final Set<String> _selectedJobIds = {};
   final Set<String> _selectedUstaIds = {};
   final Set<String> _selectedMemberIds = {};
+  final Set<String> _selectedTransactionIds = {};
 
   // Form Kontrolcüleri (Yeni İşletme Ekleme)
   final _businessNameController = TextEditingController();
@@ -5605,12 +5606,87 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             foregroundColor: Colors.white,
                           ),
                         ),
+                        OutlinedButton.icon(
+                          onPressed: _confirmClearAllTransactions,
+                          icon: const Icon(Icons.delete_sweep_rounded, size: 16, color: Color(0xFFDC2626)),
+                          label: const Text('Tüm Kayıtları Temizle', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.bold)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFFCA5A5)),
+                          ),
+                        ),
                       ],
                     ),
                   ],
                 ),
               ),
               const Divider(height: 1, color: Color(0xFFE2E8F0)),
+
+              // Toplu İşlem Çubuğu (Bulk Action Toolbar)
+              if (_selectedTransactionIds.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF93C5FD)),
+                    ),
+                    child: Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 10,
+                      runSpacing: 8,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.check_circle_rounded, color: Color(0xFF1D4ED8), size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${_selectedTransactionIds.length} işlem seçildi',
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8), fontSize: 13.5),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(
+                          onPressed: _showBulkUpdateStatusDialog,
+                          icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                          label: const Text('Toplu Durum / Aşama Değiştir'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2563EB),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _bulkTransferPayouts,
+                          icon: const Icon(Icons.payments_rounded, size: 16),
+                          label: const Text('Toplu Hakediş Onayla'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF059669),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _deleteSelectedTransactions,
+                          icon: const Icon(Icons.delete_sweep_rounded, size: 16),
+                          label: Text('Seçilenleri Sil (${_selectedTransactionIds.length})'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFDC2626),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => setState(() => _selectedTransactionIds.clear()),
+                          child: const Text('Seçimi Kaldır'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
               // Filtre & Arama Konsolu
               Padding(
@@ -5710,21 +5786,48 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   scrollDirection: Axis.horizontal,
                   child: DataTable(
                     headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-                    dataRowMinHeight: 64,
-                    dataRowMaxHeight: 72,
-                    columnSpacing: 22,
-                    columns: const [
-                      DataColumn(label: Text('Dekont / İşlem No', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
-                      DataColumn(label: Text('Hizmet & Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
-                      DataColumn(label: Text('Müşteri', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
-                      DataColumn(label: Text('Görevli Usta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
-                      DataColumn(label: Text('Hizmet Bedeli\n(Usta Taban)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                      DataColumn(label: Text('Bizim Komisyon\nKazancımız (%15)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF16A34A)))),
-                      DataColumn(label: Text('Toplam Çekilen\nTutar (Müşteri)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0284C7)))),
-                      DataColumn(label: Text('Hizmet Akış Aşaması', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
-                      DataColumn(label: Text('Ödeme Sağlayıcı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
-                      DataColumn(label: Text('Tarih / Saat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
-                      DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                    dataRowMinHeight: 68,
+                    dataRowMaxHeight: 76,
+                    columnSpacing: 20,
+                    columns: [
+                      // 1. Checkbox Tümünü Seç
+                      DataColumn(
+                        label: Checkbox(
+                          value: filteredTransactions.isNotEmpty && _selectedTransactionIds.length == filteredTransactions.length,
+                          tristate: _selectedTransactionIds.isNotEmpty && _selectedTransactionIds.length < filteredTransactions.length,
+                          onChanged: (val) {
+                            setState(() {
+                              if (val == true) {
+                                _selectedTransactionIds.addAll(filteredTransactions.map((t) => (t['id'] ?? '').toString()));
+                              } else {
+                                _selectedTransactionIds.clear();
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                      // 2. Aksiyonlar (Hemen başta - Asla kaybolmaz, doğrudan erişilebilir!)
+                      const DataColumn(label: Text('İşlemler / Aksiyon', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)))),
+                      // 3. Dekont / İşlem No
+                      const DataColumn(label: Text('Dekont / İşlem No', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      // 4. Hizmet & Kategori
+                      const DataColumn(label: Text('Hizmet & Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      // 5. Müşteri
+                      const DataColumn(label: Text('Müşteri', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      // 6. Görevli Usta
+                      const DataColumn(label: Text('Görevli Usta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      // 7. Usta Tabanı
+                      const DataColumn(label: Text('Hizmet Bedeli\n(Usta Taban)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                      // 8. Komisyon (%15)
+                      const DataColumn(label: Text('Bizim Komisyon\nKazancımız (%15)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF16A34A)))),
+                      // 9. Toplam Çekilen
+                      const DataColumn(label: Text('Toplam Çekilen\nTutar (Müşteri)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0284C7)))),
+                      // 10. Hizmet Akış Aşaması
+                      const DataColumn(label: Text('Hizmet Akış Aşaması', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      // 11. Ödeme Sağlayıcı
+                      const DataColumn(label: Text('Ödeme Sağlayıcı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      // 12. Tarih / Saat
+                      const DataColumn(label: Text('Tarih / Saat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
                     ],
                     rows: filteredTransactions.map((tx) {
                       final status = (tx['durum'] ?? '').toString();
@@ -5734,10 +5837,74 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       final totalAmount = _asDouble(tx['toplam_tutar'], 0.0);
                       final receiptNo = (tx['receipt_no'] ?? tx['id'] ?? '').toString();
                       final isPayoutDone = tx['is_payout_transferred'] == true;
+                      final txId = (tx['id'] ?? '').toString();
+                      final isSelected = _selectedTransactionIds.contains(txId);
 
                       return DataRow(
+                        selected: isSelected,
                         cells: [
-                          // Dekont No & İyzico Chip
+                          // 1. Checkbox
+                          DataCell(
+                            Checkbox(
+                              value: isSelected,
+                              onChanged: (val) {
+                                setState(() {
+                                  if (val == true) {
+                                    _selectedTransactionIds.add(txId);
+                                  } else {
+                                    _selectedTransactionIds.remove(txId);
+                                  }
+                                });
+                              },
+                            ),
+                          ),
+
+                          // 2. Aksiyon Butonları (İncele, Düzenle, Aşamayı İlerlet, Hakediş Aktar, Sil)
+                          DataCell(
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // İncele (Dekont)
+                                IconButton(
+                                  icon: const Icon(Icons.remove_red_eye_rounded, size: 18, color: Color(0xFF0284C7)),
+                                  tooltip: 'Dekont & Süreç Detayını İncele',
+                                  onPressed: () => _showTransactionDetailDialog(tx),
+                                ),
+                                // Düzenle
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFFD97706)),
+                                  tooltip: 'İşlemi & Hizmet Akışını Düzenle',
+                                  onPressed: () => _showEditTransactionDialog(tx),
+                                ),
+                                // Hızlı Aşama İlerletme (Onay ➔ Kabul ➔ Yolda ➔ Bitti)
+                                IconButton(
+                                  icon: const Icon(Icons.play_arrow_rounded, size: 20, color: Color(0xFF7C3AED)),
+                                  tooltip: 'Aşamayı İlerlet ($step/4)',
+                                  onPressed: () => _advanceTransactionStep(tx),
+                                ),
+                                // Hakediş Transferi
+                                if (status.contains('Tamamlandı') && !isPayoutDone)
+                                  IconButton(
+                                    icon: const Icon(Icons.send_rounded, size: 18, color: Color(0xFF16A34A)),
+                                    tooltip: 'Usta Hakedişini Bankaya Aktar',
+                                    onPressed: () {
+                                      setState(() {
+                                        tx['is_payout_transferred'] = true;
+                                      });
+                                      _showSuccessToast('${tx['usta_ad']} hesabına ${ustaPayout.toStringAsFixed(2)} ₺ aktarıldı.');
+                                    },
+                                  ),
+                                // Sil
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFEF4444)),
+                                  tooltip: 'İşlem Kaydını Sil',
+                                  onPressed: () => _confirmDeleteTransaction(tx),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // 3. Dekont No & İyzico Chip
                           DataCell(
                             InkWell(
                               onTap: () => _showTransactionDetailDialog(tx),
@@ -5775,7 +5942,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ),
                           ),
 
-                          // Hizmet & Kategori
+                          // 4. Hizmet & Kategori
                           DataCell(
                             Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -5801,7 +5968,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ),
                           ),
 
-                          // Müşteri
+                          // 5. Müşteri
                           DataCell(
                             Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -5819,7 +5986,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ),
                           ),
 
-                          // Görevli Usta
+                          // 6. Görevli Usta
                           DataCell(
                             Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -5844,7 +6011,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ),
                           ),
 
-                          // Usta Taban Ücreti (Hakediş)
+                          // 7. Usta Taban Ücreti (Hakediş)
                           DataCell(
                             Text(
                               '${ustaPayout.toStringAsFixed(2)} ₺',
@@ -5852,7 +6019,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ),
                           ),
 
-                          // Bizim Komisyon Kazancımız (%15)
+                          // 8. Bizim Komisyon Kazancımız (%15)
                           DataCell(
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -5868,7 +6035,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ),
                           ),
 
-                          // Toplam Çekilen Tutar (Müşteri)
+                          // 9. Toplam Çekilen Tutar (Müşteri)
                           DataCell(
                             Text(
                               '${totalAmount.toStringAsFixed(2)} ₺',
@@ -5876,10 +6043,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ),
                           ),
 
-                          // Hizmet Akış Aşaması (Stepper Rozeti)
+                          // 10. Hizmet Akış Aşaması (Stepper Rozeti)
                           DataCell(_buildServiceFlowBadge(step, status)),
 
-                          // Ödeme Sağlayıcı
+                          // 11. Ödeme Sağlayıcı
                           DataCell(
                             Row(
                               mainAxisSize: MainAxisSize.min,
@@ -5894,41 +6061,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ),
                           ),
 
-                          // Tarih / Saat
+                          // 12. Tarih / Saat
                           DataCell(
                             Text(
                               (tx['created_at'] ?? '—').toString(),
                               style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                            ),
-                          ),
-
-                          // Aksiyonlar
-                          DataCell(
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.remove_red_eye_rounded, size: 18, color: Color(0xFF0284C7)),
-                                  tooltip: 'Dekont & Süreç Detayını İncele',
-                                  onPressed: () => _showTransactionDetailDialog(tx),
-                                ),
-                                if (status.contains('Tamamlandı') && !isPayoutDone)
-                                  IconButton(
-                                    icon: const Icon(Icons.send_rounded, size: 18, color: Color(0xFF16A34A)),
-                                    tooltip: 'Usta Hakedişini Bankaya Aktar',
-                                    onPressed: () {
-                                      setState(() {
-                                        tx['is_payout_transferred'] = true;
-                                      });
-                                      _showSuccessToast('${tx['usta_ad']} hesabına ${ustaPayout.toStringAsFixed(2)} ₺ aktarıldı.');
-                                    },
-                                  ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFEF4444)),
-                                  tooltip: 'İşlem Kaydını Sil',
-                                  onPressed: () => _deleteTransaction(tx['id']),
-                                ),
-                              ],
                             ),
                           ),
                         ],
@@ -6547,12 +6684,484 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
+  void _confirmDeleteTransaction(Map<String, dynamic> tx) {
+    final receipt = (tx['receipt_no'] ?? tx['id'] ?? '').toString();
+    final title = (tx['hizmet_baslik'] ?? 'Hizmet').toString();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Text('İşlem Kaydını Sil', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text('$receipt numaralı "$title" işlem ve akış kaydı sistemden kalıcı olarak silinecektir. Emin misiniz?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _deleteTransaction(tx['id']);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            child: const Text('Evet, Sil'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _deleteTransaction(String id) {
     setState(() {
       _financialTransactions.removeWhere((t) => t['id'] == id);
+      _selectedTransactionIds.remove(id);
       _recalculateMetrics();
     });
     _showSuccessToast('İşlem kaydı başarıyla silindi.');
+  }
+
+  void _deleteSelectedTransactions() {
+    if (_selectedTransactionIds.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.delete_sweep_rounded, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Text('Seçilen İşlemleri Sil', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text('Seçtiğiniz ${_selectedTransactionIds.length} adet finansal işlem ve servis çağrısı kaydı sistemden kalıcı olarak silinecektir. Onaylıyor musunuz?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _financialTransactions.removeWhere((t) => _selectedTransactionIds.contains(t['id']));
+                _selectedTransactionIds.clear();
+                _recalculateMetrics();
+              });
+              Navigator.pop(ctx);
+              _showSuccessToast('Seçilen finansal işlemler başarıyla silindi.');
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            child: const Text('Evet, Hepsini Sil'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmClearAllTransactions() {
+    if (_financialTransactions.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Text('Tüm Finans Masasını Temizle', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text('Finans masasında bulunan TÜM (${_financialTransactions.length}) işlem ve hizmet akışı kayıtları silinecektir. Emin misiniz?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _financialTransactions.clear();
+                _selectedTransactionIds.clear();
+                _recalculateMetrics();
+              });
+              Navigator.pop(ctx);
+              _showSuccessToast('Tüm finansal kayıtlar temizlendi.');
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            child: const Text('Evet, Tümünü Temizle'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBulkUpdateStatusDialog() {
+    if (_selectedTransactionIds.isEmpty) return;
+    String targetStatus = 'Tamamlandı & Tahsil Edildi';
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.swap_horiz_rounded, color: Color(0xFF2563EB)),
+              const SizedBox(width: 8),
+              Text('Toplu Durum / Aşama Güncelle (${_selectedTransactionIds.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Seçilen tüm işlemler için yeni hizmet akış aşamasını seçiniz:'),
+              const SizedBox(height: 14),
+              DropdownButtonFormField<String>(
+                value: targetStatus,
+                decoration: const InputDecoration(labelText: 'Yeni Akış Aşaması', border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 'Tamamlandı & Tahsil Edildi', child: Text('4. Tamamlandı & Tahsil Edildi')),
+                  DropdownMenuItem(value: 'Usta Yolda', child: Text('3. Usta Yolda')),
+                  DropdownMenuItem(value: 'Kabul Edildi / İşlemde', child: Text('2. Kabul Edildi / İşlemde')),
+                  DropdownMenuItem(value: 'Usta Onayı Bekleniyor', child: Text('1. Usta Onayı Bekleniyor')),
+                ],
+                onChanged: (val) {
+                  if (val != null) setDlgState(() => targetStatus = val);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
+            ElevatedButton(
+              onPressed: () {
+                final int step = targetStatus.contains('Tamamlandı')
+                    ? 4
+                    : (targetStatus.contains('Yolda') ? 3 : (targetStatus.contains('Kabul') ? 2 : 1));
+                setState(() {
+                  for (final t in _financialTransactions) {
+                    if (_selectedTransactionIds.contains(t['id'])) {
+                      t['durum'] = targetStatus;
+                      t['flow_step'] = step;
+                      if (step == 4) {
+                        t['payment_status'] = 'Tahsil Edildi';
+                      }
+                    }
+                  }
+                  _recalculateMetrics();
+                });
+                Navigator.pop(ctx);
+                _showSuccessToast('${_selectedTransactionIds.length} işlemin durumu güncellendi.');
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white),
+              child: const Text('Durumu Uygula'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _bulkTransferPayouts() {
+    if (_selectedTransactionIds.isEmpty) return;
+    int count = 0;
+    double totalPayout = 0.0;
+    setState(() {
+      for (final t in _financialTransactions) {
+        if (_selectedTransactionIds.contains(t['id'])) {
+          t['is_payout_transferred'] = true;
+          count++;
+          totalPayout += _asDouble(t['usta_hakedis'], 0.0);
+        }
+      }
+    });
+    _showSuccessToast('$count ustanın toplam ${totalPayout.toStringAsFixed(2)} ₺ hakedişi bankaya aktarıldı.');
+  }
+
+  void _advanceTransactionStep(Map<String, dynamic> tx) {
+    final currentStep = _asInt(tx['flow_step'], 1);
+    final nextStep = currentStep < 4 ? currentStep + 1 : 1;
+    String newStatus;
+    switch (nextStep) {
+      case 1:
+        newStatus = 'Usta Onayı Bekleniyor';
+        break;
+      case 2:
+        newStatus = 'Kabul Edildi / İşlemde';
+        break;
+      case 3:
+        newStatus = 'Usta Yolda';
+        break;
+      case 4:
+      default:
+        newStatus = 'Tamamlandı & Tahsil Edildi';
+        break;
+    }
+    setState(() {
+      tx['flow_step'] = nextStep;
+      tx['durum'] = newStatus;
+      if (nextStep == 4) {
+        tx['payment_status'] = 'Provizyon Kapandı / Tahsil Edildi';
+      }
+      _recalculateMetrics();
+    });
+    _showSuccessToast('${tx['receipt_no']} aşaması: "$newStatus" olarak güncellendi.');
+  }
+
+  void _showEditTransactionDialog(Map<String, dynamic> tx) {
+    final titleCtrl = TextEditingController(text: (tx['hizmet_baslik'] ?? '').toString());
+    final catCtrl = TextEditingController(text: (tx['kategori'] ?? 'Elektrik & Aydınlatma').toString());
+    final custNameCtrl = TextEditingController(text: (tx['musteri_ad'] ?? '').toString());
+    final custPhoneCtrl = TextEditingController(text: (tx['musteri_tel'] ?? '').toString());
+    final addressCtrl = TextEditingController(text: (tx['musteri_adres'] ?? '').toString());
+    final ustaNameCtrl = TextEditingController(text: (tx['usta_ad'] ?? '').toString());
+    final ustaPhoneCtrl = TextEditingController(text: (tx['usta_tel'] ?? '').toString());
+    final ustaPriceCtrl = TextEditingController(text: _asDouble(tx['usta_hakedis'], 1500.0).toStringAsFixed(0));
+    final commentCtrl = TextEditingController(text: (tx['musteri_yorum'] ?? '').toString());
+    final ratingCtrl = TextEditingController(text: _asDouble(tx['puan'], 5.0).toString());
+
+    String selectedStatus = (tx['durum'] ?? 'Tamamlandı & Tahsil Edildi').toString();
+    bool isPayoutTransferred = tx['is_payout_transferred'] == true;
+    String paymentProvider = (tx['payment_provider'] ?? 'İyzico Sanal POS • 3D Secure').toString();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final ustaPrice = _asDouble(ustaPriceCtrl.text.trim(), 1500.0);
+          final commission = ustaPrice * 0.15;
+          final total = ustaPrice + commission;
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(Icons.edit_note_rounded, color: Color(0xFF0284C7), size: 26),
+                const SizedBox(width: 8),
+                Text('${tx['receipt_no']} — İşlemi & Akışı Düzenle', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16.5)),
+              ],
+            ),
+            content: SizedBox(
+              width: 600,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Hizmet & Kategori
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: TextField(
+                            controller: titleCtrl,
+                            decoration: const InputDecoration(labelText: 'Hizmet Başlığı', border: OutlineInputBorder()),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: catCtrl,
+                            decoration: const InputDecoration(labelText: 'Kategori', border: OutlineInputBorder()),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Müşteri Bilgileri
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: custNameCtrl,
+                            decoration: const InputDecoration(labelText: 'Müşteri Ad Soyad', border: OutlineInputBorder()),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: custPhoneCtrl,
+                            decoration: const InputDecoration(labelText: 'Müşteri Telefon', border: OutlineInputBorder()),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: addressCtrl,
+                      decoration: const InputDecoration(labelText: 'Müşteri Adresi & İlçe', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Görevli Usta & Fiyat
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: TextField(
+                            controller: ustaNameCtrl,
+                            decoration: const InputDecoration(labelText: 'Görevli Usta', border: OutlineInputBorder()),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: ustaPhoneCtrl,
+                            decoration: const InputDecoration(labelText: 'Usta Telefon', border: OutlineInputBorder()),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Taban Fiyat ve Akış Durumu
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: ustaPriceCtrl,
+                            keyboardType: TextInputType.number,
+                            onChanged: (_) => setDialogState(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Usta Taban Ücreti (₺)',
+                              border: OutlineInputBorder(),
+                              suffixText: '₺',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: selectedStatus,
+                            decoration: const InputDecoration(labelText: 'Akış Durumu', border: OutlineInputBorder()),
+                            items: const [
+                              DropdownMenuItem(value: 'Tamamlandı & Tahsil Edildi', child: Text('4. Tamamlandı & Tahsil Edildi')),
+                              DropdownMenuItem(value: 'Usta Yolda', child: Text('3. Usta Yolda')),
+                              DropdownMenuItem(value: 'Kabul Edildi / İşlemde', child: Text('2. Kabul Edildi / İşlemde')),
+                              DropdownMenuItem(value: 'Usta Onayı Bekleniyor', child: Text('1. Usta Onayı Bekleniyor')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) setDialogState(() => selectedStatus = val);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Canlı Hesaplama Özeti
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Usta Hakedişi: ${ustaPrice.toStringAsFixed(2)} ₺', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text('Platform (%15): +${commission.toStringAsFixed(2)} ₺', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF16A34A))),
+                          Text('Toplam: ${total.toStringAsFixed(2)} ₺', style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0284C7))),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Hakediş Transferi & Ödeme Sağlayıcı
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: paymentProvider,
+                            decoration: const InputDecoration(labelText: 'Ödeme Sağlayıcı', border: OutlineInputBorder()),
+                            items: const [
+                              DropdownMenuItem(value: 'İyzico Sanal POS • 3D Secure', child: Text('İyzico Sanal POS • 3D Secure')),
+                              DropdownMenuItem(value: 'İyzico Provizyon (Askıda)', child: Text('İyzico Provizyon (Askıda)')),
+                              DropdownMenuItem(value: 'Nakit / Havale', child: Text('Nakit / Havale')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) setDialogState(() => paymentProvider = val);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: isPayoutTransferred,
+                              onChanged: (val) => setDialogState(() => isPayoutTransferred = val ?? false),
+                            ),
+                            const Text('Usta Hakedişi Ödendi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Müşteri Puanı & Yorumu
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 120,
+                          child: TextField(
+                            controller: ratingCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(labelText: 'Puan (1-5)', border: OutlineInputBorder()),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: commentCtrl,
+                            decoration: const InputDecoration(labelText: 'Müşteri Değerlendirme Yorumu', border: OutlineInputBorder()),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('İptal')),
+              ElevatedButton(
+                onPressed: () {
+                  final int step = selectedStatus.contains('Tamamlandı')
+                      ? 4
+                      : (selectedStatus.contains('Yolda') ? 3 : (selectedStatus.contains('Kabul') ? 2 : 1));
+
+                  setState(() {
+                    tx['hizmet_baslik'] = titleCtrl.text.trim().isEmpty ? 'Servis Hizmeti' : titleCtrl.text.trim();
+                    tx['kategori'] = catCtrl.text.trim();
+                    tx['musteri_ad'] = custNameCtrl.text.trim();
+                    tx['musteri_tel'] = custPhoneCtrl.text.trim();
+                    tx['musteri_adres'] = addressCtrl.text.trim();
+                    tx['usta_ad'] = ustaNameCtrl.text.trim();
+                    tx['usta_tel'] = ustaPhoneCtrl.text.trim();
+                    tx['usta_hakedis'] = ustaPrice;
+                    tx['komisyon_tutari'] = commission;
+                    tx['toplam_tutar'] = total;
+                    tx['durum'] = selectedStatus;
+                    tx['flow_step'] = step;
+                    tx['payment_provider'] = paymentProvider;
+                    tx['is_payout_transferred'] = isPayoutTransferred;
+                    tx['puan'] = _asDouble(ratingCtrl.text.trim(), 5.0);
+                    tx['musteri_yorum'] = commentCtrl.text.trim();
+                    _recalculateMetrics();
+                  });
+                  Navigator.of(ctx).pop();
+                  _showSuccessToast('✓ "${tx['receipt_no']}" bilgileri başarıyla güncellendi.');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0284C7),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Değişiklikleri Kaydet'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   Widget _buildFinancialTile({
