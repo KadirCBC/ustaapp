@@ -242,6 +242,11 @@ class CategoryFilterBar extends StatelessWidget {
     CategoryItem(key: 'elektrik', label: 'Elektrik', icon: Icons.bolt_rounded),
     CategoryItem(key: 'cilingir', label: 'Çilingir', icon: Icons.vpn_key_rounded),
     CategoryItem(key: 'tesisat', label: 'Tesisat', icon: Icons.build_rounded),
+    CategoryItem(
+      key: 'tedarikciler',
+      label: 'Tedarikçiler / Dükkanlar',
+      icon: Icons.storefront_rounded,
+    ),
   ];
 
   @override

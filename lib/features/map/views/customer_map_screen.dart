@@ -6,9 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/map/controllers/map_controller.dart';
+import 'package:ustaapp/features/map/models/isletme_model.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:ustaapp/features/map/views/widgets/category_filter_bar.dart';
 import 'package:ustaapp/features/map/views/widgets/mechanic_bottom_card.dart';
@@ -39,6 +41,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
 
   final Map<String, Uint8List> _markerBytesCache = {};
   final Map<String, NearbyUstaModel> _annotationIdToUsta = {};
+  final Map<String, IsletmeModel> _annotationIdToIsletme = {};
   Uint8List? _customerPinBytes;
 
   bool _isSyncingAnnotations = false;
@@ -86,11 +89,13 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
       ),
     );
 
-    // Arka plan haritaya dokunulduğunda seçili ustayı temizle
+    // Arka plan haritaya dokunulduğunda seçili usta veya dükkanı temizle
     mapboxMap.addInteraction(
       TapInteraction.onMap((_) {
         if (mounted) {
-          ref.read(customerMapControllerProvider.notifier).clearSelectedUsta();
+          final notifier = ref.read(customerMapControllerProvider.notifier);
+          notifier.clearSelectedUsta();
+          notifier.clearSelectedIsletme();
         }
       }),
     );
@@ -105,6 +110,13 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
         if (usta != null && mounted) {
           final notifier = ref.read(customerMapControllerProvider.notifier);
           _selectAndFocusUsta(usta, notifier);
+          return;
+        }
+
+        final isletme = _annotationIdToIsletme[annotation.id];
+        if (isletme != null && mounted) {
+          final notifier = ref.read(customerMapControllerProvider.notifier);
+          _selectAndFocusIsletme(isletme, notifier);
         }
       },
     );
@@ -135,8 +147,16 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
               '${u.ustaId}:${u.latitude.toStringAsFixed(5)}:${u.longitude.toStringAsFixed(5)}:${u.formattedPrice}:${u.puan}',
         )
         .join(',');
+    final isletmeIds = mapState.isletmeler
+        .map(
+          (i) =>
+              '${i.id}:${i.latitude.toStringAsFixed(5)}:${i.longitude.toStringAsFixed(5)}:${i.isSponsored}',
+        )
+        .join(',');
     return '${mapState.currentLat}_${mapState.currentLng}_'
-        '${mapState.selectedUsta?.ustaId}_$ids';
+        '${mapState.selectedCategory}_'
+        '${mapState.selectedUsta?.ustaId}_${mapState.selectedIsletme?.id}_'
+        '$ids|$isletmeIds';
   }
 
   Future<void> _syncAnnotations(
@@ -159,6 +179,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
       _lastSyncedSignature = signature;
       await manager.deleteAll();
       _annotationIdToUsta.clear();
+      _annotationIdToIsletme.clear();
 
       // 1. Müşteri konum pini
       _customerPinBytes ??= await _createCustomerLocationBytes();
@@ -173,27 +194,53 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
         ),
       );
 
-      // 2. Yakındaki ustaların özel rozet pinleri
-      for (final usta in mapState.nearbyUstalar) {
-        final isSelected = mapState.selectedUsta?.ustaId == usta.ustaId;
+      // 2. Yakındaki ustaların standart yeşil rozet pinleri
+      // (Eğer 'tedarikciler' filtresi seçili değilse)
+      if (mapState.selectedCategory != 'tedarikciler') {
+        for (final usta in mapState.nearbyUstalar) {
+          final isSelected = mapState.selectedUsta?.ustaId == usta.ustaId;
+          final cacheKey =
+              'usta_${usta.ustaId}_${usta.formattedPrice}_${usta.puan}_$isSelected';
+          final bytes = _markerBytesCache[cacheKey] ??
+              await _createUstaBadgeBytes(usta: usta, isSelected: isSelected);
+          _markerBytesCache[cacheKey] = bytes;
+
+          final annotation = await manager.create(
+            PointAnnotationOptions(
+              geometry: Point(
+                coordinates: Position(usta.longitude, usta.latitude),
+              ),
+              image: bytes,
+              iconAnchor: IconAnchor.BOTTOM,
+              iconSize: isSelected ? 1.15 : 1.00,
+              symbolSortKey: isSelected ? 10.0 : 5.0,
+            ),
+          );
+          _annotationIdToUsta[annotation.id] = usta;
+        }
+      }
+
+      // 3. Yakındaki işletmeler / tedarikçilerin özel altın sarısı / turuncu rozet pinleri
+      for (final isletme in mapState.isletmeler) {
+        final isSelected = mapState.selectedIsletme?.id == isletme.id;
         final cacheKey =
-            '${usta.ustaId}_${usta.formattedPrice}_${usta.puan}_$isSelected';
+            'isletme_${isletme.id}_${isletme.ad}_${isletme.isSponsored}_$isSelected';
         final bytes = _markerBytesCache[cacheKey] ??
-            await _createUstaBadgeBytes(usta: usta, isSelected: isSelected);
+            await _createIsletmeBadgeBytes(isletme: isletme, isSelected: isSelected);
         _markerBytesCache[cacheKey] = bytes;
 
         final annotation = await manager.create(
           PointAnnotationOptions(
             geometry: Point(
-              coordinates: Position(usta.longitude, usta.latitude),
+              coordinates: Position(isletme.longitude, isletme.latitude),
             ),
             image: bytes,
             iconAnchor: IconAnchor.BOTTOM,
             iconSize: isSelected ? 1.15 : 1.00,
-            symbolSortKey: isSelected ? 10.0 : 5.0,
+            symbolSortKey: isletme.isSponsored ? 12.0 : 6.0,
           ),
         );
-        _annotationIdToUsta[annotation.id] = usta;
+        _annotationIdToIsletme[annotation.id] = isletme;
       }
     } finally {
       _isSyncingAnnotations = false;
@@ -233,7 +280,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
     return data!.buffer.asUint8List();
   }
 
-  /// Usta Pin Rozeti (★ 4.9 Ahmet Y. + 920 ₺ koyu hap + alt üçgen ok)
+  /// Usta Pin Rozeti - Standart Yeşil Rozet Pin (★ 4.9 Ahmet Y. + 920 ₺ yeşil hap + alt üçgen ok)
   Future<Uint8List> _createUstaBadgeBytes({
     required NearbyUstaModel usta,
     required bool isSelected,
@@ -247,15 +294,12 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
-    final Color bgColor = isSelected ? AppTheme.ustaPrimary : Colors.white;
-    final Color textColor =
-        isSelected ? Colors.white : const Color(0xFF0F172A);
-    final Color pillBgColor =
-        isSelected ? Colors.white : const Color(0xFF0F172A);
-    final Color pillTextColor =
-        isSelected ? AppTheme.ustaPrimary : Colors.white;
-    final Color borderColor =
-        isSelected ? Colors.white : const Color(0xFFE2E8F0);
+    const Color greenPrimary = Color(0xFF059669);
+    final Color bgColor = isSelected ? greenPrimary : Colors.white;
+    final Color textColor = isSelected ? Colors.white : const Color(0xFF0F172A);
+    final Color pillBgColor = isSelected ? Colors.white : const Color(0xFF064E3B);
+    final Color pillTextColor = isSelected ? greenPrimary : Colors.white;
+    final Color borderColor = isSelected ? const Color(0xFF34D399) : const Color(0xFF10B981);
 
     final badgeRect = RRect.fromRectAndRadius(
       const Rect.fromLTWH(8, 4, width - 16, badgeHeight),
@@ -266,8 +310,8 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
       badgeRect.shift(const Offset(0, 6)),
       Paint()
         ..color = isSelected
-            ? AppTheme.ustaPrimary.withValues(alpha: 0.38)
-            : Colors.black.withValues(alpha: 0.18)
+            ? greenPrimary.withValues(alpha: 0.38)
+            : const Color(0xFF10B981).withValues(alpha: 0.22)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
     );
 
@@ -277,7 +321,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
       Paint()
         ..color = borderColor
         ..style = PaintingStyle.stroke
-        ..strokeWidth = (isSelected ? 2.4 : 1.5) * scale,
+        ..strokeWidth = (isSelected ? 2.4 : 1.6) * scale,
     );
 
     final topTextPainter = TextPainter(
@@ -351,10 +395,153 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
       ..lineTo(width / 2 + 8 * scale, pointerY)
       ..close();
 
+    canvas.drawPath(trianglePath, Paint()..color = bgColor);
     canvas.drawPath(
       trianglePath,
       Paint()
-        ..color = isSelected ? AppTheme.ustaPrimary : const Color(0xFF0F172A),
+        ..color = borderColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6 * scale,
+    );
+
+    final image = await recorder
+        .endRecording()
+        .toImage(width.toInt(), totalHeight.toInt());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
+  }
+
+  /// İşletme / Tedarikçi Pin Rozeti - Altın Sarısı / Turuncu ve Mağaza Simgeli
+  /// (is_sponsored olanlar parlayan altın gölgeli, kalın çerçeveli özel pin tasarımıyla gösterilir)
+  Future<Uint8List> _createIsletmeBadgeBytes({
+    required IsletmeModel isletme,
+    required bool isSelected,
+  }) async {
+    const double scale = 2.6;
+    const double width = 176 * scale;
+    const double badgeHeight = 64 * scale;
+    const double pointerHeight = 11 * scale;
+    const double totalHeight = badgeHeight + pointerHeight + 12 * scale;
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    final bool isSponsored = isletme.isSponsored;
+
+    // Altın sarısı / turuncu renk teması
+    final Color amberPrimary = isSponsored ? const Color(0xFFD97706) : const Color(0xFFF59E0B);
+    final Color bgColor = isSelected ? amberPrimary : Colors.white;
+    final Color textColor = isSelected ? Colors.white : const Color(0xFF0F172A);
+    final Color borderColor = isSponsored ? const Color(0xFFF59E0B) : const Color(0xFFFBBF24);
+
+    final badgeRect = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(8, 4, width - 16, badgeHeight),
+      const Radius.circular(18 * scale),
+    );
+
+    // Parlayan gölge: Sponsorlu ise daha yoğun altın aurası
+    canvas.drawRRect(
+      badgeRect.shift(const Offset(0, 6)),
+      Paint()
+        ..color = isSponsored
+            ? const Color(0xFFF59E0B).withValues(alpha: 0.55)
+            : const Color(0xFFD97706).withValues(alpha: 0.28)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, isSponsored ? 14 : 8),
+    );
+
+    canvas.drawRRect(badgeRect, Paint()..color = bgColor);
+    canvas.drawRRect(
+      badgeRect,
+      Paint()
+        ..color = borderColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = (isSponsored ? 3.0 : (isSelected ? 2.4 : 1.6)) * scale,
+    );
+
+    // Başlık: 🏪 veya ⭐ + Dükkan Adı
+    final String iconPrefix = isSponsored ? '⭐ ' : '🏪 ';
+    final topTextPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+      text: TextSpan(
+        children: [
+          TextSpan(
+            text: iconPrefix,
+            style: TextStyle(
+              fontSize: 13.5 * scale,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          TextSpan(
+            text: isletme.ad,
+            style: TextStyle(
+              fontSize: 13 * scale,
+              fontWeight: FontWeight.w800,
+              color: textColor,
+            ),
+          ),
+        ],
+      ),
+    )..layout(maxWidth: width - 32);
+
+    topTextPainter.paint(
+      canvas,
+      Offset((width - topTextPainter.width) / 2, 10 * scale),
+    );
+
+    // Alt Rozet / Kategori Hapı
+    final String subLabel = isSponsored ? 'ÖNE ÇIKAN DÜKKAN' : isletme.kategori;
+    final subTextPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+      text: TextSpan(
+        text: subLabel,
+        style: TextStyle(
+          fontSize: 10.5 * scale,
+          fontWeight: FontWeight.w800,
+          color: isSelected ? Colors.white : const Color(0xFF92400E),
+        ),
+      ),
+    )..layout(maxWidth: width - 36);
+
+    final double pillW = subTextPainter.width + 16 * scale;
+    const double pillH = 22 * scale;
+    final double pillLeft = (width - pillW) / 2;
+    const double pillTop = 35 * scale;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(pillLeft, pillTop, pillW, pillH),
+        const Radius.circular(8 * scale),
+      ),
+      Paint()..color = isSelected ? Colors.black.withValues(alpha: 0.22) : const Color(0xFFFEF3C7),
+    );
+
+    subTextPainter.paint(
+      canvas,
+      Offset(
+        pillLeft + (pillW - subTextPainter.width) / 2,
+        pillTop + (pillH - subTextPainter.height) / 2,
+      ),
+    );
+
+    // Alt Üçgen Ok
+    const double pointerY = 4 + badgeHeight - 2;
+    final trianglePath = Path()
+      ..moveTo(width / 2 - 8 * scale, pointerY)
+      ..lineTo(width / 2, pointerY + pointerHeight)
+      ..lineTo(width / 2 + 8 * scale, pointerY)
+      ..close();
+
+    canvas.drawPath(trianglePath, Paint()..color = bgColor);
+    canvas.drawPath(
+      trianglePath,
+      Paint()
+        ..color = borderColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6 * scale,
     );
 
     final image = await recorder
@@ -377,6 +564,313 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
         zoom: 14.8,
       ),
       MapAnimationOptions(duration: 600),
+    );
+  }
+
+  void _selectAndFocusIsletme(
+    IsletmeModel isletme,
+    CustomerMapController mapNotifier,
+  ) {
+    mapNotifier.selectIsletme(isletme);
+    _mapboxMap?.flyTo(
+      CameraOptions(
+        center: Point(
+          coordinates: Position(isletme.longitude, isletme.latitude - 0.0012),
+        ),
+        zoom: 15.0,
+      ),
+      MapAnimationOptions(duration: 600),
+    );
+    _showIsletmeDetailSheet(context, isletme);
+  }
+
+  Future<void> _makePhoneCall(String phone) async {
+    final clean = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (clean.isEmpty) return;
+    final uri = Uri.parse('tel:$clean');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      debugPrint('Telefon arama hatası: $e');
+    }
+  }
+
+  Future<void> _openDirections(double lat, double lng, String label) async {
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+    );
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      debugPrint('Yol tarifi açma hatası: $e');
+    }
+  }
+
+  void _showIsletmeDetailSheet(BuildContext context, IsletmeModel isletme) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final isSponsored = isletme.isSponsored;
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 20,
+                offset: Offset(0, -4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 54,
+                      height: 54,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isSponsored
+                              ? [const Color(0xFFF59E0B), const Color(0xFFD97706)]
+                              : [const Color(0xFFFEF3C7), const Color(0xFFFDE68A)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: isSponsored
+                            ? [
+                                BoxShadow(
+                                  color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Icon(
+                        isSponsored ? Icons.verified_rounded : Icons.storefront_rounded,
+                        color: isSponsored ? Colors.white : const Color(0xFFD97706),
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  isletme.ad,
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ),
+                              if (isSponsored) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFEF3C7),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: const Color(0xFFF59E0B),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.star_rounded,
+                                        size: 13,
+                                        color: Color(0xFFD97706),
+                                      ),
+                                      SizedBox(width: 3),
+                                      Text(
+                                        'SPONSORLU',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF92400E),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text(
+                                isletme.kategori,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFD97706),
+                                ),
+                              ),
+                              if (isletme.formattedDistance.isNotEmpty) ...[
+                                const Text(
+                                  ' • ',
+                                  style: TextStyle(color: Color(0xFF94A3B8)),
+                                ),
+                                const Icon(
+                                  Icons.near_me_rounded,
+                                  size: 13,
+                                  color: Color(0xFF64748B),
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  isletme.formattedDistance,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                const SizedBox(height: 14),
+                // Adres Bilgisi
+                if (isletme.adres.isNotEmpty) ...[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 20,
+                        color: Color(0xFF64748B),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          isletme.adres,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            color: Color(0xFF334155),
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                // Telefon Bilgisi
+                if (isletme.telefon.isNotEmpty) ...[
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.phone_outlined,
+                        size: 19,
+                        color: Color(0xFF64748B),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        isletme.telefon,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF334155),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                // Aksiyon Butonları (Telefonla Ara + Yol Tarifi Al)
+                Row(
+                  children: [
+                    if (isletme.telefon.isNotEmpty)
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _makePhoneCall(isletme.telefon),
+                          icon: const Icon(Icons.phone_rounded, size: 18),
+                          label: const Text('Telefonla Ara'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF059669),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                    if (isletme.telefon.isNotEmpty) const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _openDirections(
+                          isletme.latitude,
+                          isletme.longitude,
+                          isletme.ad,
+                        ),
+                        icon: const Icon(Icons.directions_rounded, size: 18),
+                        label: const Text('Yol Tarifi Al'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFD97706),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

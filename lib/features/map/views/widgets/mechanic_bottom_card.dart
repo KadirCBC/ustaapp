@@ -214,6 +214,9 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
 
   /// Seçim yapılmadığında gösterilen özet bilgi çubuğu
   Widget _buildIdleSummaryBar() {
+    final mapState = ref.watch(customerMapControllerProvider);
+    final isTedarikciModu = mapState.selectedCategory == 'tedarikciler';
+
     final count = widget.nearbyUstalar.length;
     final minEta = widget.nearbyUstalar.isNotEmpty
         ? widget.nearbyUstalar
@@ -244,12 +247,18 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDCFCE7),
+                  color: isTedarikciModu
+                      ? const Color(0xFFFEF3C7)
+                      : const Color(0xFFDCFCE7),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(
-                  Icons.engineering_rounded,
-                  color: Color(0xFF15803D),
+                child: Icon(
+                  isTedarikciModu
+                      ? Icons.storefront_rounded
+                      : Icons.engineering_rounded,
+                  color: isTedarikciModu
+                      ? const Color(0xFFD97706)
+                      : const Color(0xFF15803D),
                   size: 22,
                 ),
               ),
@@ -259,11 +268,17 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.isLoadingUstalar
-                          ? 'Bölgendeki ustalar taranıyor...'
-                          : count == 0
-                              ? 'Bölgenizde aktif usta bulunmuyor'
-                              : 'Bölgende $count usta aktif • Tahmini varış: $minEta-$maxEta dk',
+                      isTedarikciModu
+                          ? (mapState.isLoadingIsletmeler
+                              ? 'Bölgenizdeki dükkanlar taranıyor...'
+                              : mapState.isletmeler.isEmpty
+                                  ? 'Bölgenizde aktif dükkan / tedarikçi bulunamadı'
+                                  : 'Bölgenizde ${mapState.isletmeler.length} dükkan & tedarikçi aktif')
+                          : (widget.isLoadingUstalar
+                              ? 'Bölgendeki ustalar taranıyor...'
+                              : count == 0
+                                  ? 'Bölgenizde aktif usta bulunmuyor'
+                                  : 'Bölgende $count usta aktif • Tahmini varış: $minEta-$maxEta dk'),
                       style: const TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w800,
@@ -272,9 +287,13 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      count == 0
-                          ? 'Yönetici panelinden yeni usta ekleyebilir veya servis çağrısı açabilirsiniz.'
-                          : 'Fiyatları ve detayları görmek için haritadaki bir pine dokunun',
+                      isTedarikciModu
+                          ? (mapState.isletmeler.isEmpty
+                              ? 'Yönetici panelinden yeni işletme ve dükkan ekleyebilirsiniz.'
+                              : 'İletişim ve yol tarifi için dükkan pinlerine dokunun')
+                          : (count == 0
+                              ? 'Yönetici panelinden yeni usta ekleyebilir veya servis çağrısı açabilirsiniz.'
+                              : 'Fiyatları ve detayları görmek için haritadaki bir pine dokunun'),
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppTheme.customerTextMuted,
@@ -285,7 +304,40 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
               ),
             ],
           ),
-          if (widget.nearbyUstalar.isNotEmpty) ...[
+          if (isTedarikciModu && mapState.isletmeler.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 38,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: mapState.isletmeler.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final item = mapState.isletmeler[index];
+                  return ActionChip(
+                    backgroundColor: const Color(0xFFFFFBEB),
+                    side: const BorderSide(color: Color(0xFFFDE68A)),
+                    avatar: Icon(
+                      item.isSponsored ? Icons.star_rounded : Icons.store_rounded,
+                      size: 15,
+                      color: const Color(0xFFD97706),
+                    ),
+                    label: Text(
+                      '${item.ad} • ${item.kategori}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF92400E),
+                      ),
+                    ),
+                    onPressed: () {
+                      ref.read(customerMapControllerProvider.notifier).selectIsletme(item);
+                    },
+                  );
+                },
+              ),
+            ),
+          ] else if (widget.nearbyUstalar.isNotEmpty) ...[
             const SizedBox(height: 12),
             SizedBox(
               height: 38,

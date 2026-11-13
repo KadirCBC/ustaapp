@@ -619,6 +619,28 @@ class AppDataService {
     return List.from(_cachedTedarikciler!);
   }
 
+  Future<List<Map<String, dynamic>>> getNearbyTedarikciler({
+    double customerLat = 40.9905,
+    double customerLng = 29.0270,
+    double maxRadiusMeter = 25000.0,
+  }) async {
+    final all = await getTedarikciler();
+    final filtered = all.where((item) {
+      final lat = (item['latitude'] as num?)?.toDouble() ??
+          (item['lat'] as num?)?.toDouble() ??
+          (item['enlem'] as num?)?.toDouble() ??
+          0.0;
+      final lng = (item['longitude'] as num?)?.toDouble() ??
+          (item['lng'] as num?)?.toDouble() ??
+          (item['boylam'] as num?)?.toDouble() ??
+          0.0;
+      if (lat == 0.0 && lng == 0.0) return false;
+      final dist = Geolocator.distanceBetween(customerLat, customerLng, lat, lng);
+      return dist <= maxRadiusMeter;
+    }).toList();
+    return filtered;
+  }
+
   Future<void> saveTedarikciler(List<Map<String, dynamic>> list) async {
     _cachedTedarikciler = List.from(list);
     try {

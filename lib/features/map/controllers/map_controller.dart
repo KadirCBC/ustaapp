@@ -11,6 +11,7 @@ import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/core/services/location_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
+import 'package:ustaapp/features/map/models/isletme_model.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:ustaapp/features/orders/models/cagri_model.dart';
 
@@ -18,12 +19,15 @@ class CustomerMapState {
   final double currentLat;
   final double currentLng;
   final String currentAddressLabel;
-  final String selectedCategory; // 'elektrik', 'cilingir', 'tesisat'
-  final int searchRadiusMeter; // varsayılan 10000 metre (10km)
+  final String selectedCategory; // 'elektrik', 'cilingir', 'tesisat', 'tedarikciler'
+  final int searchRadiusMeter; // varsayılan 25000 metre (25km)
   final List<NearbyUstaModel> nearbyUstalar;
   final NearbyUstaModel? selectedUsta;
+  final List<IsletmeModel> isletmeler;
+  final IsletmeModel? selectedIsletme;
   final bool isLoadingLocation;
   final bool isLoadingUstalar;
+  final bool isLoadingIsletmeler;
   final bool isCreatingCall;
   final String? activeCallId;
   final String? errorMessage;
@@ -36,8 +40,11 @@ class CustomerMapState {
     this.searchRadiusMeter = 25000,
     this.nearbyUstalar = const [],
     this.selectedUsta,
+    this.isletmeler = const [],
+    this.selectedIsletme,
     this.isLoadingLocation = false,
     this.isLoadingUstalar = false,
+    this.isLoadingIsletmeler = false,
     this.isCreatingCall = false,
     this.activeCallId,
     this.errorMessage,
@@ -52,8 +59,12 @@ class CustomerMapState {
     List<NearbyUstaModel>? nearbyUstalar,
     NearbyUstaModel? selectedUsta,
     bool clearSelectedUsta = false,
+    List<IsletmeModel>? isletmeler,
+    IsletmeModel? selectedIsletme,
+    bool clearSelectedIsletme = false,
     bool? isLoadingLocation,
     bool? isLoadingUstalar,
+    bool? isLoadingIsletmeler,
     bool? isCreatingCall,
     String? activeCallId,
     String? errorMessage,
@@ -66,8 +77,11 @@ class CustomerMapState {
       searchRadiusMeter: searchRadiusMeter ?? this.searchRadiusMeter,
       nearbyUstalar: nearbyUstalar ?? this.nearbyUstalar,
       selectedUsta: clearSelectedUsta ? null : (selectedUsta ?? this.selectedUsta),
+      isletmeler: isletmeler ?? this.isletmeler,
+      selectedIsletme: clearSelectedIsletme ? null : (selectedIsletme ?? this.selectedIsletme),
       isLoadingLocation: isLoadingLocation ?? this.isLoadingLocation,
       isLoadingUstalar: isLoadingUstalar ?? this.isLoadingUstalar,
+      isLoadingIsletmeler: isLoadingIsletmeler ?? this.isLoadingIsletmeler,
       isCreatingCall: isCreatingCall ?? this.isCreatingCall,
       activeCallId: activeCallId ?? this.activeCallId,
       errorMessage: errorMessage,
@@ -94,6 +108,7 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     _dataSubscription = _appDataService.onDataChanged.listen((_) {
       if (mounted) {
         fetchNearbyUstalar();
+        fetchIsletmeler();
       }
     });
     initCustomerLocationAndSearch();
@@ -105,7 +120,7 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     super.dispose();
   }
 
-  /// Müşteri konumunu alır ve yakındaki ustaları otomatik arar
+  /// Müşteri konumunu alır ve yakındaki ustaları ve işletmeleri otomatik arar
   Future<void> initCustomerLocationAndSearch() async {
     state = state.copyWith(isLoadingLocation: true, errorMessage: null);
 
@@ -133,11 +148,24 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     }
 
     if (!mounted) return;
-    await fetchNearbyUstalar();
+    await Future.wait([
+      fetchNearbyUstalar(),
+      fetchIsletmeler(),
+    ]);
   }
 
   /// PostGIS RPC fonksiyonu `yakin_ustalari_getir` veya Admin Panelinin yönettiği canlı usta verisini çeker
   Future<void> fetchNearbyUstalar() async {
+    // Eğer kategori 'tedarikciler' ise usta araması yapılmaz, sadece dükkanlar listelenir
+    if (state.selectedCategory == 'tedarikciler') {
+      state = state.copyWith(
+        isLoadingUstalar: false,
+        nearbyUstalar: [],
+        clearSelectedUsta: true,
+      );
+      return;
+    }
+
     state = state.copyWith(isLoadingUstalar: true, errorMessage: null);
 
     List<NearbyUstaModel> ustalar = [];
@@ -197,6 +225,74 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
       nearbyUstalar: ustalar,
       clearSelectedUsta: true,
       errorMessage: null,
+    );
+  }
+
+  /// Supabase `isletmeler` tablosundan veya yerel tedarikçilerden dükkanları çeker
+  Future<void> fetchIsletmeler() async {
+    state = state.copyWith(isLoadingIsletmeler: true);
+    List<IsletmeModel> isletmeler = [];
+
+    // 1. Supabase 'isletmeler' tablosu (id, ad, kategori, konum, telefon, adres, is_sponsored)
+    try {
+      final response = await _supabase
+          .from('isletmeler')
+          .select('id, ad, kategori, konum, telefon, adres, is_sponsored')
+          .timeout(const Duration(seconds: 4));
+
+      final List<dynamic> data = response as List<dynamic>? ?? [];
+      isletmeler = data
+          .map((item) => IsletmeModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('Supabase isletmeler sorgu hatası: $e');
+    }
+
+    // 2. Fallback: AppDataService üzerinden (Admin Panel / Yerel Hafıza)
+    if (isletmeler.isEmpty) {
+      final local = await _appDataService.getNearbyTedarikciler(
+        customerLat: state.currentLat,
+        customerLng: state.currentLng,
+        maxRadiusMeter: state.searchRadiusMeter.toDouble(),
+      );
+      isletmeler = local.map((item) => IsletmeModel.fromJson(item)).toList();
+    }
+
+    // 3. Mesafeleri hesapla ve arama yarıçapına göre filtrele
+    final filtered = isletmeler.map((item) {
+      final dist = Geolocator.distanceBetween(
+        state.currentLat,
+        state.currentLng,
+        item.latitude,
+        item.longitude,
+      );
+      return item.copyWith(mesafeMetre: dist > 0 ? dist : item.mesafeMetre);
+    }).where((item) => item.mesafeMetre <= state.searchRadiusMeter).toList();
+
+    // Filtreleme:
+    // Eğer kategori 'tedarikciler' ise harita sadece işletmeleri filtreler (tüm dükkanlar)
+    // Eğer spesifik kategori seçiliyse: ilgili dükkanlar ve sponsorlular gösterilir
+    final result = (state.selectedCategory == 'tedarikciler')
+        ? filtered
+        : filtered.where((b) {
+            final cat = b.kategori.toLowerCase();
+            final sel = state.selectedCategory.toLowerCase();
+            return cat.contains(sel) || sel.contains(cat) || b.isSponsored;
+          }).toList();
+
+    // Sponsorlular önce, sonra mesafeye göre sırala
+    result.sort((a, b) {
+      if (a.isSponsored && !b.isSponsored) return -1;
+      if (!a.isSponsored && b.isSponsored) return 1;
+      return a.mesafeMetre.compareTo(b.mesafeMetre);
+    });
+
+    if (!mounted) return;
+
+    state = state.copyWith(
+      isLoadingIsletmeler: false,
+      isletmeler: result,
+      clearSelectedIsletme: true,
     );
   }
 
@@ -857,10 +953,14 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
       currentLng: resolved.lng,
       currentAddressLabel: trimmed.contains(',') ? trimmed : resolved.label,
       clearSelectedUsta: true,
+      clearSelectedIsletme: true,
       isLoadingLocation: false,
     );
 
-    await fetchNearbyUstalar();
+    await Future.wait([
+      fetchNearbyUstalar(),
+      fetchIsletmeler(),
+    ]);
     return true;
   }
 
@@ -892,9 +992,13 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
         currentLng: position.longitude,
         currentAddressLabel: label ?? 'Mevcut Konumum',
         clearSelectedUsta: true,
+        clearSelectedIsletme: true,
         isLoadingLocation: false,
       );
-      await fetchNearbyUstalar();
+      await Future.wait([
+        fetchNearbyUstalar(),
+        fetchIsletmeler(),
+      ]);
       return true;
     } catch (e) {
       debugPrint('GPS konumu alınamadı: $e');
@@ -909,14 +1013,21 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     await updateLocationByAddress(address);
   }
 
-  /// Kategori değiştirme ('elektrik', 'cilingir', 'tesisat')
+  /// Kategori değiştirme ('elektrik', 'cilingir', 'tesisat', 'tedarikciler')
   void setCategory(String category) {
     if (state.selectedCategory != category) {
       state = state.copyWith(
         selectedCategory: category,
         clearSelectedUsta: true,
+        clearSelectedIsletme: true,
       );
-      fetchNearbyUstalar();
+      if (category == 'tedarikciler') {
+        state = state.copyWith(nearbyUstalar: [], isLoadingUstalar: false);
+        fetchIsletmeler();
+      } else {
+        fetchNearbyUstalar();
+        fetchIsletmeler();
+      }
     }
   }
 
@@ -925,17 +1036,28 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     if (state.searchRadiusMeter != meter) {
       state = state.copyWith(searchRadiusMeter: meter);
       fetchNearbyUstalar();
+      fetchIsletmeler();
     }
   }
 
   /// Harita veya listeden bir usta seçme
   void selectUsta(NearbyUstaModel usta) {
-    state = state.copyWith(selectedUsta: usta);
+    state = state.copyWith(selectedUsta: usta, clearSelectedIsletme: true);
   }
 
   /// Usta seçimini kaldırarak özet bara geri dönme
   void clearSelectedUsta() {
     state = state.copyWith(clearSelectedUsta: true);
+  }
+
+  /// Harita veya listeden bir dükkan/tedarikçi işletme seçme
+  void selectIsletme(IsletmeModel isletme) {
+    state = state.copyWith(selectedIsletme: isletme, clearSelectedUsta: true);
+  }
+
+  /// İşletme seçimini kaldırma
+  void clearSelectedIsletme() {
+    state = state.copyWith(clearSelectedIsletme: true);
   }
 
   /// Seçili ustaya doğrudan çağrı oluşturma (durum: 'bekliyor')
