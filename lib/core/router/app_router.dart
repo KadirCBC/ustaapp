@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
+import 'package:ustaapp/features/admin/views/admin_dashboard_screen.dart';
 import 'package:ustaapp/features/auth/models/user_role.dart';
 import 'package:ustaapp/features/auth/views/phone_auth_screen.dart';
 import 'package:ustaapp/features/map/views/customer_map_screen.dart';
@@ -17,11 +19,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
 
   return GoRouter(
-    initialLocation: '/splash',
+    initialLocation: kIsWeb ? '/admin' : '/splash',
     debugLogDiagnostics: false,
     redirect: (BuildContext context, GoRouterState state) {
       final isSplash = state.matchedLocation == '/splash';
       if (isSplash) return null;
+
+      final isAdminRoute = state.matchedLocation.startsWith('/admin');
+      // Admin dashboard web erişimi için bağımsız güvenlik denetimine sahiptir
+      if (isAdminRoute) return null;
 
       final isAuthRoute = state.matchedLocation == '/auth';
 
@@ -53,6 +59,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/admin',
+        name: 'adminDashboard',
+        builder: (context, state) => const AdminDashboardScreen(),
+      ),
       GoRoute(
         path: '/splash',
         name: 'splash',

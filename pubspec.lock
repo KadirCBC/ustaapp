@@ -380,34 +380,34 @@ packages:
     dependency: "direct main"
     description:
       name: mapbox_maps_flutter
-      sha256: f65c20ea6590e1c28f56f4045919b79710de07a8acf109dec92d9d07ac6ac60a
+      sha256: fb62f8945c8660204f011cb07af9cbe4f87c862b21b59e0dc978475467c752d5
       url: "https://pub.dev"
     source: hosted
-    version: "3.34.2"
+    version: "3.35.0"
   mapbox_maps_flutter_mobile:
     dependency: transitive
     description:
       name: mapbox_maps_flutter_mobile
-      sha256: "8c43f4394fc77b37f74f58bfec094c176dc0d8bf3199bbbfaf573d672b429640"
+      sha256: cfb7d3b7ff2cb796d85f5350ef055f690a452207739416b942b797dd2510c44c
       url: "https://pub.dev"
     source: hosted
-    version: "3.34.2"
+    version: "3.35.0"
   mapbox_maps_flutter_platform_interface:
     dependency: transitive
     description:
       name: mapbox_maps_flutter_platform_interface
-      sha256: "2019616aa8289f217433b75404af10685a84a06865d4ed2c9d36476b543dcc71"
+      sha256: "23b64fe3829a31901d684503db10e489c553f6f02cb08097c578bc7c93403e6b"
       url: "https://pub.dev"
     source: hosted
-    version: "3.34.2"
+    version: "3.35.0"
   mapbox_maps_flutter_web:
     dependency: transitive
     description:
       name: mapbox_maps_flutter_web
-      sha256: bf3bc977280f2d3516adc6aa154cf11b767ec396fbb530a81f31a934310e8b86
+      sha256: "536c835b9a08ffec12fba6769707c7c48e096c5d46b23f2f919b2b542904d9e8"
       url: "https://pub.dev"
     source: hosted
-    version: "3.34.2"
+    version: "3.35.0"
   mask_text_input_formatter:
     dependency: "direct main"
     description:
@@ -564,10 +564,10 @@ packages:
     dependency: transitive
     description:
       name: shared_preferences_android
-      sha256: "33b38b07d9ac7d16aff0426c61418752fd3e7a8c7dc8be786c875d6ce673b002"
+      sha256: "137dedccacb394b8f470d6c9b435ffc3d33faaa6ce2949c4f54a61007d64396d"
       url: "https://pub.dev"
     source: hosted
-    version: "2.5.4"
+    version: "2.5.5"
   shared_preferences_foundation:
     dependency: transitive
     description:

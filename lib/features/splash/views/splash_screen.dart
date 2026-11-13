@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,7 +35,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   void initState() {
     super.initState();
 
-    // Sistem çubuklarını ayarla
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -44,25 +42,25 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       ),
     );
 
-    // Ana koreografi zamanlayıcısı (2.3 saniye)
+    // Ana açılış süresi (2.2 saniye)
     _mainController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2300),
+      duration: const Duration(milliseconds: 2200),
     );
 
-    // Dairesel radar/halka efekti
+    // Dairesel radar dalgası
     _rippleController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1600),
     )..repeat();
 
-    // Slogan altın ışıltı/shimmer animasyonu
+    // Slogan altın/turuncu ışıltı akışı
     _shimmerController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat();
 
-    // 1. İkon belirişi (0.0 - 0.42)
+    // 1. İkon belirişi
     _iconScale = Tween<double>(begin: 0.65, end: 1.0).animate(
       CurvedAnimation(
         parent: _mainController,
@@ -74,7 +72,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       curve: const Interval(0.0, 0.35, curve: Curves.easeIn),
     );
 
-    // 2. Logo kayması ve belirişi (0.35 - 0.65)
+    // 2. UstamBurada logo kayması
     _logoSlide = Tween<Offset>(
       begin: const Offset(0, 0.35),
       end: Offset.zero,
@@ -89,40 +87,39 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       curve: const Interval(0.35, 0.60, curve: Curves.easeIn),
     );
 
-    // 3. Slogan Büyüme, Kayma ve Beliriş Animasyonu (0.48 - 0.82)
+    // 3. Slogan belirişi, büyümesi ve çizgi açılışı
     _sloganFade = CurvedAnimation(
       parent: _mainController,
       curve: const Interval(0.48, 0.78, curve: Curves.easeIn),
     );
-    _sloganScale = Tween<double>(begin: 0.80, end: 1.0).animate(
+    _sloganScale = Tween<double>(begin: 0.82, end: 1.0).animate(
       CurvedAnimation(
         parent: _mainController,
         curve: const Interval(0.48, 0.82, curve: Curves.easeOutBack),
       ),
     );
     _sloganSlide = Tween<Offset>(
-      begin: const Offset(0, 0.4),
+      begin: const Offset(0, 0.35),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(
         parent: _mainController,
-        curve: const Interval(0.48, 0.80, curve: Curves.easeOutCubic),
+        curve: const Interval(0.48, 0.78, curve: Curves.easeOutCubic),
       ),
     );
     _lineWidth = Tween<double>(begin: 0.0, end: 32.0).animate(
       CurvedAnimation(
         parent: _mainController,
-        curve: const Interval(0.55, 0.88, curve: Curves.easeOutCubic),
+        curve: const Interval(0.52, 0.86, curve: Curves.easeOutCubic),
       ),
     );
 
-    // 4. İnce yükleme çubuğu (0.75 - 1.0)
+    // 4. İnce yükleme çizgisi
     _progressFade = CurvedAnimation(
       parent: _mainController,
       curve: const Interval(0.75, 0.98, curve: Curves.easeIn),
     );
 
-    // Animasyonu başlat ve bitince yönlendir
     _mainController.forward().then((_) => _checkAuthAndNavigate());
   }
 
@@ -173,12 +170,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               const Spacer(flex: 3),
 
               // ===============================================================
-              // İKON VE RADAR DALGASI ANİMASYONU
+              // 1. İKON & RADAR DALGASI
               // ===============================================================
               Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Dışarıya doğru genişleyen radar halkaları
+                  // Dışarıya doğru genişleyen radar dalgası
                   AnimatedBuilder(
                     animation: _rippleController,
                     builder: (context, child) {
@@ -189,7 +186,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     },
                   ),
 
-                  // Ana Uygulama İkonu (Scale & Fade & Shadow)
+                  // Ana Uygulama İkonu
                   FadeTransition(
                     opacity: _iconFade,
                     child: ScaleTransition(
@@ -230,7 +227,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               const SizedBox(height: 32),
 
               // ===============================================================
-              // YATAY LOGO VE METİNLER (Slide & Fade)
+              // 2. YATAY LOGO
               // ===============================================================
               SlideTransition(
                 position: _logoSlide,
@@ -246,7 +243,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
               const SizedBox(height: 16),
 
-              // Modern & Profesyonel Hareketli Slogan
+              // ===============================================================
+              // 3. BÜYÜTÜLMÜŞ & HAREKETLİ SLOGAN (Shimmer & Expand Lines)
+              // ===============================================================
               FadeTransition(
                 opacity: _sloganFade,
                 child: SlideTransition(
@@ -276,9 +275,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                                 borderRadius: BorderRadius.circular(1),
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 12),
 
-                            // Büyütülmüş & Altın/Turuncu Shimmer Işıltılı Slogan
+                            // Büyütülmüş & Altın/Turuncu Işıltılı Slogan
                             ShaderMask(
                               shaderCallback: (bounds) {
                                 return LinearGradient(
@@ -296,14 +295,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               child: const Text(
                                 'En Yakın Usta Kapında!',
                                 style: TextStyle(
-                                  fontSize: 17.5,
+                                  fontSize: 18,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 1.5,
                                   color: Colors.white,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 12),
 
                             // Sağ açılan degrade çizgi
                             Container(
@@ -329,7 +328,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
               const Spacer(flex: 4),
 
-              // Alt Yükleniyor Çizgisi
+              // ===============================================================
+              // 4. ALT YÜKLENİYOR ÇİZGİSİ
+              // ===============================================================
               FadeTransition(
                 opacity: _progressFade,
                 child: SizedBox(
