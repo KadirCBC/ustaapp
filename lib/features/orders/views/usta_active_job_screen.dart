@@ -136,6 +136,30 @@ class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
                     ),
                   ),
                 ),
+                Positioned(
+                  bottom: 12,
+                  right: 14,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      RouteService.openExternalNavigation(
+                        lat: customerLat,
+                        lng: customerLng,
+                      );
+                    },
+                    icon: const Icon(Icons.navigation_rounded, size: 16),
+                    label: const Text('Google Haritalar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E293B),
+                      foregroundColor: const Color(0xFF38BDF8),
+                      elevation: 4,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: const BorderSide(color: Color(0xFF38BDF8), width: 1.2),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -147,6 +171,12 @@ class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Adım Adım Sürüş Manevraları & Yol Tarifi Kartı
+                  if (_routeResult != null && _routeResult!.steps.isNotEmpty) ...[
+                    _buildDrivingStepsCard(context, _routeResult!),
+                    const SizedBox(height: 16),
+                  ],
+
                   // Durum ve Hakediş Başlık Kartı
                   Container(
                     padding: const EdgeInsets.all(20),
@@ -525,6 +555,214 @@ class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Adım adım yol tarifi özet kartı
+  Widget _buildDrivingStepsCard(BuildContext context, RouteResult route) {
+    final firstStep = route.steps.isNotEmpty ? route.steps.first : null;
+    final totalSteps = route.steps.length;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF334155)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: AppTheme.ustaPrimary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.directions_car_rounded, color: AppTheme.ustaSecondary, size: 18),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Yol Tarifi ve Manevralar',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => _showAllStepsModal(context, route.steps),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  'Tümü ($totalSteps Adım)',
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8)),
+                ),
+              ),
+            ],
+          ),
+          if (firstStep != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF334155)),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: AppTheme.ustaPrimary.withValues(alpha: 0.2),
+                    child: Icon(firstStep.icon, color: AppTheme.ustaSecondary, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          firstStep.instruction,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        if (firstStep.distanceMeters > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              'Önümüzdeki ${firstStep.formattedDistance}',
+                              style: const TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: Color(0xFF64748B), size: 20),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Tüm adım adım sürüş talimatlarını listeleyen şık alt modal
+  void _showAllStepsModal(BuildContext context, List<RouteStep> steps) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1E293B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.65,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (_, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF64748B),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      const Icon(Icons.turn_right_rounded, color: AppTheme.ustaPrimary, size: 26),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'Adım Adım Yol Tarifi',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F172A),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF334155)),
+                        ),
+                        child: Text(
+                          '${steps.length} Manevra',
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(color: Color(0xFF334155)),
+                  Expanded(
+                    child: ListView.separated(
+                      controller: scrollController,
+                      itemCount: steps.length,
+                      separatorBuilder: (_, __) => const Divider(color: Color(0xFF334155), height: 1),
+                      itemBuilder: (ctx, i) {
+                        final step = steps[i];
+                        final isLast = i == steps.length - 1;
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                          leading: CircleAvatar(
+                            radius: 18,
+                            backgroundColor: isLast
+                                ? const Color(0xFF16A34A).withValues(alpha: 0.2)
+                                : const Color(0xFF0F172A),
+                            child: Icon(
+                              step.icon,
+                              color: isLast ? const Color(0xFF22C55E) : AppTheme.ustaSecondary,
+                              size: 20,
+                            ),
+                          ),
+                          title: Text(
+                            step.instruction,
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          subtitle: step.distanceMeters > 0
+                              ? Text(
+                                  'Mesafe: ${step.formattedDistance}',
+                                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                                )
+                              : null,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

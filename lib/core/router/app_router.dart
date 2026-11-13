@@ -11,14 +11,18 @@ import 'package:ustaapp/features/orders/views/customer_summary_rating_screen.dar
 import 'package:ustaapp/features/orders/views/usta_active_job_screen.dart';
 import 'package:ustaapp/features/orders/views/usta_orders_screen.dart';
 import 'package:ustaapp/features/profile/views/profile_screen.dart';
+import 'package:ustaapp/features/splash/views/splash_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
 
   return GoRouter(
-    initialLocation: '/auth',
+    initialLocation: '/splash',
     debugLogDiagnostics: false,
     redirect: (BuildContext context, GoRouterState state) {
+      final isSplash = state.matchedLocation == '/splash';
+      if (isSplash) return null;
+
       final isAuthRoute = state.matchedLocation == '/auth';
 
       // 1. Henüz oturum durumu yükleniyorsa yönlendirme yapma
@@ -49,6 +53,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/auth',
         name: 'auth',

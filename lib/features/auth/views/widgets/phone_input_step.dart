@@ -168,122 +168,60 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   children: [
-                    // Logo Kutusu + Canlı Yeşil Nokta
-                    Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFFFFFF), Color(0xFFEFF6FF)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(22),
-                            border: Border.all(
-                              color: const Color(0xFFDBEAFE),
-                              width: 1.5,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF1E3A8A).withValues(alpha: 0.10),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              const Icon(
-                                Icons.handyman_rounded,
-                                size: 34,
-                                color: Color(0xFF1E3A8A),
-                              ),
-                              Positioned(
-                                top: 13,
-                                right: 13,
-                                child: Container(
-                                  width: 18,
-                                  height: 18,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFFF59E0B),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.bolt_rounded,
-                                    size: 12,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Canlı Yeşil Nabız Noktası
-                        Positioned(
-                          right: -3,
-                          bottom: -3,
-                          child: AnimatedBuilder(
-                            animation: _pulseController,
-                            builder: (context, child) {
-                              final glow = 2.0 + (_pulseController.value * 4.0);
-                              return Container(
-                                width: 18,
-                                height: 18,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 2.5),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF10B981).withValues(alpha: 0.55),
-                                      blurRadius: glow * 2,
-                                      spreadRadius: glow * 0.4,
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 8),
 
-                    // UstamBurada + Altın Onay Rozeti
-                    const Row(
+                    // UstamBurada Kurumsal Logo Görseli
+                    Image.asset(
+                      'assets/images/app_logo.png',
+                      height: 52,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 6),
+
+                    // Modern & Profesyonel Slogan
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          'UstamBurada',
-                          style: TextStyle(
-                            fontSize: 27,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.7,
-                            color: Color(0xFF0F172A),
+                        Container(
+                          width: 20,
+                          height: 1.5,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color(0xFFF97316).withValues(alpha: 0.0),
+                                const Color(0xFFF97316).withValues(alpha: 0.65),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(1),
                           ),
                         ),
-                        SizedBox(width: 6),
-                        Icon(
-                          Icons.verified_rounded,
-                          size: 22,
-                          color: Color(0xFFF59E0B),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'En Yakın Usta Kapında',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                            color: Color(0xFF334155),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 20,
+                          height: 1.5,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color(0xFFF97316).withValues(alpha: 0.65),
+                                const Color(0xFFF97316).withValues(alpha: 0.0),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(1),
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 3),
-                    const Text(
-                      'En Yakın Usta Kapında!',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF475569),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
 
                     // 8.420+ ONAYLI USTA ÇEVRİMİÇİ Rozeti
                     Container(
