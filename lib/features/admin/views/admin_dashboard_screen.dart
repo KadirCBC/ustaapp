@@ -71,6 +71,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   String _jobSearchQuery = '';
   String _jobFilterStatus = 'Tümü';
 
+  // 8. Hizmet Akışı & Finansal Raporlar
+  String _financialSearchQuery = '';
+  String _financialStatusFilter = 'Tümü';
+  String _financialPeriodFilter = 'Tüm Zamanlar';
+  List<Map<String, dynamic>> _financialTransactions = [];
+
   // Toplu Seçim Kümeleri (Bulk Selection)
   final Set<String> _selectedJobIds = {};
   final Set<String> _selectedUstaIds = {};
@@ -421,13 +427,179 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     _pendingApprovals = _pendingUstalar.length;
     _activeUstalarCount = _activeUstalar.length;
     _totalCustomers = _members.length;
+    _syncFinancialTransactions();
+
     double turnover = 0.0;
-    for (final j in _activeJobs) {
-      final priceClean = (j['price'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), '');
-      turnover += double.tryParse(priceClean) ?? 0.0;
+    for (final t in _financialTransactions) {
+      turnover += _asDouble(t['toplam_tutar'], 0.0);
+    }
+    if (turnover == 0) {
+      for (final j in _activeJobs) {
+        final priceClean = (j['price'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), '');
+        turnover += double.tryParse(priceClean) ?? 0.0;
+      }
     }
     _dailyTurnover = turnover;
-    _dailyCommission = turnover * 0.15;
+    _dailyCommission = _financialTransactions.isNotEmpty
+        ? _financialTransactions.fold<double>(0.0, (sum, t) => sum + _asDouble(t['komisyon_tutari'], 0.0))
+        : (turnover * 0.15);
+  }
+
+  void _syncFinancialTransactions() {
+    if (_financialTransactions.isEmpty) {
+      _financialTransactions = [
+        {
+          'id': 'TRX-1794610203985',
+          'receipt_no': 'demo_pay_1794610203985',
+          'cagri_id': 'cagri-bolvadin-1794610203',
+          'hizmet_baslik': 'Standart Servis & Arıza Tespiti',
+          'kategori': 'Elektrik & Aydınlatma',
+          'musteri_ad': 'Zeynep Kaya',
+          'musteri_tel': '+90 532 111 22 33',
+          'musteri_adres': 'Ece Mahallesi, Sandıklı / Afyonkarahisar',
+          'usta_ad': 'Kadir Usta',
+          'usta_tel': '05524342069',
+          'usta_meslek': 'Elektrik & Aydınlatma Teknisyeni',
+          'usta_hakedis': 1750.00,
+          'komisyon_tutari': 262.50,
+          'komisyon_orani': 0.15,
+          'toplam_tutar': 2012.50,
+          'durum': 'Tamamlandı & Tahsil Edildi',
+          'flow_step': 4, // 1: Onay, 2: Kabul, 3: Yolda, 4: Bitti
+          'payment_provider': 'İyzico Sanal POS • 3D Secure',
+          'payment_status': 'Provizyon Kapandı / Tahsil Edildi',
+          'puan': 5.0,
+          'musteri_yorum': 'Kadir Usta tam zamanında geldi, sigorta panosundaki arızayı 20 dakikada çözdü. Çok teşekkürler.',
+          'created_at': '13.11.2026 • 22:50',
+          'is_payout_transferred': true,
+        },
+        {
+          'id': 'TRX-1794610203986',
+          'receipt_no': 'demo_pay_1794610203986',
+          'cagri_id': 'cagri-kadikoy-1794610204',
+          'hizmet_baslik': 'Mutfak Lavabo Altı Su Kaçağı & Boru Değişimi',
+          'kategori': 'Sıhhi Tesisat & Su Kaçağı',
+          'musteri_ad': 'Mehmet Ali Öztürk',
+          'musteri_tel': '+90 544 222 33 44',
+          'musteri_adres': 'Caferağa Mahallesi, Moda Caddesi No:18, Kadıköy / İstanbul',
+          'usta_ad': 'Ahmet Yılmaz',
+          'usta_tel': '+90 532 999 11 22',
+          'usta_meslek': 'Sıhhi Tesisat Teknisyeni',
+          'usta_hakedis': 850.00,
+          'komisyon_tutari': 127.50,
+          'komisyon_orani': 0.15,
+          'toplam_tutar': 977.50,
+          'durum': 'Usta Yolda',
+          'flow_step': 3,
+          'payment_provider': 'İyzico Provizyon (Askıda)',
+          'payment_status': 'Ön Provizyon Alındı',
+          'puan': 0.0,
+          'musteri_yorum': '',
+          'created_at': '14.11.2026 • 01:15',
+          'is_payout_transferred': false,
+        },
+        {
+          'id': 'TRX-1794610203987',
+          'receipt_no': 'demo_pay_1794610203987',
+          'cagri_id': 'cagri-uskudar-1794610205',
+          'hizmet_baslik': 'Çelik Kapı Kilidi Bozuldu, Anahtar Dönmüyor',
+          'kategori': 'Çilingir & Kapı Açma',
+          'musteri_ad': 'Burak Yılmazer',
+          'musteri_tel': '+90 555 333 44 55',
+          'musteri_adres': 'Altunizade, Kısıklı Caddesi No:52, Üsküdar / İstanbul',
+          'usta_ad': 'Serkan Yıldırım',
+          'usta_tel': '+90 542 888 77 66',
+          'usta_meslek': 'Çilingir & Kilit Teknisyeni',
+          'usta_hakedis': 750.00,
+          'komisyon_tutari': 112.50,
+          'komisyon_orani': 0.15,
+          'toplam_tutar': 862.50,
+          'durum': 'Kabul Edildi / İşlemde',
+          'flow_step': 2,
+          'payment_provider': 'İyzico Provizyon (Askıda)',
+          'payment_status': 'Ön Provizyon Alındı',
+          'puan': 0.0,
+          'musteri_yorum': '',
+          'created_at': '14.11.2026 • 00:45',
+          'is_payout_transferred': false,
+        },
+        {
+          'id': 'TRX-1794610203988',
+          'receipt_no': 'demo_pay_1794610203988',
+          'cagri_id': 'cagri-besiktas-1794610206',
+          'hizmet_baslik': 'Kombi Petek Temizliği & Kışlık Bakım',
+          'kategori': 'Klima & Havalandırma',
+          'musteri_ad': 'Selin Varol',
+          'musteri_tel': '+90 530 444 88 99',
+          'musteri_adres': 'Levazım Mahallesi, Koru Sitesi B Blok, Beşiktaş / İstanbul',
+          'usta_ad': 'Hasan Çetin',
+          'usta_tel': '+90 533 111 44 22',
+          'usta_meslek': 'İklimlendirme & Kombi Uzmanı',
+          'usta_hakedis': 1200.00,
+          'komisyon_tutari': 180.00,
+          'komisyon_orani': 0.15,
+          'toplam_tutar': 1380.00,
+          'durum': 'Tamamlandı & Tahsil Edildi',
+          'flow_step': 4,
+          'payment_provider': 'İyzico Sanal POS • 3D Secure',
+          'payment_status': 'Tahsilat Başarılı',
+          'puan': 4.9,
+          'musteri_yorum': 'Petekler eskisine göre çok daha iyi ısınıyor. Temiz işçilik.',
+          'created_at': '13.11.2026 • 18:30',
+          'is_payout_transferred': true,
+        },
+        {
+          'id': 'TRX-1794610203989',
+          'receipt_no': 'demo_pay_1794610203989',
+          'cagri_id': 'cagri-bolvadin-1794610207',
+          'hizmet_baslik': 'Avize Montajı ve 3lü Priz Hat Çekimi',
+          'kategori': 'Elektrik & Aydınlatma',
+          'musteri_ad': 'Ece Aksoy',
+          'musteri_tel': '+90 535 777 66 11',
+          'musteri_adres': 'İmaret Mahallesi, Cami Yanı No:12, Bolvadin / Afyonkarahisar',
+          'usta_ad': 'Kadir Usta',
+          'usta_tel': '05524342069',
+          'usta_meslek': 'Elektrik & Aydınlatma Teknisyeni',
+          'usta_hakedis': 950.00,
+          'komisyon_tutari': 142.50,
+          'komisyon_orani': 0.15,
+          'toplam_tutar': 1092.50,
+          'durum': 'Usta Onayı Bekleniyor',
+          'flow_step': 1,
+          'payment_provider': 'Ön Provizyon Alındı',
+          'payment_status': 'Kart Blokesi Bekliyor',
+          'puan': 0.0,
+          'musteri_yorum': '',
+          'created_at': '14.11.2026 • 01:40',
+          'is_payout_transferred': false,
+        },
+        {
+          'id': 'TRX-1794610203990',
+          'receipt_no': 'demo_pay_1794610203990',
+          'cagri_id': 'cagri-sandikli-1794610208',
+          'hizmet_baslik': 'Banyo Bataryası Değişimi & Tıkanıklık Açma',
+          'kategori': 'Sıhhi Tesisat & Su Kaçağı',
+          'musteri_ad': 'Kemal Sunal',
+          'musteri_tel': '+90 533 222 11 00',
+          'musteri_adres': 'Çakır Mahallesi No:9, Sandıklı / Afyonkarahisar',
+          'usta_ad': 'Ali Kemal Usta',
+          'usta_tel': '+90 541 333 22 11',
+          'usta_meslek': 'Tesisat & Montaj Ustası',
+          'usta_hakedis': 650.00,
+          'komisyon_tutari': 97.50,
+          'komisyon_orani': 0.15,
+          'toplam_tutar': 747.50,
+          'durum': 'Tamamlandı & Tahsil Edildi',
+          'flow_step': 4,
+          'payment_provider': 'İyzico Sanal POS • 3D Secure',
+          'payment_status': 'Tahsilat Başarılı',
+          'puan': 5.0,
+          'musteri_yorum': 'Bataryayı hızlıca değiştirdi, su sızdırmazlığı mükemmel.',
+          'created_at': '13.11.2026 • 15:20',
+          'is_payout_transferred': true,
+        },
+      ];
+    }
   }
 
   IconData _iconFromName(String? name) {
@@ -488,7 +660,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       'id': m['id'] ?? '',
       'name': m['name'] ?? '',
       'type': m['type'] ?? 'Usta Hizmeti',
-      'icon': _iconFromName(m['iconName'] as String?),
+      'icon': _iconFromName(m['iconName']?.toString()),
       'color': m['colorValue'] != null ? Color(m['colorValue']) : const Color(0xFF0284C7),
       'count': m['count'] ?? 0,
       'description': m['description'] ?? '',
@@ -518,21 +690,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       'lng': m['lng'] ?? 29.0270,
       'description': m['description'] ?? '',
       'is_active': m['is_active'] ?? true,
-      'icon': _iconFromName(m['iconName'] as String?),
+      'icon': _iconFromName(m['iconName']?.toString()),
       'color': m['colorValue'] != null ? Color(m['colorValue']) : const Color(0xFFD97706),
     };
   }
 
   void _showEditUstaDialog(Map<String, dynamic> u) {
-    final nameCtrl = TextEditingController(text: u['full_name']);
-    final phoneCtrl = TextEditingController(text: u['phone']);
+    final nameCtrl = TextEditingController(text: (u['full_name'] ?? '').toString());
+    final phoneCtrl = TextEditingController(text: (u['phone'] ?? '').toString());
     final priceCtrl = TextEditingController(text: (u['price'] ?? 750).toString());
     final ratingCtrl = TextEditingController(text: (u['rating'] ?? 5.0).toString());
     String selectedLocation = (u['location'] ?? 'Kadıköy, İstanbul').toString();
     double selectedLat = (u['latitude'] as num?)?.toDouble() ?? 40.9905;
     double selectedLng = (u['longitude'] as num?)?.toDouble() ?? 29.0270;
-    String kategori = u['kategori'] ?? 'Elektrik & Aydınlatma';
-    String status = u['status'] ?? 'Çevrimiçi';
+    String kategori = (u['kategori'] ?? 'Elektrik & Aydınlatma').toString();
+    String status = (u['status'] ?? 'Çevrimiçi').toString();
 
     showDialog(
       context: context,
@@ -1140,11 +1312,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   void _showEditJobDialog(Map<String, dynamic> job) {
-    final titleCtrl = TextEditingController(text: job['title']);
-    final priceCtrl = TextEditingController(text: job['price'].toString().replaceAll(' ₺', ''));
-    final districtCtrl = TextEditingController(text: job['district']);
-    final descCtrl = TextEditingController(text: job['description']);
-    String status = job['status'] ?? 'Bekliyor';
+    final titleCtrl = TextEditingController(text: (job['title'] ?? '').toString());
+    final priceCtrl = TextEditingController(text: (job['price'] ?? '500').toString().replaceAll(' ₺', ''));
+    final districtCtrl = TextEditingController(text: (job['district'] ?? '').toString());
+    final descCtrl = TextEditingController(text: (job['description'] ?? '').toString());
+    String status = (job['status'] ?? 'Bekliyor').toString();
 
     showDialog(
       context: context,
@@ -1213,7 +1385,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     job['description'] = descCtrl.text.trim();
 
                     // Eğer bir ustaya bağlı hizmet ilanıysa usta profilinde de güncelle
-                    final uId = job['usta_id'] as String?;
+                    final uId = job['usta_id']?.toString();
                     if (uId != null && uId.isNotEmpty) {
                       for (final u in _activeUstalar) {
                         if (u['id'] == uId) {
@@ -1268,10 +1440,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(color: const Color(0xFF0F172A), borderRadius: BorderRadius.circular(6)),
-              child: Text(job['id'], style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+              child: Text((job['id'] ?? '').toString(), style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
             ),
             const SizedBox(width: 10),
-            Expanded(child: Text(job['title'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+            Expanded(child: Text((job['title'] ?? '').toString(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
           ],
         ),
         content: SizedBox(
@@ -1340,7 +1512,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const CircleAvatar(backgroundColor: Color(0xFFE2E8F0), child: Icon(Icons.person, color: Color(0xFF475569))),
-                      title: Text(u['full_name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                      title: Text((u['full_name'] ?? 'Usta').toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                       subtitle: Text('${u['kategori']} • ⭐ ${u['rating']} (${u['location']})', style: const TextStyle(fontSize: 12)),
                       trailing: ElevatedButton(
                         onPressed: () {
@@ -1770,9 +1942,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   void _showEditCategoryDialog(Map<String, dynamic> cat) {
-    final nameCtrl = TextEditingController(text: cat['name']);
-    final descCtrl = TextEditingController(text: cat['description']);
-    String type = cat['type'] ?? 'Usta Hizmeti';
+    final nameCtrl = TextEditingController(text: (cat['name'] ?? '').toString());
+    final descCtrl = TextEditingController(text: (cat['description'] ?? '').toString());
+    String type = (cat['type'] ?? 'Usta Hizmeti').toString();
 
     showDialog(
       context: context,
@@ -1999,8 +2171,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   void _showEditPinDialog(Map<String, dynamic> pin) {
-    final titleCtrl = TextEditingController(text: pin['title']);
-    final descCtrl = TextEditingController(text: pin['description']);
+    final titleCtrl = TextEditingController(text: (pin['title'] ?? '').toString());
+    final descCtrl = TextEditingController(text: (pin['description'] ?? '').toString());
     String selectedAddress = (pin['title'] ?? 'Seçili Konum').toString();
     double selectedLat = (pin['lat'] as num?)?.toDouble() ?? 40.9900;
     double selectedLng = (pin['lng'] as num?)?.toDouble() ?? 29.0200;
@@ -2176,9 +2348,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   void _showEditMemberDialog(Map<String, dynamic> member) {
-    final nameCtrl = TextEditingController(text: member['full_name']);
-    final phoneCtrl = TextEditingController(text: member['phone']);
-    final emailCtrl = TextEditingController(text: member['email']);
+    final nameCtrl = TextEditingController(text: (member['full_name'] ?? '').toString());
+    final phoneCtrl = TextEditingController(text: (member['phone'] ?? '').toString());
+    final emailCtrl = TextEditingController(text: (member['email'] ?? '').toString());
 
     showDialog(
       context: context,
@@ -2319,10 +2491,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   void _showEditSupplierDialog(Map<String, dynamic> store) {
-    final nameCtrl = TextEditingController(text: store['ad']);
-    final phoneCtrl = TextEditingController(text: store['telefon']);
-    final addressCtrl = TextEditingController(text: store['adres']);
-    final discountCtrl = TextEditingController(text: store['indirim_orani']);
+    final nameCtrl = TextEditingController(text: (store['ad'] ?? '').toString());
+    final phoneCtrl = TextEditingController(text: (store['telefon'] ?? '').toString());
+    final addressCtrl = TextEditingController(text: (store['adres'] ?? '').toString());
+    final discountCtrl = TextEditingController(text: (store['indirim_orani'] ?? '').toString());
 
     showDialog(
       context: context,
@@ -2703,22 +2875,24 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     child: const Icon(Icons.handyman_rounded, color: Colors.white, size: 22),
                   ),
                   const SizedBox(width: 12),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'UstamBurada',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'UstamBurada',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                      Text(
-                        'Yönetim Paneli (Web)',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                      ),
-                    ],
+                        Text(
+                          'Yönetim Paneli (Web)',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -2789,7 +2963,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   _buildSidebarItem(
                     index: 8,
                     icon: Icons.monetization_on_rounded,
-                    title: 'Finansal Raporlar',
+                    title: 'Finansal Raporlar & Hizmet Akışı',
                   ),
                 ],
               ),
@@ -4374,12 +4548,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             child: const Icon(Icons.handyman, size: 16, color: AppTheme.ustaPrimary),
                           ),
                           const SizedBox(width: 8),
-                          Text(u['full_name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text((u['full_name'] ?? 'Usta').toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
-                    DataCell(Text(u['phone'])),
-                    DataCell(Text(u['kategori'])),
+                    DataCell(Text((u['phone'] ?? '-').toString())),
+                    DataCell(Text((u['kategori'] ?? '-').toString())),
                     DataCell(Text('${priceVal.toStringAsFixed(0)} ₺', style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A)))),
                     DataCell(
                       Row(
@@ -4387,11 +4561,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         children: [
                           const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
                           const SizedBox(width: 3),
-                          Text('${u['rating']} (${u['review_count']})', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text('${u['rating'] ?? 5.0} (${u['review_count'] ?? 0})', style: const TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
-                    DataCell(Text('${u['completed_jobs']} Görev')),
+                    DataCell(Text('${u['completed_jobs'] ?? 0} Görev')),
                     DataCell(
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -4399,10 +4573,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           color: statusColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(u['status'], style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusColor)),
+                        child: Text((u['status'] ?? 'Çevrimiçi').toString(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusColor)),
                       ),
                     ),
-                    DataCell(Text(u['location'] ?? 'İstanbul')),
+                    DataCell(Text((u['location'] ?? 'İstanbul').toString())),
                   ],
                 );
               }).toList(),
@@ -5017,7 +5191,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             child: Icon(icon, color: color, size: 18),
                           ),
                           const SizedBox(width: 8),
-                          Text(p['title'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text((p['title'] ?? '').toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -5025,14 +5199,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
-                        child: Text(p['pin_type'], style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: color)),
+                        child: Text((p['pin_type'] ?? 'Tedarikçi (Sarı)').toString(), style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: color)),
                       ),
                     ),
                     DataCell(Text('${p['lat']} , ${p['lng']}')),
                     DataCell(
                       SizedBox(
                         width: 260,
-                        child: Text(p['description'], maxLines: 1, overflow: TextOverflow.ellipsis),
+                        child: Text((p['description'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                     DataCell(
@@ -5168,7 +5342,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             child: Icon(icon, color: color, size: 20),
                           ),
                           const SizedBox(width: 10),
-                          Text(c['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text((c['name'] ?? '').toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -5176,13 +5350,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(color: const Color(0xFFE0F2FE), borderRadius: BorderRadius.circular(6)),
-                        child: Text(c['type'], style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF0369A1))),
+                        child: Text((c['type'] ?? 'Usta Hizmeti').toString(), style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF0369A1))),
                       ),
                     ),
                     DataCell(
                       SizedBox(
                         width: 320,
-                        child: Text(c['description'], maxLines: 1, overflow: TextOverflow.ellipsis),
+                        child: Text((c['description'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                     DataCell(Text('${c['count']} Kayıtlı')),
@@ -5213,15 +5387,1186 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   // ==========================================
-  // SEKME 7: FİNANSAL RAPORLAR
+  // SEKME 8: HİZMET AKIŞI & FİNANSAL RAPORLAR
   // ==========================================
 
   Widget _buildFinancialReportsTab() {
+    _syncFinancialTransactions();
+
+    // Filtreleme
+    final filteredTransactions = _financialTransactions.where((t) {
+      final query = _financialSearchQuery.trim().toLowerCase();
+      final matchesSearch = query.isEmpty ||
+          (t['id'] ?? '').toString().toLowerCase().contains(query) ||
+          (t['receipt_no'] ?? '').toString().toLowerCase().contains(query) ||
+          (t['hizmet_baslik'] ?? '').toString().toLowerCase().contains(query) ||
+          (t['musteri_ad'] ?? '').toString().toLowerCase().contains(query) ||
+          (t['musteri_adres'] ?? '').toString().toLowerCase().contains(query) ||
+          (t['usta_ad'] ?? '').toString().toLowerCase().contains(query);
+
+      final matchesStatus = _financialStatusFilter == 'Tümü' ||
+          (t['durum'] ?? '').toString() == _financialStatusFilter;
+
+      return matchesSearch && matchesStatus;
+    }).toList();
+
+    // Finansal KPI Özet Hesaplamaları
+    double totalGross = 0.0;
+    double totalCommission = 0.0;
+    double totalUstaPayout = 0.0;
+    int completedCount = 0;
+    int inFlowCount = 0;
+
+    for (final t in _financialTransactions) {
+      final gross = _asDouble(t['toplam_tutar'], 0.0);
+      final comm = _asDouble(t['komisyon_tutari'], 0.0);
+      final usta = _asDouble(t['usta_hakedis'], 0.0);
+      final status = (t['durum'] ?? '').toString();
+
+      totalGross += gross;
+      totalCommission += comm;
+      totalUstaPayout += usta;
+
+      if (status.contains('Tamamlandı')) {
+        completedCount++;
+      } else {
+        inFlowCount++;
+      }
+    }
+
+    final double avgOrder = _financialTransactions.isNotEmpty
+        ? (totalGross / _financialTransactions.length)
+        : 0.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 1. ÜST KONSOL & FİNANSAL KPI METRİK KARTLARI (5 Adet Kart)
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final card1 = _buildFinancialTile(
+              title: 'Toplam Brüt İşlem Hacmi (GMV)',
+              value: '${totalGross.toStringAsFixed(2)} ₺',
+              change: '${_financialTransactions.length} servis çağrısı / tahsilat',
+              icon: Icons.monetization_on_rounded,
+              color: const Color(0xFF0284C7),
+            );
+            final card2 = _buildFinancialTile(
+              title: 'Platform Komisyon Kazancımız (%15)',
+              value: '${totalCommission.toStringAsFixed(2)} ₺',
+              change: 'Net şirket kâr payı havuzu',
+              icon: Icons.trending_up_rounded,
+              color: const Color(0xFF16A34A),
+            );
+            final card3 = _buildFinancialTile(
+              title: 'Ustalara Aktarılacak / Ödenen Hakediş',
+              value: '${totalUstaPayout.toStringAsFixed(2)} ₺',
+              change: 'Usta net gelir payı (%85)',
+              icon: Icons.payments_rounded,
+              color: const Color(0xFF7C3AED),
+            );
+            final card4 = _buildFinancialTile(
+              title: 'Hizmet Akış & Tahsilat Durumu',
+              value: '$completedCount Bitti • $inFlowCount Canlı',
+              change: 'İyzico provizyon güvencesi aktif',
+              icon: Icons.verified_rounded,
+              color: const Color(0xFF059669),
+            );
+            final card5 = _buildFinancialTile(
+              title: 'Ortalama Servis / Çağrı Bedeli',
+              value: '${avgOrder.toStringAsFixed(0)} ₺ / işlem',
+              change: 'İşlem başına ortalama sepet',
+              icon: Icons.receipt_long_rounded,
+              color: const Color(0xFFEA580C),
+            );
+
+            if (constraints.maxWidth < 1100) {
+              return Column(
+                children: [
+                  Row(children: [Expanded(child: card1), const SizedBox(width: 14), Expanded(child: card2)]),
+                  const SizedBox(height: 14),
+                  Row(children: [Expanded(child: card3), const SizedBox(width: 14), Expanded(child: card4)]),
+                  const SizedBox(height: 14),
+                  card5,
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(child: card1),
+                const SizedBox(width: 14),
+                Expanded(child: card2),
+                const SizedBox(width: 14),
+                Expanded(child: card3),
+                const SizedBox(width: 14),
+                Expanded(child: card4),
+                const SizedBox(width: 14),
+                Expanded(child: card5),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 20),
+
+        // 2. ANA İŞLEM VE HİZMET AKIŞI MASASI
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Başlık & Hızlı Aksiyonlar
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 16,
+                  runSpacing: 14,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 12,
+                          runSpacing: 8,
+                          children: [
+                            const Text(
+                              'Hizmet Akışı & Finansal Raporlar Masası',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFECFDF5),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: const Color(0xFF10B981)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.lock_outline_rounded, size: 12, color: Color(0xFF047857)),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'İyzico Sanal POS • %15 Komisyon',
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF047857)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Tüm servis çağrıları, canlı akış aşamaları (Onay ➔ Kabul ➔ Yolda ➔ Bitti), usta hakedişleri ve şirketimiz komisyon kazançları.',
+                          style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _syncFinancialTransactions();
+                              _recalculateMetrics();
+                            });
+                            _showSuccessToast('Canlı finansal akış ve çağrılar güncellendi.');
+                          },
+                          icon: const Icon(Icons.refresh_rounded, size: 16),
+                          label: const Text('Akışı Yenile'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF0F172A),
+                            side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _showAddTransactionDialog,
+                          icon: const Icon(Icons.add_circle_outline_rounded, size: 16),
+                          label: const Text('Yeni İşlem / Çağrı Kaydı'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFEA580C),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: () => _showSuccessToast('Excel / CSV mali rapor ve dijital dekont dökümü indirildi.'),
+                          icon: const Icon(Icons.download_rounded, size: 16),
+                          label: const Text('Mali Rapor (Excel)'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0F172A),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+
+              // Filtre & Arama Konsolu
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 4,
+                      child: TextField(
+                        onChanged: (val) => setState(() => _financialSearchQuery = val),
+                        decoration: InputDecoration(
+                          hintText: 'Dekont No, Usta Adı, Müşteri Adı veya İlçe ile ara...',
+                          hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                          prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF64748B)),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    // Durum Filtresi
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _financialStatusFilter,
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                          items: const [
+                            DropdownMenuItem(value: 'Tümü', child: Text('Tüm Durumlar')),
+                            DropdownMenuItem(value: 'Tamamlandı & Tahsil Edildi', child: Text('✓ Tamamlandı & Tahsil Edildi')),
+                            DropdownMenuItem(value: 'Usta Yolda', child: Text('🚗 Usta Yolda')),
+                            DropdownMenuItem(value: 'Kabul Edildi / İşlemde', child: Text('⚡ Kabul Edildi / İşlemde')),
+                            DropdownMenuItem(value: 'Usta Onayı Bekleniyor', child: Text('⏳ Usta Onayı Bekleniyor')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) setState(() => _financialStatusFilter = val);
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    // Dönem Filtresi
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _financialPeriodFilter,
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                          items: const [
+                            DropdownMenuItem(value: 'Tüm Zamanlar', child: Text('Tüm Zamanlar')),
+                            DropdownMenuItem(value: 'Bugün', child: Text('Bugün')),
+                            DropdownMenuItem(value: 'Bu Hafta', child: Text('Bu Hafta')),
+                            DropdownMenuItem(value: 'Bu Ay', child: Text('Bu Ay')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) setState(() => _financialPeriodFilter = val);
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Veri Tablosu
+              if (filteredTransactions.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(48.0),
+                  child: Center(
+                    child: Text(
+                      'Kriterlere uygun finansal işlem veya servis çağrısı bulunamadı.',
+                      style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+                    ),
+                  ),
+                )
+              else
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                    dataRowMinHeight: 64,
+                    dataRowMaxHeight: 72,
+                    columnSpacing: 22,
+                    columns: const [
+                      DataColumn(label: Text('Dekont / İşlem No', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      DataColumn(label: Text('Hizmet & Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      DataColumn(label: Text('Müşteri', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      DataColumn(label: Text('Görevli Usta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      DataColumn(label: Text('Hizmet Bedeli\n(Usta Taban)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                      DataColumn(label: Text('Bizim Komisyon\nKazancımız (%15)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF16A34A)))),
+                      DataColumn(label: Text('Toplam Çekilen\nTutar (Müşteri)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0284C7)))),
+                      DataColumn(label: Text('Hizmet Akış Aşaması', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      DataColumn(label: Text('Ödeme Sağlayıcı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      DataColumn(label: Text('Tarih / Saat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                    ],
+                    rows: filteredTransactions.map((tx) {
+                      final status = (tx['durum'] ?? '').toString();
+                      final step = _asInt(tx['flow_step'], 1);
+                      final ustaPayout = _asDouble(tx['usta_hakedis'], 0.0);
+                      final commission = _asDouble(tx['komisyon_tutari'], 0.0);
+                      final totalAmount = _asDouble(tx['toplam_tutar'], 0.0);
+                      final receiptNo = (tx['receipt_no'] ?? tx['id'] ?? '').toString();
+                      final isPayoutDone = tx['is_payout_transferred'] == true;
+
+                      return DataRow(
+                        cells: [
+                          // Dekont No & İyzico Chip
+                          DataCell(
+                            InkWell(
+                              onTap: () => _showTransactionDetailDialog(tx),
+                              borderRadius: BorderRadius.circular(6),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.receipt_rounded, size: 14, color: Color(0xFF0284C7)),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          receiptNo,
+                                          style: const TextStyle(
+                                            fontFamily: 'monospace',
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 12,
+                                            color: Color(0xFF0284C7),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      (tx['cagri_id'] ?? tx['id'] ?? '').toString(),
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Hizmet & Kategori
+                          DataCell(
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  (tx['hizmet_baslik'] ?? 'Servis Çağrısı').toString(),
+                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
+                                ),
+                                const SizedBox(height: 2),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    (tx['kategori'] ?? 'Genel').toString(),
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Müşteri
+                          DataCell(
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  (tx['musteri_ad'] ?? 'Müşteri').toString(),
+                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: Color(0xFF0F172A)),
+                                ),
+                                Text(
+                                  '${tx['musteri_tel']} • ${(tx['musteri_adres'] ?? '').toString().split(',').first}',
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Görevli Usta
+                          DataCell(
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.handyman_rounded, size: 13, color: Color(0xFF059669)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      (tx['usta_ad'] ?? '—').toString(),
+                                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF0F172A)),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  '${tx['usta_meslek'] ?? ''} • ${tx['usta_tel'] ?? ''}',
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Usta Taban Ücreti (Hakediş)
+                          DataCell(
+                            Text(
+                              '${ustaPayout.toStringAsFixed(2)} ₺',
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: Color(0xFF0F172A)),
+                            ),
+                          ),
+
+                          // Bizim Komisyon Kazancımız (%15)
+                          DataCell(
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFECFDF5),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFA7F3D0)),
+                              ),
+                              child: Text(
+                                '+${commission.toStringAsFixed(2)} ₺',
+                                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF047857)),
+                              ),
+                            ),
+                          ),
+
+                          // Toplam Çekilen Tutar (Müşteri)
+                          DataCell(
+                            Text(
+                              '${totalAmount.toStringAsFixed(2)} ₺',
+                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF0284C7)),
+                            ),
+                          ),
+
+                          // Hizmet Akış Aşaması (Stepper Rozeti)
+                          DataCell(_buildServiceFlowBadge(step, status)),
+
+                          // Ödeme Sağlayıcı
+                          DataCell(
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.credit_card_rounded, size: 14, color: Color(0xFF64748B)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  (tx['payment_provider'] ?? 'İyzico POS').toString(),
+                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Tarih / Saat
+                          DataCell(
+                            Text(
+                              (tx['created_at'] ?? '—').toString(),
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                            ),
+                          ),
+
+                          // Aksiyonlar
+                          DataCell(
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.remove_red_eye_rounded, size: 18, color: Color(0xFF0284C7)),
+                                  tooltip: 'Dekont & Süreç Detayını İncele',
+                                  onPressed: () => _showTransactionDetailDialog(tx),
+                                ),
+                                if (status.contains('Tamamlandı') && !isPayoutDone)
+                                  IconButton(
+                                    icon: const Icon(Icons.send_rounded, size: 18, color: Color(0xFF16A34A)),
+                                    tooltip: 'Usta Hakedişini Bankaya Aktar',
+                                    onPressed: () {
+                                      setState(() {
+                                        tx['is_payout_transferred'] = true;
+                                      });
+                                      _showSuccessToast('${tx['usta_ad']} hesabına ${ustaPayout.toStringAsFixed(2)} ₺ aktarıldı.');
+                                    },
+                                  ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFEF4444)),
+                                  tooltip: 'İşlem Kaydını Sil',
+                                  onPressed: () => _deleteTransaction(tx['id']),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 4 Aşamalı Hizmet Akış Rozeti (Onay ➔ Kabul ➔ Yolda ➔ Bitti)
+  Widget _buildServiceFlowBadge(int step, String status) {
+    Color bg;
+    Color fg;
+    IconData icon;
+    String label;
+
+    switch (step) {
+      case 1:
+        bg = const Color(0xFFFEF3C7);
+        fg = const Color(0xFF92400E);
+        icon = Icons.hourglass_top_rounded;
+        label = '1. Usta Onayı Bekleniyor';
+        break;
+      case 2:
+        bg = const Color(0xFFF3E8FF);
+        fg = const Color(0xFF6B21A8);
+        icon = Icons.check_circle_outline_rounded;
+        label = '2. Çağrı Kabul Edildi';
+        break;
+      case 3:
+        bg = const Color(0xFFE0F2FE);
+        fg = const Color(0xFF0369A1);
+        icon = Icons.directions_car_filled_rounded;
+        label = '3. Usta Yolda';
+        break;
+      case 4:
+      default:
+        bg = const Color(0xFFDCFCE7);
+        fg = const Color(0xFF15803D);
+        icon = Icons.verified_rounded;
+        label = '4. Tamamlandı & Tahsil Edildi';
+        break;
+    }
+
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: bg,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: fg.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: fg),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: fg),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Ayrıntılı Dijital Dekont & Hizmet Akış Süreci Modalı
+  void _showTransactionDetailDialog(Map<String, dynamic> tx) {
+    final ustaPayout = _asDouble(tx['usta_hakedis'], 0.0);
+    final commission = _asDouble(tx['komisyon_tutari'], 0.0);
+    final totalAmount = _asDouble(tx['toplam_tutar'], 0.0);
+    final step = _asInt(tx['flow_step'], 4);
+    final receiptNo = (tx['receipt_no'] ?? tx['id'] ?? '').toString();
+    final status = (tx['durum'] ?? '').toString();
+    final rating = _asDouble(tx['puan'], 5.0);
+    final comment = (tx['musteri_yorum'] ?? '').toString();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          width: 780,
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Üst Dekont Başlığı & İyzico Güvencesi
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFECFDF5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF059669), size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Resmi Hizmet Özeti & Dijital Dekont',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Dekont No: $receiptNo • ${tx['created_at']}',
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontFamily: 'monospace'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.shield_outlined, size: 14, color: Color(0xFF0284C7)),
+                        SizedBox(width: 6),
+                        Text(
+                          'İyzico Güvencesi • 3D Secure',
+                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFF0284C7)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              const SizedBox(height: 18),
+
+              // CANLI HİZMET AKIŞ AŞAMALARI (1 Onay -> 2 Kabul -> 3 Yolda -> 4 Bitti)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Canlı Hizmet Akış Durumu',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF64748B)),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        _buildStepIndicator(stepNumber: 1, label: 'Usta Onayı', isCompleted: step >= 1, isCurrent: step == 1),
+                        _buildStepLine(isCompleted: step >= 2),
+                        _buildStepIndicator(stepNumber: 2, label: 'Çağrı Kabul', isCompleted: step >= 2, isCurrent: step == 2),
+                        _buildStepLine(isCompleted: step >= 3),
+                        _buildStepIndicator(stepNumber: 3, label: 'Usta Yolda', isCompleted: step >= 3, isCurrent: step == 3),
+                        _buildStepLine(isCompleted: step >= 4),
+                        _buildStepIndicator(stepNumber: 4, label: 'Bitti & Tahsilat', isCompleted: step >= 4, isCurrent: step == 4),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // İki Kolonlu Bilgi: Müşteri & Usta
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Müşteri Kartı
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.person_pin_rounded, size: 16, color: Color(0xFF0284C7)),
+                              SizedBox(width: 6),
+                              Text('Müşteri Bilgileri', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(tx['musteri_ad'] ?? '—', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                          const SizedBox(height: 4),
+                          Text('Telefon: ${tx['musteri_tel'] ?? '—'}', style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+                          const SizedBox(height: 4),
+                          Text('Adres: ${tx['musteri_adres'] ?? '—'}', style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+
+                  // Usta Kartı
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.engineering_rounded, size: 16, color: Color(0xFF059669)),
+                              SizedBox(width: 6),
+                              Text('Hizmet Veren Usta', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(tx['usta_ad'] ?? '—', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                          const SizedBox(height: 4),
+                          Text('Meslek: ${tx['usta_meslek'] ?? '—'}', style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+                          const SizedBox(height: 4),
+                          Text('İletişim: ${tx['usta_tel'] ?? '—'}', style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // FİNANSAL AYRIŞTIRMA VE KOMİSYON HESAP MATRİSİ
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  children: [
+                    _buildReceiptRow('Hizmet / Usta Taban Ücreti:', '${ustaPayout.toStringAsFixed(2)} ₺', isBold: false),
+                    const SizedBox(height: 8),
+                    _buildReceiptRow(
+                      'UstamBurada Güvence & Platform Komisyonu (%15):',
+                      '+${commission.toStringAsFixed(2)} ₺',
+                      isBold: true,
+                      valueColor: const Color(0xFF16A34A),
+                    ),
+                    const SizedBox(height: 6),
+                    _buildReceiptRow(
+                      'Tahakkuk Eden KDV (%20 Dahil):',
+                      '${(commission * 0.20).toStringAsFixed(2)} ₺',
+                      isBold: false,
+                      valueColor: const Color(0xFF64748B),
+                    ),
+                    const SizedBox(height: 8),
+                    const Divider(height: 1, color: Color(0xFFCBD5E1)),
+                    const SizedBox(height: 8),
+                    _buildReceiptRow(
+                      'Müşteri Kartından Çekilen Toplam Tutar:',
+                      '${totalAmount.toStringAsFixed(2)} ₺',
+                      isBold: true,
+                      fontSize: 16,
+                      valueColor: const Color(0xFF0284C7),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Varsa Müşteri Değerlendirmesi
+              if (rating > 0 && comment.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFFDE68A)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.star_rounded, color: Color(0xFFD97706), size: 22),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$rating / 5.0 • Mükemmel Hizmet Değerlendirmesi',
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF92400E)),
+                            ),
+                            const SizedBox(height: 2),
+                            Text('"$comment"', style: const TextStyle(fontSize: 12, color: Color(0xFF78350F), fontStyle: FontStyle.italic)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 24),
+              // Alt Aksiyon Butonları
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      _showSuccessToast('Dijital dekont PDF olarak indirildi ve yazdırıldı.');
+                    },
+                    icon: const Icon(Icons.print_rounded, size: 16),
+                    label: const Text('Dekontu Yazdır / PDF İndir'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F172A),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Kapat'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepIndicator({
+    required int stepNumber,
+    required String label,
+    required bool isCompleted,
+    required bool isCurrent,
+  }) {
+    Color circleColor = const Color(0xFFE2E8F0);
+    Color textColor = const Color(0xFF94A3B8);
+
+    if (isCompleted) {
+      circleColor = const Color(0xFF10B981);
+      textColor = const Color(0xFF065F46);
+    } else if (isCurrent) {
+      circleColor = const Color(0xFF0284C7);
+      textColor = const Color(0xFF0369A1);
+    }
+
+    return Column(
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: circleColor,
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: isCompleted
+                ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                : Text('$stepNumber', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: textColor),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepLine({required bool isCompleted}) {
+    return Expanded(
+      child: Container(
+        height: 3,
+        color: isCompleted ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
+        margin: const EdgeInsets.only(bottom: 16),
+      ),
+    );
+  }
+
+  Widget _buildReceiptRow(String label, String value, {bool isBold = false, double fontSize = 13.5, Color? valueColor}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+            color: const Color(0xFF334155),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: isBold ? FontWeight.w900 : FontWeight.bold,
+            color: valueColor ?? const Color(0xFF0F172A),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Yeni Manuel İşlem / Servis Çağrısı Ekleme Modalı
+  void _showAddTransactionDialog() {
+    final titleCtrl = TextEditingController(text: 'Standart Servis & Onarım');
+    final custNameCtrl = TextEditingController();
+    final custPhoneCtrl = TextEditingController();
+    final addressCtrl = TextEditingController(text: 'Sandıklı / Afyonkarahisar');
+    final priceCtrl = TextEditingController(text: '1500');
+    String selectedUstaName = _activeUstalar.isNotEmpty ? (_activeUstalar.first['full_name'] ?? 'Kadir Usta').toString() : 'Kadir Usta';
+    String selectedStatus = 'Tamamlandı & Tahsil Edildi';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final ustaPrice = double.tryParse(priceCtrl.text.trim()) ?? 0.0;
+          final commission = ustaPrice * 0.15;
+          final total = ustaPrice + commission;
+
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            child: Container(
+              width: 580,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Yeni Finansal Hizmet & Çağrı Kaydı',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Manuel olarak sisteme tahsil edilmiş veya devam eden servis çağrısı ekleyin.',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: titleCtrl,
+                          decoration: const InputDecoration(labelText: 'Hizmet Başlığı', border: OutlineInputBorder()),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: selectedUstaName,
+                          decoration: const InputDecoration(labelText: 'Görevli Usta', border: OutlineInputBorder()),
+                          items: (_activeUstalar.isNotEmpty ? _activeUstalar : [{'full_name': 'Kadir Usta'}]).map((u) {
+                            final name = (u['full_name'] ?? 'Usta').toString();
+                            return DropdownMenuItem(value: name, child: Text(name));
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) setDialogState(() => selectedUstaName = val);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: custNameCtrl,
+                          decoration: const InputDecoration(labelText: 'Müşteri Ad Soyad', border: OutlineInputBorder()),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: custPhoneCtrl,
+                          decoration: const InputDecoration(labelText: 'Müşteri Telefon', border: OutlineInputBorder()),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: addressCtrl,
+                    decoration: const InputDecoration(labelText: 'Hizmet Adresi / İlçe', border: OutlineInputBorder()),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: priceCtrl,
+                          keyboardType: TextInputType.number,
+                          onChanged: (_) => setDialogState(() {}),
+                          decoration: const InputDecoration(
+                            labelText: 'Usta Taban Ücreti (₺)',
+                            border: OutlineInputBorder(),
+                            suffixText: '₺',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: selectedStatus,
+                          decoration: const InputDecoration(labelText: 'Akış Durumu', border: OutlineInputBorder()),
+                          items: const [
+                            DropdownMenuItem(value: 'Tamamlandı & Tahsil Edildi', child: Text('Tamamlandı & Tahsil Edildi')),
+                            DropdownMenuItem(value: 'Usta Yolda', child: Text('Usta Yolda')),
+                            DropdownMenuItem(value: 'Kabul Edildi / İşlemde', child: Text('Kabul Edildi / İşlemde')),
+                            DropdownMenuItem(value: 'Usta Onayı Bekleniyor', child: Text('Usta Onayı Bekleniyor')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) setDialogState(() => selectedStatus = val);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Komisyon (%15): +${commission.toStringAsFixed(2)} ₺', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF16A34A))),
+                        Text('Toplam Çekilen: ${total.toStringAsFixed(2)} ₺', style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0284C7))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('İptal')),
+                      const SizedBox(width: 10),
+                      ElevatedButton(
+                        onPressed: () {
+                          final newId = 'TRX-${DateTime.now().millisecondsSinceEpoch}';
+                          final newReceipt = 'demo_pay_${DateTime.now().millisecondsSinceEpoch}';
+                          final cName = custNameCtrl.text.trim().isEmpty ? 'Ahmet Yılmaz' : custNameCtrl.text.trim();
+                          final cPhone = custPhoneCtrl.text.trim().isEmpty ? '+90 532 000 00 00' : custPhoneCtrl.text.trim();
+
+                          setState(() {
+                            _financialTransactions.insert(0, {
+                              'id': newId,
+                              'receipt_no': newReceipt,
+                              'cagri_id': 'cagri-manual-${DateTime.now().millisecondsSinceEpoch}',
+                              'hizmet_baslik': titleCtrl.text.trim().isEmpty ? 'Servis Hizmeti' : titleCtrl.text.trim(),
+                              'kategori': 'Elektrik & Tesisat',
+                              'musteri_ad': cName,
+                              'musteri_tel': cPhone,
+                              'musteri_adres': addressCtrl.text.trim(),
+                              'usta_ad': selectedUstaName,
+                              'usta_tel': '05524342069',
+                              'usta_meslek': 'Yetkili Teknisyen',
+                              'usta_hakedis': ustaPrice,
+                              'komisyon_tutari': commission,
+                              'komisyon_orani': 0.15,
+                              'toplam_tutar': total,
+                              'durum': selectedStatus,
+                              'flow_step': selectedStatus.contains('Tamamlandı') ? 4 : (selectedStatus.contains('Yolda') ? 3 : 2),
+                              'payment_provider': 'İyzico Sanal POS • 3D Secure',
+                              'payment_status': 'İşlem Başarılı',
+                              'puan': 5.0,
+                              'musteri_yorum': 'Hizmet sorunsuz tamamlandı.',
+                              'created_at': 'Bugün • ${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}',
+                              'is_payout_transferred': selectedStatus.contains('Tamamlandı'),
+                            });
+                            _recalculateMetrics();
+                          });
+                          Navigator.of(ctx).pop();
+                          _showSuccessToast('Yeni finansal hizmet kaydı başarıyla eklendi.');
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0F172A),
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Kaydı Ekle'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _deleteTransaction(String id) {
+    setState(() {
+      _financialTransactions.removeWhere((t) => t['id'] == id);
+      _recalculateMetrics();
+    });
+    _showSuccessToast('İşlem kaydı başarıyla silindi.');
+  }
+
+  Widget _buildFinancialTile({
+    required String title,
+    required String value,
+    required String change,
+    required Color color,
+    IconData? icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Column(
@@ -5230,88 +6575,28 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Finansal Performans & Komisyon Raporları',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Platformun %15 komisyon payı ve usta hakediş dağılımı.',
-                    style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
-                  ),
-                ],
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _showSuccessToast('Excel / CSV mali rapor indirildi.'),
-                icon: const Icon(Icons.download_rounded, size: 16),
-                label: const Text('Rapor İndir (Excel)'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F172A),
-                  foregroundColor: Colors.white,
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (icon != null)
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, size: 16, color: color),
+                ),
             ],
           ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: _buildFinancialTile(
-                  title: 'Toplam Brüt Hacim',
-                  value: '${_dailyTurnover.toStringAsFixed(0)} ₺',
-                  change: '${_activeJobs.length} çağrı / ilan üzerinden',
-                  color: const Color(0xFF0284C7),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildFinancialTile(
-                  title: 'Platform Geliri (%15)',
-                  value: '${_dailyCommission.toStringAsFixed(0)} ₺',
-                  change: 'Platform komisyon payı',
-                  color: const Color(0xFF16A34A),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildFinancialTile(
-                  title: 'Ustalara Ödenen Hakediş (%85)',
-                  value: '${(_dailyTurnover * 0.85).toStringAsFixed(0)} ₺',
-                  change: 'Usta kazanç havuzu',
-                  color: const Color(0xFF7C3AED),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFinancialTile({
-    required String title,
-    required String value,
-    required String change,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: color)),
+          Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: color)),
           const SizedBox(height: 4),
-          Text(change, style: const TextStyle(fontSize: 11.5, color: Color(0xFF10B981), fontWeight: FontWeight.w600)),
+          Text(change, style: const TextStyle(fontSize: 11, color: Color(0xFF10B981), fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -5549,16 +6834,19 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     color: const Color(0xFF1E293B),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.info_outline, size: 14, color: Color(0xFF94A3B8)),
-                      SizedBox(width: 6),
-                      Text(
-                        'Varsayılan Admin: admin@ustamburada.com / admin123',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                      ),
-                    ],
+                  child: const SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.info_outline, size: 14, color: Color(0xFF94A3B8)),
+                        SizedBox(width: 6),
+                        Text(
+                          'Varsayılan Admin: admin@ustamburada.com / admin123',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
