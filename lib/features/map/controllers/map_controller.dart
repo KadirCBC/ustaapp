@@ -154,6 +154,23 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     ]);
   }
 
+  List<NearbyUstaModel> _filterAndSortUstalar(List<NearbyUstaModel> list) {
+    final filtered = list
+        .map((u) {
+          final dist = Geolocator.distanceBetween(
+            state.currentLat,
+            state.currentLng,
+            u.latitude,
+            u.longitude,
+          );
+          return u.copyWith(mesafeMetre: dist > 0 ? dist : u.mesafeMetre);
+        })
+        .where((u) => u.mesafeMetre <= state.searchRadiusMeter)
+        .toList();
+    filtered.sort((a, b) => a.mesafeMetre.compareTo(b.mesafeMetre));
+    return filtered;
+  }
+
   /// PostGIS RPC fonksiyonu `yakin_ustalari_getir` veya Admin Panelinin yönettiği canlı usta verisini çeker
   Future<void> fetchNearbyUstalar() async {
     // Eğer kategori 'tedarikciler' ise usta araması yapılmaz, sadece dükkanlar listelenir
@@ -166,7 +183,26 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
       return;
     }
 
-    state = state.copyWith(isLoadingUstalar: true, errorMessage: null);
+    // 1. Anında yerel önbellek / sync servisinden yükle (0 ms gecikme)
+    try {
+      final managedUstalar = await _appDataService.getNearbyUstalar(
+        category: state.selectedCategory,
+        customerLat: state.currentLat,
+        customerLng: state.currentLng,
+        maxRadiusMeter: state.searchRadiusMeter.toDouble(),
+      );
+      if (managedUstalar.isNotEmpty && mounted) {
+        state = state.copyWith(
+          nearbyUstalar: _filterAndSortUstalar(managedUstalar),
+          isLoadingUstalar: false,
+        );
+      }
+    } catch (_) {}
+
+    state = state.copyWith(
+      isLoadingUstalar: state.nearbyUstalar.isEmpty,
+      errorMessage: null,
+    );
 
     List<NearbyUstaModel> ustalar = [];
 
@@ -176,7 +212,7 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
         'p_lng': state.currentLng,
         'p_kategori': state.selectedCategory,
         'p_radius_meter': state.searchRadiusMeter,
-      }).timeout(const Duration(seconds: 3));
+      }).timeout(const Duration(milliseconds: 1500));
 
       final List<dynamic> data = response as List<dynamic>? ?? [];
       ustalar = data
@@ -186,80 +222,24 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
 
     if (!mounted) return;
 
-    if (ustalar.isEmpty) {
-      // Admin Panelinin yönettiği dinamik usta verisini getir
-      final managedUstalar = await _appDataService.getNearbyUstalar(
-        category: state.selectedCategory,
-        customerLat: state.currentLat,
-        customerLng: state.currentLng,
-        maxRadiusMeter: state.searchRadiusMeter.toDouble(),
+    if (ustalar.isNotEmpty) {
+      state = state.copyWith(
+        isLoadingUstalar: false,
+        nearbyUstalar: _filterAndSortUstalar(ustalar),
+        clearSelectedUsta: true,
+        errorMessage: null,
       );
-
-      if (managedUstalar.isNotEmpty) {
-        ustalar = managedUstalar;
-      } else {
-        ustalar = [];
-      }
+    } else if (state.nearbyUstalar.isEmpty) {
+      state = state.copyWith(
+        isLoadingUstalar: false,
+        nearbyUstalar: [],
+        clearSelectedUsta: true,
+      );
     }
-
-    // Harita merkezine ve arama yarıçapına (searchRadiusMeter) göre filtrele ve sırala
-    ustalar = ustalar
-        .map((u) {
-          final dist = Geolocator.distanceBetween(
-            state.currentLat,
-            state.currentLng,
-            u.latitude,
-            u.longitude,
-          );
-          return u.copyWith(mesafeMetre: dist > 0 ? dist : u.mesafeMetre);
-        })
-        .where((u) => u.mesafeMetre <= state.searchRadiusMeter)
-        .toList();
-
-    ustalar.sort((a, b) => a.mesafeMetre.compareTo(b.mesafeMetre));
-
-    if (!mounted) return;
-
-    state = state.copyWith(
-      isLoadingUstalar: false,
-      nearbyUstalar: ustalar,
-      clearSelectedUsta: true,
-      errorMessage: null,
-    );
   }
 
-  /// Supabase `isletmeler` tablosundan veya yerel tedarikçilerden dükkanları çeker
-  Future<void> fetchIsletmeler() async {
-    state = state.copyWith(isLoadingIsletmeler: true);
-    List<IsletmeModel> isletmeler = [];
-
-    // 1. Supabase 'isletmeler' tablosu (id, ad, kategori, konum, telefon, adres, is_sponsored)
-    try {
-      final response = await _supabase
-          .from('isletmeler')
-          .select('id, ad, kategori, konum, telefon, adres, is_sponsored')
-          .timeout(const Duration(seconds: 4));
-
-      final List<dynamic> data = response as List<dynamic>? ?? [];
-      isletmeler = data
-          .map((item) => IsletmeModel.fromJson(item as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      debugPrint('Supabase isletmeler sorgu hatası: $e');
-    }
-
-    // 2. Fallback: AppDataService üzerinden (Admin Panel / Yerel Hafıza)
-    if (isletmeler.isEmpty) {
-      final local = await _appDataService.getNearbyTedarikciler(
-        customerLat: state.currentLat,
-        customerLng: state.currentLng,
-        maxRadiusMeter: state.searchRadiusMeter.toDouble(),
-      );
-      isletmeler = local.map((item) => IsletmeModel.fromJson(item)).toList();
-    }
-
-    // 3. Mesafeleri hesapla ve arama yarıçapına göre filtrele
-    final filtered = isletmeler.map((item) {
+  List<IsletmeModel> _processAndFilterIsletmeler(List<IsletmeModel> rawList) {
+    final filtered = rawList.map((item) {
       final dist = Geolocator.distanceBetween(
         state.currentLat,
         state.currentLng,
@@ -269,9 +249,6 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
       return item.copyWith(mesafeMetre: dist > 0 ? dist : item.mesafeMetre);
     }).where((item) => item.mesafeMetre <= state.searchRadiusMeter).toList();
 
-    // Filtreleme:
-    // Eğer kategori 'tedarikciler' ise harita sadece işletmeleri filtreler (tüm dükkanlar)
-    // Eğer spesifik kategori seçiliyse: ilgili dükkanlar ve sponsorlular gösterilir
     final result = (state.selectedCategory == 'tedarikciler')
         ? filtered
         : filtered.where((b) {
@@ -280,20 +257,60 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
             return cat.contains(sel) || sel.contains(cat) || b.isSponsored;
           }).toList();
 
-    // Sponsorlular önce, sonra mesafeye göre sırala
     result.sort((a, b) {
       if (a.isSponsored && !b.isSponsored) return -1;
       if (!a.isSponsored && b.isSponsored) return 1;
       return a.mesafeMetre.compareTo(b.mesafeMetre);
     });
+    return result;
+  }
 
-    if (!mounted) return;
+  /// Supabase `isletmeler` tablosundan veya yerel tedarikçilerden dükkanları anında çeker
+  Future<void> fetchIsletmeler() async {
+    // 1. ANINDA YEREL ÖNBELLEKTEN YÜKLE (Gecikmesiz, 0 ms)
+    try {
+      final local = await _appDataService.getNearbyTedarikciler(
+        customerLat: state.currentLat,
+        customerLng: state.currentLng,
+        maxRadiusMeter: state.searchRadiusMeter.toDouble(),
+      );
+      if (local.isNotEmpty && mounted) {
+        final localList = local.map((item) => IsletmeModel.fromJson(item)).toList();
+        final processed = _processAndFilterIsletmeler(localList);
+        state = state.copyWith(
+          isletmeler: processed,
+          isLoadingIsletmeler: false,
+        );
+      }
+    } catch (e) {
+      debugPrint('Yerel işletme okuma uyarısı: $e');
+    }
 
-    state = state.copyWith(
-      isLoadingIsletmeler: false,
-      isletmeler: result,
-      clearSelectedIsletme: true,
-    );
+    // 2. Supabase'den arka planda veri çekme (Kısa timeout: 1.5 sn)
+    try {
+      final response = await _supabase
+          .from('isletmeler')
+          .select('id, ad, kategori, konum, telefon, adres, is_sponsored')
+          .timeout(const Duration(milliseconds: 1500));
+
+      final List<dynamic> data = response as List<dynamic>? ?? [];
+      if (data.isNotEmpty && mounted) {
+        final remoteList = data
+            .map((item) => IsletmeModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+        final processed = _processAndFilterIsletmeler(remoteList);
+        state = state.copyWith(
+          isletmeler: processed,
+          isLoadingIsletmeler: false,
+        );
+      }
+    } catch (e) {
+      debugPrint('Supabase isletmeler sorgu uyarısı: $e');
+    } finally {
+      if (mounted && state.isLoadingIsletmeler) {
+        state = state.copyWith(isLoadingIsletmeler: false);
+      }
+    }
   }
 
   List<NearbyUstaModel> _getDemoUstalar() {
