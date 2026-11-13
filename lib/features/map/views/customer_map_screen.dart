@@ -418,6 +418,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
     const presetDistricts = [
       'Kadıköy, İstanbul',
       'Beşiktaş, İstanbul',
+      'Bolvadin, Afyonkarahisar',
       'Sandıklı, Afyonkarahisar',
       'Çankaya, Ankara',
       'Karşıyaka, İzmir',

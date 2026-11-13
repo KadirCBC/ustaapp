@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
@@ -284,16 +285,36 @@ class AppDataService {
     required String category,
     double customerLat = 40.9905,
     double customerLng = 29.0270,
+    double maxRadiusMeter = 25000.0,
   }) async {
     final allUstalar = await getUstalar();
     final normalizedCat = category.trim().toLowerCase();
 
     final filtered = allUstalar.where((u) {
       final ustaCat = u.kategori.trim().toLowerCase();
-      if (normalizedCat == 'tümü' || normalizedCat == 'all') return true;
-      return ustaCat.contains(normalizedCat) || normalizedCat.contains(ustaCat);
+      final catMatch = (normalizedCat == 'tümü' || normalizedCat == 'all')
+          ? true
+          : (ustaCat.contains(normalizedCat) || normalizedCat.contains(ustaCat));
+      if (!catMatch) return false;
+
+      final dist = Geolocator.distanceBetween(
+        customerLat,
+        customerLng,
+        u.latitude,
+        u.longitude,
+      );
+      return dist <= maxRadiusMeter;
+    }).map((u) {
+      final dist = Geolocator.distanceBetween(
+        customerLat,
+        customerLng,
+        u.latitude,
+        u.longitude,
+      );
+      return u.copyWith(mesafeMetre: dist > 0 ? dist : u.mesafeMetre);
     }).toList();
 
+    filtered.sort((a, b) => a.mesafeMetre.compareTo(b.mesafeMetre));
     return filtered;
   }
 

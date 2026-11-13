@@ -8,6 +8,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
 import 'package:ustaapp/core/services/app_data_service.dart';
+import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/core/services/location_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
@@ -32,7 +33,7 @@ class CustomerMapState {
     this.currentLng = 29.0270,
     this.currentAddressLabel = 'Kadıköy, İstanbul',
     this.selectedCategory = 'elektrik',
-    this.searchRadiusMeter = 10000,
+    this.searchRadiusMeter = 25000,
     this.nearbyUstalar = const [],
     this.selectedUsta,
     this.isLoadingLocation = false,
@@ -163,10 +164,19 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
         category: state.selectedCategory,
         customerLat: state.currentLat,
         customerLng: state.currentLng,
+        maxRadiusMeter: state.searchRadiusMeter.toDouble(),
       );
 
       if (managedUstalar.isNotEmpty) {
-        ustalar = managedUstalar.map((u) {
+        ustalar = managedUstalar;
+      } else {
+        ustalar = [];
+      }
+    }
+
+    // Harita merkezine ve arama yarıçapına (searchRadiusMeter) göre filtrele ve sırala
+    ustalar = ustalar
+        .map((u) {
           final dist = Geolocator.distanceBetween(
             state.currentLat,
             state.currentLng,
@@ -174,11 +184,11 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
             u.longitude,
           );
           return u.copyWith(mesafeMetre: dist > 0 ? dist : u.mesafeMetre);
-        }).toList();
-      } else {
-        ustalar = [];
-      }
-    }
+        })
+        .where((u) => u.mesafeMetre <= state.searchRadiusMeter)
+        .toList();
+
+    ustalar.sort((a, b) => a.mesafeMetre.compareTo(b.mesafeMetre));
 
     if (!mounted) return;
 
@@ -695,6 +705,16 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     'besiktas': (lat: 41.0430, lng: 29.0072, label: 'Beşiktaş, İstanbul'),
     'uskudar, istanbul': (lat: 41.0233, lng: 29.0153, label: 'Üsküdar, İstanbul'),
     'sisli, istanbul': (lat: 41.0602, lng: 28.9877, label: 'Şişli, İstanbul'),
+    'bolvadin, afyonkarahisar': (
+      lat: 38.7106,
+      lng: 31.0505,
+      label: 'Bolvadin, Afyonkarahisar',
+    ),
+    'bolvadin': (
+      lat: 38.7106,
+      lng: 31.0505,
+      label: 'Bolvadin, Afyonkarahisar',
+    ),
     'sandikli, afyonkarahisar': (
       lat: 38.4647,
       lng: 30.2719,
@@ -818,6 +838,12 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     state = state.copyWith(isLoadingLocation: true, errorMessage: null);
 
     var resolved = resolveKnownLocation(trimmed);
+    if (resolved == null) {
+      final match = await LocationLookupService.resolveBestMatch(trimmed);
+      if (match != null) {
+        resolved = (lat: match.lat, lng: match.lng, label: match.shortLabel);
+      }
+    }
     resolved ??= await _geocodeAddressWithMapbox(trimmed);
     if (!mounted) return false;
 
