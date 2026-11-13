@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/features/map/controllers/map_controller.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:ustaapp/features/map/views/widgets/category_filter_bar.dart';
@@ -177,6 +178,18 @@ void main() {
           CustomerMapController.resolveKnownLocation('Beşiktaş, İstanbul');
       expect(besiktas, isNotNull);
       expect(besiktas!.lat, closeTo(41.0430, 0.001));
+    });
+
+    test('LocationLookupService resolves local Turkish addresses without coordinates input', () async {
+      final res = await LocationLookupService.resolveBestMatch('Kadıköy Moda');
+      expect(res, isNotNull);
+      expect(res!.lat, closeTo(40.9850, 0.05));
+      expect(res.lng, closeTo(29.0285, 0.05));
+
+      final sandikli = await LocationLookupService.resolveBestMatch('Sandıklı Afyon');
+      expect(sandikli, isNotNull);
+      expect(sandikli!.lat, closeTo(38.4647, 0.01));
+      expect(sandikli.lng, closeTo(30.2719, 0.01));
     });
 
     testWidgets('UstaOrdersScreen renders without crash or infinite layout', (tester) async {

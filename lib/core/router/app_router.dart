@@ -15,13 +15,27 @@ import 'package:ustaapp/features/orders/views/usta_orders_screen.dart';
 import 'package:ustaapp/features/profile/views/profile_screen.dart';
 import 'package:ustaapp/features/splash/views/splash_screen.dart';
 
+class AppRouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+  AppRouterNotifier(this._ref) {
+    _ref.listen<AppAuthState>(authStateProvider, (_, __) => notifyListeners());
+  }
+}
+
+final appRouterNotifierProvider = Provider<AppRouterNotifier>((ref) {
+  return AppRouterNotifier(ref);
+});
+
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final notifier = ref.watch(appRouterNotifierProvider);
 
   return GoRouter(
     initialLocation: kIsWeb ? '/admin' : '/splash',
+    refreshListenable: notifier,
     debugLogDiagnostics: false,
     redirect: (BuildContext context, GoRouterState state) {
+      final authState = ref.read(authStateProvider);
+
       final isSplash = state.matchedLocation == '/splash';
       if (isSplash) return null;
 

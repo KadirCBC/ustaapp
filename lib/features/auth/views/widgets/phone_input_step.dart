@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -159,6 +160,21 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (kIsWeb)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => context.go('/admin'),
+                      icon: const Icon(Icons.admin_panel_settings_rounded, size: 16, color: Color(0xFF64748B)),
+                      label: const Text(
+                        'Yönetici Paneli →',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+                      ),
+                    ),
+                  ),
+                ),
               const SizedBox(height: 14),
 
               // ===============================================================

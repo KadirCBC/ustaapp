@@ -17,8 +17,15 @@ dependencies:
   mask_text_input_formatter: ^2.9.0
   intl: ^0.19.0
   cupertino_icons: ^1.0.8
-  mapbox_maps_flutter: ^3.34.2
+  mapbox_maps_flutter: 3.34.2
   url_launcher: ^6.3.3
+  shared_preferences: ^2.5.6
+  http: ^1.6.0
+  web_socket_channel: ^3.0.3
+dependency_overrides:
+  mapbox_maps_flutter: 3.34.2
+  mapbox_maps_flutter_mobile: 3.34.2
+  mapbox_maps_flutter_platform_interface: 3.34.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -291,19 +291,19 @@
     },
     {
       "name": "mapbox_maps_flutter",
-      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/mapbox_maps_flutter-3.35.0",
+      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/mapbox_maps_flutter-3.34.2",
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
     {
       "name": "mapbox_maps_flutter_mobile",
-      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/mapbox_maps_flutter_mobile-3.35.0",
+      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/mapbox_maps_flutter_mobile-3.34.2",
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
     {
       "name": "mapbox_maps_flutter_platform_interface",
-      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/mapbox_maps_flutter_platform_interface-3.35.0",
+      "rootUri": "file:///C:/Users/taner/AppData/Local/Pub/Cache/hosted/pub.dev/mapbox_maps_flutter_platform_interface-3.34.2",
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },

@@ -89,8 +89,8 @@ class NearbyUstaModel {
 
   factory NearbyUstaModel.fromJson(Map<String, dynamic> json) {
     // PostGIS geography verisinden koordinat ayrıştırma
-    double lat = 41.0082; // Varsayılan İstanbul
-    double lng = 28.9784;
+    double lat = (json['latitude'] as num?)?.toDouble() ?? 41.0082; // Varsayılan İstanbul
+    double lng = (json['longitude'] as num?)?.toDouble() ?? 28.9784;
 
     final rawKonum = json['konum'];
     if (rawKonum is Map && rawKonum['coordinates'] is List) {
@@ -130,25 +130,25 @@ class NearbyUstaModel {
           ];
 
     return NearbyUstaModel(
-      ustaId: json['usta_id'] as String,
-      fullName: json['full_name'] as String? ?? 'Usta',
-      phone: json['phone'] as String? ?? '',
-      avatarUrl: json['avatar_url'] as String?,
-      kategori: json['kategori'] as String? ?? 'elektrik',
-      puan: (json['puan'] as num?)?.toDouble() ?? 5.0,
+      ustaId: (json['usta_id'] ?? json['ustaId'] ?? json['id'] ?? 'usta-${DateTime.now().millisecondsSinceEpoch}').toString(),
+      fullName: (json['full_name'] ?? json['fullName'] ?? json['name'] ?? 'Usta').toString(),
+      phone: (json['phone'] ?? '').toString(),
+      avatarUrl: json['avatar_url']?.toString() ?? json['avatarUrl']?.toString(),
+      kategori: (json['kategori'] ?? json['category'] ?? 'elektrik').toString(),
+      puan: (json['puan'] as num?)?.toDouble() ?? (json['rating'] as num?)?.toDouble() ?? 5.0,
       tamamlananIsSayisi:
-          (json['tamamlanan_is_sayisi'] as num?)?.toInt() ?? 48,
+          (json['tamamlanan_is_sayisi'] as num?)?.toInt() ?? (json['completed_jobs'] as num?)?.toInt() ?? 48,
       latitude: lat,
       longitude: lng,
       mesafeMetre: (json['mesafe_metre'] as num?)?.toDouble() ?? 0.0,
-      ustaHakedis: (json['usta_hakedis'] as num?)?.toDouble() ?? 0.0,
+      ustaHakedis: (json['usta_hakedis'] as num?)?.toDouble() ?? (json['hakedis'] as num?)?.toDouble() ?? 0.0,
       komisyonOrani: (json['komisyon_orani'] as num?)?.toDouble() ?? 0.15,
       komisyonTutari: (json['komisyon_tutari'] as num?)?.toDouble() ?? 0.0,
-      toplamTutar: (json['toplam_tutar'] as num?)?.toDouble() ?? 0.0,
+      toplamTutar: (json['toplam_tutar'] as num?)?.toDouble() ?? (json['price'] as num?)?.toDouble() ?? 0.0,
       servisUcreti: (json['servis_ucreti'] as num?)?.toDouble() ?? 150.0,
       deneyimYili: (json['deneyim_yili'] as num?)?.toInt() ?? 10,
       uzmanlikBasligi:
-          json['uzmanlik_basligi'] as String? ?? 'Onaylı Uzman Usta',
+          (json['uzmanlik_basligi'] ?? json['uzmanlikBasligi'] ?? json['location'] ?? 'Onaylı Uzman Usta').toString(),
       guvenceler: parsedGuvenceler,
       ilanlar: parsedIlanlar,
     );
@@ -183,6 +183,28 @@ class NearbyUstaModel {
     final maxMinutes = minMinutes + 7;
     return '$minMinutes - $maxMinutes dk';
   }
+
+  Map<String, dynamic> toJson() => {
+    'usta_id': ustaId,
+    'full_name': fullName,
+    'phone': phone,
+    'avatar_url': avatarUrl,
+    'kategori': kategori,
+    'puan': puan,
+    'tamamlanan_is_sayisi': tamamlananIsSayisi,
+    'latitude': latitude,
+    'longitude': longitude,
+    'mesafe_metre': mesafeMetre,
+    'usta_hakedis': ustaHakedis,
+    'komisyon_orani': komisyonOrani,
+    'komisyon_tutari': komisyonTutari,
+    'toplam_tutar': toplamTutar,
+    'servis_ucreti': servisUcreti,
+    'deneyim_yili': deneyimYili,
+    'uzmanlik_basligi': uzmanlikBasligi,
+    'guvenceler': guvenceler,
+    'ilanlar': ilanlar.map((e) => e.toJson()).toList(),
+  };
 
   NearbyUstaModel copyWith({
     String? ustaId,

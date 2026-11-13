@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
+import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/location_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
@@ -76,16 +78,30 @@ final customerMapControllerProvider =
     StateNotifierProvider.autoDispose<CustomerMapController, CustomerMapState>((ref) {
   final supabase = ref.watch(supabaseClientProvider);
   final locationService = ref.watch(locationServiceProvider);
-  return CustomerMapController(supabase, locationService);
+  final appDataService = ref.watch(appDataServiceProvider);
+  return CustomerMapController(supabase, locationService, appDataService);
 });
 
 class CustomerMapController extends StateNotifier<CustomerMapState> {
   final SupabaseClient _supabase;
   final LocationService _locationService;
+  final AppDataService _appDataService;
+  StreamSubscription<void>? _dataSubscription;
 
-  CustomerMapController(this._supabase, this._locationService)
+  CustomerMapController(this._supabase, this._locationService, this._appDataService)
       : super(const CustomerMapState()) {
+    _dataSubscription = _appDataService.onDataChanged.listen((_) {
+      if (mounted) {
+        fetchNearbyUstalar();
+      }
+    });
     initCustomerLocationAndSearch();
+  }
+
+  @override
+  void dispose() {
+    _dataSubscription?.cancel();
+    super.dispose();
   }
 
   /// Müşteri konumunu alır ve yakındaki ustaları otomatik arar
@@ -119,9 +135,11 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     await fetchNearbyUstalar();
   }
 
-  /// PostGIS RPC fonksiyonu `yakin_ustalari_getir` ile çevredeki online ustaları çeker
+  /// PostGIS RPC fonksiyonu `yakin_ustalari_getir` veya Admin Panelinin yönettiği canlı usta verisini çeker
   Future<void> fetchNearbyUstalar() async {
     state = state.copyWith(isLoadingUstalar: true, errorMessage: null);
+
+    List<NearbyUstaModel> ustalar = [];
 
     try {
       final response = await _supabase.rpc('yakin_ustalari_getir', params: {
@@ -129,34 +147,47 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
         'p_lng': state.currentLng,
         'p_kategori': state.selectedCategory,
         'p_radius_meter': state.searchRadiusMeter,
-      }).timeout(const Duration(seconds: 4));
-      if (!mounted) return;
+      }).timeout(const Duration(seconds: 3));
 
       final List<dynamic> data = response as List<dynamic>? ?? [];
-      List<NearbyUstaModel> ustalar = data
+      ustalar = data
           .map((item) => NearbyUstaModel.fromJson(item as Map<String, dynamic>))
           .toList();
+    } catch (_) {}
 
-      if (ustalar.isEmpty) {
-        ustalar = _getDemoUstalar();
+    if (!mounted) return;
+
+    if (ustalar.isEmpty) {
+      // Admin Panelinin yönettiği dinamik usta verisini getir
+      final managedUstalar = await _appDataService.getNearbyUstalar(
+        category: state.selectedCategory,
+        customerLat: state.currentLat,
+        customerLng: state.currentLng,
+      );
+
+      if (managedUstalar.isNotEmpty) {
+        ustalar = managedUstalar.map((u) {
+          final dist = Geolocator.distanceBetween(
+            state.currentLat,
+            state.currentLng,
+            u.latitude,
+            u.longitude,
+          );
+          return u.copyWith(mesafeMetre: dist > 0 ? dist : u.mesafeMetre);
+        }).toList();
+      } else {
+        ustalar = [];
       }
-
-      state = state.copyWith(
-        isLoadingUstalar: false,
-        nearbyUstalar: ustalar,
-        clearSelectedUsta: true,
-      );
-    } catch (e) {
-      debugPrint('fetchNearbyUstalar hatası (demo verileri yükleniyor): $e');
-      if (!mounted) return;
-      final demoList = _getDemoUstalar();
-      state = state.copyWith(
-        isLoadingUstalar: false,
-        nearbyUstalar: demoList,
-        clearSelectedUsta: true,
-        errorMessage: null,
-      );
     }
+
+    if (!mounted) return;
+
+    state = state.copyWith(
+      isLoadingUstalar: false,
+      nearbyUstalar: ustalar,
+      clearSelectedUsta: true,
+      errorMessage: null,
+    );
   }
 
   List<NearbyUstaModel> _getDemoUstalar() {

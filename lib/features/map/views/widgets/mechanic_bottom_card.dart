@@ -261,7 +261,9 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                     Text(
                       widget.isLoadingUstalar
                           ? 'Bölgendeki ustalar taranıyor...'
-                          : 'Bölgende $count usta aktif • Tahmini varış: $minEta-$maxEta dk',
+                          : count == 0
+                              ? 'Bölgenizde aktif usta bulunmuyor'
+                              : 'Bölgende $count usta aktif • Tahmini varış: $minEta-$maxEta dk',
                       style: const TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w800,
@@ -269,9 +271,11 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    const Text(
-                      'Fiyatları ve detayları görmek için haritadaki bir pine dokunun',
-                      style: TextStyle(
+                    Text(
+                      count == 0
+                          ? 'Yönetici panelinden yeni usta ekleyebilir veya servis çağrısı açabilirsiniz.'
+                          : 'Fiyatları ve detayları görmek için haritadaki bir pine dokunun',
+                      style: const TextStyle(
                         fontSize: 12,
                         color: AppTheme.customerTextMuted,
                       ),

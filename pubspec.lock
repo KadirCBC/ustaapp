@@ -289,7 +289,7 @@ packages:
     source: hosted
     version: "2.27.3"
   http:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: http
       sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
@@ -380,26 +380,26 @@ packages:
     dependency: "direct main"
     description:
       name: mapbox_maps_flutter
-      sha256: fb62f8945c8660204f011cb07af9cbe4f87c862b21b59e0dc978475467c752d5
+      sha256: f65c20ea6590e1c28f56f4045919b79710de07a8acf109dec92d9d07ac6ac60a
       url: "https://pub.dev"
     source: hosted
-    version: "3.35.0"
+    version: "3.34.2"
   mapbox_maps_flutter_mobile:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: mapbox_maps_flutter_mobile
-      sha256: cfb7d3b7ff2cb796d85f5350ef055f690a452207739416b942b797dd2510c44c
+      sha256: "8c43f4394fc77b37f74f58bfec094c176dc0d8bf3199bbbfaf573d672b429640"
       url: "https://pub.dev"
     source: hosted
-    version: "3.35.0"
+    version: "3.34.2"
   mapbox_maps_flutter_platform_interface:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: mapbox_maps_flutter_platform_interface
-      sha256: "23b64fe3829a31901d684503db10e489c553f6f02cb08097c578bc7c93403e6b"
+      sha256: "2019616aa8289f217433b75404af10685a84a06865d4ed2c9d36476b543dcc71"
       url: "https://pub.dev"
     source: hosted
-    version: "3.35.0"
+    version: "3.34.2"
   mapbox_maps_flutter_web:
     dependency: transitive
     description:
@@ -553,7 +553,7 @@ packages:
     source: hosted
     version: "2.6.1"
   shared_preferences:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: shared_preferences
       sha256: "1e85e0dccf5b4a016077fea7dfbb4a7cb39c759ac1596fcf60c06deadb7da91f"
@@ -846,7 +846,7 @@ packages:
     source: hosted
     version: "1.0.1"
   web_socket_channel:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: web_socket_channel
       sha256: d645757fb0f4773d602444000a8131ff5d48c9e47adfe9772652dd1a4f2d45c8
