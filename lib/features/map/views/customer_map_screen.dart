@@ -198,26 +198,31 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
       // 2. Yakındaki ustaların standart yeşil rozet pinleri
       // (Eğer 'tedarikciler' filtresi seçili değilse)
       if (mapState.selectedCategory != 'tedarikciler') {
-        for (final usta in mapState.nearbyUstalar) {
-          final isSelected = mapState.selectedUsta?.ustaId == usta.ustaId;
-          final cacheKey =
-              'usta_${usta.ustaId}_${usta.formattedPrice}_${usta.puan}_$isSelected';
-          final bytes = _markerBytesCache[cacheKey] ??
-              await _createUstaBadgeBytes(usta: usta, isSelected: isSelected);
-          _markerBytesCache[cacheKey] = bytes;
+        final ustaPayloads = await Future.wait(
+          mapState.nearbyUstalar.map((usta) async {
+            final isSelected = mapState.selectedUsta?.ustaId == usta.ustaId;
+            final cacheKey =
+                'usta_${usta.ustaId}_${usta.formattedPrice}_${usta.puan}_$isSelected';
+            final bytes = _markerBytesCache[cacheKey] ??
+                await _createUstaBadgeBytes(usta: usta, isSelected: isSelected);
+            _markerBytesCache[cacheKey] = bytes;
+            return (usta: usta, bytes: bytes, isSelected: isSelected);
+          }),
+        );
 
+        for (final item in ustaPayloads) {
           final annotation = await manager.create(
             PointAnnotationOptions(
               geometry: Point(
-                coordinates: Position(usta.longitude, usta.latitude),
+                coordinates: Position(item.usta.longitude, item.usta.latitude),
               ),
-              image: bytes,
+              image: item.bytes,
               iconAnchor: IconAnchor.BOTTOM,
-              iconSize: isSelected ? 1.15 : 1.00,
-              symbolSortKey: isSelected ? 10.0 : 5.0,
+              iconSize: item.isSelected ? 1.12 : 1.00,
+              symbolSortKey: item.isSelected ? 10.0 : 5.0,
             ),
           );
-          _annotationIdToUsta[annotation.id] = usta;
+          _annotationIdToUsta[annotation.id] = item.usta;
         }
       }
 
@@ -286,50 +291,24 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
     return data!.buffer.asUint8List();
   }
 
-  /// Usta Pin Rozeti - Standart Yeşil Rozet Pin (★ 4.9 Ahmet Y. + 920 ₺ yeşil hap + alt üçgen ok)
+  /// Usta Pin Rozeti - Profesyonel Modern Usta Rozeti
+  /// (Sol amblemde zümrüt yeşili vektörel Icons.handyman_rounded, sağda usta adı, puan ve nane yeşili fiyat hapı)
   Future<Uint8List> _createUstaBadgeBytes({
     required NearbyUstaModel usta,
     required bool isSelected,
   }) async {
     const double scale = 2.6;
-    const double width = 166 * scale;
-    const double badgeHeight = 64 * scale;
-    const double pointerHeight = 11 * scale;
-    const double totalHeight = badgeHeight + pointerHeight + 12 * scale;
 
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-
-    const Color greenPrimary = Color(0xFF059669);
-    final Color bgColor = isSelected ? greenPrimary : Colors.white;
+    // Renk Teması: Modern Zümrüt Yeşili & Kurumsal Arduvaz
+    const Color emeraldPrimary = Color(0xFF059669);
+    const Color emeraldGradientDark = Color(0xFF047857);
+    final Color bgColor = isSelected ? const Color(0xFF0F172A) : Colors.white;
     final Color textColor = isSelected ? Colors.white : const Color(0xFF0F172A);
-    final Color pillBgColor = isSelected ? Colors.white : const Color(0xFF064E3B);
-    final Color pillTextColor = isSelected ? greenPrimary : Colors.white;
-    final Color borderColor = isSelected ? const Color(0xFF34D399) : const Color(0xFF10B981);
+    final Color borderColor = isSelected
+        ? const Color(0xFF10B981)
+        : const Color(0xFFE2E8F0);
 
-    final badgeRect = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(8, 4, width - 16, badgeHeight),
-      const Radius.circular(18 * scale),
-    );
-
-    canvas.drawRRect(
-      badgeRect.shift(const Offset(0, 6)),
-      Paint()
-        ..color = isSelected
-            ? greenPrimary.withValues(alpha: 0.38)
-            : const Color(0xFF10B981).withValues(alpha: 0.22)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
-    );
-
-    canvas.drawRRect(badgeRect, Paint()..color = bgColor);
-    canvas.drawRRect(
-      badgeRect,
-      Paint()
-        ..color = borderColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = (isSelected ? 2.4 : 1.6) * scale,
-    );
-
+    // Üst Satır: Usta Adı + ★ Puan
     final topTextPainter = TextPainter(
       textDirection: TextDirection.ltr,
       maxLines: 1,
@@ -337,68 +316,155 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
       text: TextSpan(
         children: [
           TextSpan(
-            text: '★ ',
+            text: usta.shortDisplayName,
             style: TextStyle(
-              fontSize: 14 * scale,
-              fontWeight: FontWeight.bold,
-              color: isSelected ? Colors.amber.shade200 : Colors.amber.shade600,
+              fontSize: 12.5 * scale,
+              fontWeight: FontWeight.w800,
+              color: textColor,
+              letterSpacing: -0.2,
             ),
           ),
           TextSpan(
-            text: '${usta.puan.toStringAsFixed(1)} ${usta.shortDisplayName}',
+            text: ' ★ ${usta.puan.toStringAsFixed(1)}',
             style: TextStyle(
-              fontSize: 13.5 * scale,
+              fontSize: 11.5 * scale,
               fontWeight: FontWeight.w800,
-              color: textColor,
+              color: isSelected ? const Color(0xFFFDE68A) : const Color(0xFFD97706),
             ),
           ),
         ],
       ),
-    )..layout(maxWidth: width - 32);
+    )..layout(maxWidth: 165 * scale);
 
-    topTextPainter.paint(
-      canvas,
-      Offset((width - topTextPainter.width) / 2, 10 * scale),
+    // Alt Satır: Fiyat ve Taban Bilgisi
+    final priceLabel = '${usta.formattedPrice} Taban Fiyat';
+    final pricePainter = TextPainter(
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+      text: TextSpan(
+        text: priceLabel,
+        style: TextStyle(
+          fontSize: 9.5 * scale,
+          fontWeight: FontWeight.w700,
+          color: isSelected ? const Color(0xFFA7F3D0) : const Color(0xFF047857),
+          letterSpacing: 0.1,
+        ),
+      ),
+    )..layout(maxWidth: 165 * scale);
+
+    // Dinamik Genişlik: Sol amblem (42) + en geniş metin + sağ dolgu (18)
+    final double maxTextWidth = math.max(topTextPainter.width, pricePainter.width);
+    final double width = math.max(148 * scale, maxTextWidth + 60 * scale);
+    const double badgeHeight = 48 * scale;
+    const double pointerHeight = 8 * scale;
+    const double totalHeight = badgeHeight + pointerHeight + 10 * scale;
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    // Kart RRect
+    final badgeRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(8 * scale, 4 * scale, width - 16 * scale, badgeHeight),
+      const Radius.circular(14 * scale),
     );
 
-    final priceTextPainter = TextPainter(
+    // Yumuşak Profesyonel Drop Shadow
+    if (isSelected) {
+      canvas.drawRRect(
+        badgeRect.shift(const Offset(0, 4 * scale)),
+        Paint()
+          ..color = emeraldPrimary.withValues(alpha: 0.35)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12 * scale),
+      );
+    } else {
+      canvas.drawRRect(
+        badgeRect.shift(const Offset(0, 3 * scale)),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.16)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8 * scale),
+      );
+    }
+
+    // Gövde Arka Planı
+    canvas.drawRRect(badgeRect, Paint()..color = bgColor);
+
+    // İnce / Şık Kenarlık
+    canvas.drawRRect(
+      badgeRect,
+      Paint()
+        ..color = borderColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = (isSelected ? 2.4 : 1.2) * scale,
+    );
+
+    // SOL AMBLEM: Gradyanlı Zümrüt Yeşili Daire + Vektörel Icons.handyman_rounded
+    const double emblemRadius = 16 * scale;
+    final Offset emblemCenter = Offset(8 * scale + 18 * scale, 4 * scale + badgeHeight / 2);
+
+    final emblemGradient = ui.Gradient.linear(
+      Offset(emblemCenter.dx - emblemRadius, emblemCenter.dy - emblemRadius),
+      Offset(emblemCenter.dx + emblemRadius, emblemCenter.dy + emblemRadius),
+      [const Color(0xFF10B981), emeraldGradientDark],
+    );
+
+    canvas.drawCircle(
+      emblemCenter,
+      emblemRadius,
+      Paint()..shader = emblemGradient,
+    );
+
+    // Usta Vektör Simgesi (Material Icons: handyman_rounded)
+    final iconPainter = TextPainter(
       textDirection: TextDirection.ltr,
       text: TextSpan(
-        text: usta.formattedPrice,
+        text: String.fromCharCode(Icons.handyman_rounded.codePoint),
         style: TextStyle(
-          fontSize: 14 * scale,
-          fontWeight: FontWeight.w900,
-          color: pillTextColor,
+          fontSize: 17 * scale,
+          fontFamily: Icons.handyman_rounded.fontFamily,
+          package: Icons.handyman_rounded.fontPackage,
+          color: Colors.white,
         ),
       ),
     )..layout();
 
-    final double pillW = priceTextPainter.width + 26 * scale;
-    const double pillH = 25 * scale;
-    final double pillLeft = (width - pillW) / 2;
-    const double pillTop = 33 * scale;
+    iconPainter.paint(
+      canvas,
+      Offset(
+        emblemCenter.dx - iconPainter.width / 2,
+        emblemCenter.dy - iconPainter.height / 2,
+      ),
+    );
+
+    // SAĞ İÇERİK: Usta Adı (Üst) ve Fiyat Hapı (Alt)
+    final double textLeft = 8 * scale + 38 * scale;
+    topTextPainter.paint(canvas, Offset(textLeft, 4 * scale + 9 * scale));
+
+    // Nane Yeşili Fiyat Rozet Çipi
+    final double chipW = pricePainter.width + 10 * scale;
+    final double chipH = pricePainter.height + 4 * scale;
+    final double chipTop = 4 * scale + 27 * scale;
 
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(pillLeft, pillTop, pillW, pillH),
-        const Radius.circular(11 * scale),
+        Rect.fromLTWH(textLeft, chipTop, chipW, chipH),
+        const Radius.circular(5 * scale),
       ),
-      Paint()..color = pillBgColor,
+      Paint()..color = isSelected ? const Color(0xFF1E293B) : const Color(0xFFECFDF5),
     );
 
-    priceTextPainter.paint(
+    pricePainter.paint(
       canvas,
-      Offset(
-        pillLeft + (pillW - priceTextPainter.width) / 2,
-        pillTop + (pillH - priceTextPainter.height) / 2,
-      ),
+      Offset(textLeft + 5 * scale, chipTop + 2 * scale),
     );
 
-    const double pointerY = 4 + badgeHeight - 2;
+    // ALT ÜÇGEN OK (Mükemmel sivri uç ile haritadaki konuma işaret eder)
+    final double pointerCenterX = width / 2;
+    final double pointerTop = 4 * scale + badgeHeight - 1 * scale;
     final trianglePath = Path()
-      ..moveTo(width / 2 - 8 * scale, pointerY)
-      ..lineTo(width / 2, pointerY + pointerHeight)
-      ..lineTo(width / 2 + 8 * scale, pointerY)
+      ..moveTo(pointerCenterX - 6 * scale, pointerTop)
+      ..lineTo(pointerCenterX, pointerTop + pointerHeight)
+      ..lineTo(pointerCenterX + 6 * scale, pointerTop)
       ..close();
 
     canvas.drawPath(trianglePath, Paint()..color = bgColor);
@@ -407,7 +473,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
       Paint()
         ..color = borderColor
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6 * scale,
+        ..strokeWidth = (isSelected ? 2.2 : 1.2) * scale,
     );
 
     final image = await recorder
