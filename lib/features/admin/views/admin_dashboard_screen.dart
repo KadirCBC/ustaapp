@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
 import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
@@ -127,6 +128,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     super.dispose();
   }
 
+  SupabaseClient? _getSupabaseSafe() {
+    try {
+      return ref.read(supabaseClientProvider);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// 1. GÜVENLİK & OTURUM KONTROLÜ:
   /// Kullanıcının is_admin == true yetkisini denetler.
   /// Sayfa yenilendiğinde (F5 / Browser reload) SharedPreferences üzerinden oturumu korur!
@@ -151,10 +160,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       debugPrint('Oturum kontrol hatası: $e');
     }
 
-    final supabase = ref.read(supabaseClientProvider);
-    final user = supabase.auth.currentUser;
+    final supabase = _getSupabaseSafe();
+    final user = supabase?.auth.currentUser;
 
-    if (user == null) {
+    if (user == null || supabase == null) {
       if (mounted) {
         setState(() {
           _isAdmin = false;
@@ -205,41 +214,43 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     // 1. Kullanıcının yerel olarak kaydettiği kendi verilerini yükle (Mock veri içermez)
     await _loadPersistedData();
 
-    final supabase = ref.read(supabaseClientProvider);
+    final supabase = _getSupabaseSafe();
 
-    // 2. Canlı Supabase tablosunda onay bekleyen usta varsa al
-    try {
-      final ustaRows = await supabase
-          .from(AppConstants.ustalarTable)
-          .select('*, profiles:id(full_name, phone)')
-          .eq('onay_durumu', 'beklemede')
-          .limit(20)
-          .timeout(const Duration(seconds: 2));
+    if (supabase != null) {
+      // 2. Canlı Supabase tablosunda onay bekleyen usta varsa al
+      try {
+        final ustaRows = await supabase
+            .from(AppConstants.ustalarTable)
+            .select('*, profiles:id(full_name, phone)')
+            .eq('onay_durumu', 'beklemede')
+            .limit(20)
+            .timeout(const Duration(seconds: 2));
 
-      if (ustaRows.isNotEmpty && mounted) {
-        setState(() {
-          _pendingUstalar = List<Map<String, dynamic>>.from(ustaRows);
-        });
-        await _savePersistedData('admin_pending_ustalar');
-      }
-    } catch (_) {}
+        if (ustaRows.isNotEmpty && mounted) {
+          setState(() {
+            _pendingUstalar = List<Map<String, dynamic>>.from(ustaRows);
+          });
+          await _savePersistedData('admin_pending_ustalar');
+        }
+      } catch (_) {}
 
-    // 3. Canlı Supabase tablosunda tedarikçi varsa al
-    try {
-      final bizRows = await supabase
-          .from('tedarikciler')
-          .select('*')
-          .order('created_at', ascending: false)
-          .limit(30)
-          .timeout(const Duration(seconds: 2));
+      // 3. Canlı Supabase tablosunda tedarikçi varsa al
+      try {
+        final bizRows = await supabase
+            .from('tedarikciler')
+            .select('*')
+            .order('created_at', ascending: false)
+            .limit(30)
+            .timeout(const Duration(seconds: 2));
 
-      if (bizRows.isNotEmpty && mounted) {
-        setState(() {
-          _tedarikciler = List<Map<String, dynamic>>.from(bizRows);
-        });
-        await _savePersistedData('admin_tedarikciler');
-      }
-    } catch (_) {}
+        if (bizRows.isNotEmpty && mounted) {
+          setState(() {
+            _tedarikciler = List<Map<String, dynamic>>.from(bizRows);
+          });
+          await _savePersistedData('admin_tedarikciler');
+        }
+      } catch (_) {}
+    }
 
     if (mounted) {
       setState(() {
@@ -328,6 +339,20 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     }
   }
 
+  static double _asDouble(dynamic val, [double def = 0.0]) {
+    if (val == null) return def;
+    if (val is num) return val.toDouble();
+    final s = val.toString().replaceAll('₺', '').replaceAll('TL', '').replaceAll(',', '.').trim();
+    return double.tryParse(s) ?? def;
+  }
+
+  static int _asInt(dynamic val, [int def = 0]) {
+    if (val == null) return def;
+    if (val is num) return val.toInt();
+    final s = val.toString().replaceAll(RegExp(r'[^0-9]'), '').trim();
+    return int.tryParse(s) ?? def;
+  }
+
   Future<void> _savePersistedData(String key) async {
     try {
       final appData = ref.read(appDataServiceProvider);
@@ -336,7 +361,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         final List<NearbyUstaModel> models = _activeUstalar.map((u) {
           final rawIlanlar = u['ilanlar'] as List<dynamic>?;
           final List<UstaHizmetIlan> parsedIlanlar = rawIlanlar != null
-              ? rawIlanlar.map((e) => UstaHizmetIlan.fromJson(Map<String, dynamic>.from(e))).toList()
+              ? rawIlanlar.map((e) {
+                  if (e is UstaHizmetIlan) return e;
+                  if (e is Map) return UstaHizmetIlan.fromJson(Map<String, dynamic>.from(e));
+                  return const UstaHizmetIlan(id: 'hz-1', baslik: 'Standart Servis & Arıza Tespiti', aciklama: '', fiyat: 500.0);
+                }).toList()
               : [];
 
           final rawGuvenceler = u['guvenceler'] as List<dynamic>?;
@@ -344,24 +373,24 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ? rawGuvenceler.map((e) => e.toString()).toList()
               : const ['30 Gün İşçilik Garantisi', 'Sabit Fiyat Güvencesi', 'MYK Belgeli'];
 
-          final price = (u['price'] as num?)?.toDouble() ?? 750.0;
+          final price = _asDouble(u['price'], 750.0);
           return NearbyUstaModel(
-            ustaId: u['id'] ?? 'usta-${DateTime.now().millisecondsSinceEpoch}',
-            fullName: u['full_name'] ?? 'Usta',
-            phone: u['phone'] ?? '+90 5XX XXX XX XX',
-            kategori: _rawCategoryKey(u['kategori'] ?? 'elektrik'),
-            puan: (u['rating'] as num?)?.toDouble() ?? 5.0,
-            tamamlananIsSayisi: (u['completed_jobs'] as num?)?.toInt() ?? 48,
-            latitude: (u['latitude'] as num?)?.toDouble() ?? 40.9905,
-            longitude: (u['longitude'] as num?)?.toDouble() ?? 29.0270,
+            ustaId: (u['id'] ?? 'usta-${DateTime.now().millisecondsSinceEpoch}').toString(),
+            fullName: (u['full_name'] ?? 'Usta').toString(),
+            phone: (u['phone'] ?? '+90 5XX XXX XX XX').toString(),
+            kategori: _rawCategoryKey((u['kategori'] ?? 'elektrik').toString()),
+            puan: _asDouble(u['rating'], 5.0),
+            tamamlananIsSayisi: _asInt(u['completed_jobs'], 48),
+            latitude: _asDouble(u['latitude'], 40.9905),
+            longitude: _asDouble(u['longitude'], 29.0270),
             mesafeMetre: 850.0,
-            ustaHakedis: (u['hakedis'] as num?)?.toDouble() ?? (price * 0.85),
+            ustaHakedis: _asDouble(u['hakedis'], price * 0.85),
             komisyonOrani: 0.15,
             komisyonTutari: price * 0.15,
             toplamTutar: price,
-            servisUcreti: (u['servis_ucreti'] as num?)?.toDouble() ?? 150.0,
-            deneyimYili: (u['deneyim_yili'] as num?)?.toInt() ?? 10,
-            uzmanlikBasligi: u['location'] ?? 'Onaylı Uzman Usta',
+            servisUcreti: _asDouble(u['servis_ucreti'], 150.0),
+            deneyimYili: _asInt(u['deneyim_yili'], 10),
+            uzmanlikBasligi: (u['location'] ?? 'Onaylı Uzman Usta').toString(),
             guvenceler: parsedGuvenceler,
             ilanlar: parsedIlanlar,
           );
@@ -588,28 +617,53 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
-            ElevatedButton(
+            TextButton(
               onPressed: () {
-                if (nameCtrl.text.trim().isEmpty) return;
-                final newPrice = double.tryParse(priceCtrl.text.trim()) ?? 750.0;
-                final newRating = double.tryParse(ratingCtrl.text.trim()) ?? 5.0;
+                if (Navigator.of(context, rootNavigator: true).canPop()) {
+                  Navigator.of(context, rootNavigator: true).pop();
+                } else if (Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
+                }
+              },
+              child: const Text('İptal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  if (nameCtrl.text.trim().isEmpty) {
+                    _showSuccessToast('Lütfen usta adını giriniz.', isError: true);
+                    return;
+                  }
+                  final newPrice = _asDouble(priceCtrl.text.trim(), 750.0);
+                  final newRating = _asDouble(ratingCtrl.text.trim(), 5.0);
 
-                setState(() {
-                  u['full_name'] = nameCtrl.text.trim();
-                  u['phone'] = phoneCtrl.text.trim();
-                  u['kategori'] = kategori;
-                  u['status'] = status;
-                  u['price'] = newPrice;
-                  u['rating'] = newRating;
-                  u['location'] = selectedLocation;
-                  u['latitude'] = selectedLat;
-                  u['longitude'] = selectedLng;
-                  _recalculateMetrics();
-                });
-                _savePersistedData('admin_active_ustalar');
-                Navigator.pop(ctx);
-                _showSuccessToast('${u['full_name']} bilgileri güncellendi.');
+                  setState(() {
+                    u['full_name'] = nameCtrl.text.trim();
+                    u['phone'] = phoneCtrl.text.trim();
+                    u['kategori'] = kategori;
+                    u['status'] = status;
+                    u['price'] = newPrice;
+                    u['rating'] = newRating;
+                    u['location'] = selectedLocation;
+                    u['latitude'] = selectedLat;
+                    u['longitude'] = selectedLng;
+                    _recalculateMetrics();
+                  });
+
+                  await _savePersistedData('admin_active_ustalar');
+
+                  if (context.mounted) {
+                    if (Navigator.of(context, rootNavigator: true).canPop()) {
+                      Navigator.of(context, rootNavigator: true).pop();
+                    } else if (Navigator.of(ctx).canPop()) {
+                      Navigator.of(ctx).pop();
+                    }
+                  }
+                  _showSuccessToast('${u['full_name']} bilgileri güncellendi.');
+                } catch (e, stack) {
+                  debugPrint('Usta Güncelleme Hatası: $e\n$stack');
+                  _showSuccessToast('Güncelleme hatası: $e', isError: true);
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.ustaPrimary, foregroundColor: Colors.white),
               child: const Text('Değişiklikleri Kaydet'),
@@ -711,30 +765,41 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
-            ElevatedButton(
+            TextButton(
               onPressed: () {
-                if (nameCtrl.text.trim().isEmpty) {
-                  _showSuccessToast('Lütfen usta adını giriniz.', isError: true);
-                  return;
+                if (Navigator.of(context, rootNavigator: true).canPop()) {
+                  Navigator.of(context, rootNavigator: true).pop();
+                } else if (Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
                 }
-                final price = double.tryParse(priceCtrl.text.trim()) ?? 750.0;
+              },
+              child: const Text('İptal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  final ustaName = nameCtrl.text.trim();
+                  if (ustaName.isEmpty) {
+                    _showSuccessToast('Lütfen usta adını giriniz.', isError: true);
+                    return;
+                  }
+                  final cleanPrice = _asDouble(priceCtrl.text.trim(), 750.0);
+                  final ustaPhone = phoneCtrl.text.trim().isEmpty ? '+90 5XX XXX XX XX' : phoneCtrl.text.trim();
 
-                setState(() {
-                  _activeUstalar.insert(0, {
+                  final newUsta = {
                     'id': 'usta-${DateTime.now().millisecondsSinceEpoch}',
-                    'full_name': nameCtrl.text.trim(),
-                    'phone': phoneCtrl.text.trim().isEmpty ? '+90 5XX XXX XX XX' : phoneCtrl.text.trim(),
+                    'full_name': ustaName,
+                    'phone': ustaPhone,
                     'kategori': kategori,
                     'rating': 5.0,
                     'review_count': 0,
                     'completed_jobs': 0,
                     'status': status,
                     'location': selectedLocation,
-                    'price': price,
+                    'price': cleanPrice,
                     'latitude': selectedLat,
                     'longitude': selectedLng,
-                    'hakedis': price * 0.85,
+                    'hakedis': cleanPrice * 0.85,
                     'servis_ucreti': 150.0,
                     'deneyim_yili': 5,
                     'guvenceler': const ['30 Gün İşçilik Garantisi', 'Sabit Fiyat Güvencesi', 'MYK Belgeli'],
@@ -743,19 +808,34 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         'id': 'hz-${DateTime.now().millisecondsSinceEpoch}',
                         'baslik': 'Standart Servis & Arıza Tespiti',
                         'aciklama': 'Yerinde kontrol, tespit ve ilk müdahale.',
-                        'fiyat': price,
+                        'fiyat': cleanPrice,
                         'tahmini_sure': '30 dk',
                         'ikon': '🔧',
                         'is_default': true,
                       }
                     ],
                     'kayit_tarihi': 'Bugün',
+                  };
+
+                  setState(() {
+                    _activeUstalar.insert(0, newUsta);
+                    _recalculateMetrics();
                   });
-                  _recalculateMetrics();
-                });
-                _savePersistedData('admin_active_ustalar');
-                Navigator.pop(ctx);
-                _showSuccessToast('Yeni usta sisteme ve haritaya eklendi.');
+
+                  await _savePersistedData('admin_active_ustalar');
+
+                  if (context.mounted) {
+                    if (Navigator.of(context, rootNavigator: true).canPop()) {
+                      Navigator.of(context, rootNavigator: true).pop();
+                    } else if (Navigator.of(ctx).canPop()) {
+                      Navigator.of(ctx).pop();
+                    }
+                  }
+                  _showSuccessToast('✓ $ustaName sisteme ve haritaya eklendi.');
+                } catch (e, stack) {
+                  debugPrint('Ustayı Kaydetme Hatası: $e\n$stack');
+                  _showSuccessToast('Kaydetme hatası: $e', isError: true);
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.ustaPrimary, foregroundColor: Colors.white),
               child: const Text('Ustayı Kaydet'),
@@ -818,29 +898,53 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
-            ElevatedButton(
+            TextButton(
               onPressed: () {
-                if (nameCtrl.text.trim().isEmpty) {
-                  _showSuccessToast('Lütfen usta adını giriniz.', isError: true);
-                  return;
+                if (Navigator.of(context, rootNavigator: true).canPop()) {
+                  Navigator.of(context, rootNavigator: true).pop();
+                } else if (Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
                 }
-                setState(() {
-                  _pendingUstalar.insert(0, {
+              },
+              child: const Text('İptal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  if (nameCtrl.text.trim().isEmpty) {
+                    _showSuccessToast('Lütfen usta adını giriniz.', isError: true);
+                    return;
+                  }
+                  final newApplication = {
                     'id': 'app-${DateTime.now().millisecondsSinceEpoch}',
                     'full_name': nameCtrl.text.trim(),
                     'phone': phoneCtrl.text.trim().isEmpty ? '+90 5XX XXX XX XX' : phoneCtrl.text.trim(),
                     'kategori': meslek,
-                    'tecrube_yil': int.tryParse(expCtrl.text.trim()) ?? 5,
+                    'tecrube_yil': _asInt(expCtrl.text.trim(), 5),
                     'belgeler': docCtrl.text.trim(),
                     'created_at': 'Bugün',
                     'onay_durumu': 'beklemede',
+                  };
+
+                  setState(() {
+                    _pendingUstalar.insert(0, newApplication);
+                    _recalculateMetrics();
                   });
-                  _recalculateMetrics();
-                });
-                _savePersistedData('admin_pending_ustalar');
-                Navigator.pop(ctx);
-                _showSuccessToast('Yeni usta başvurusu onay sırasına eklendi.');
+
+                  await _savePersistedData('admin_pending_ustalar');
+
+                  if (context.mounted) {
+                    if (Navigator.of(context, rootNavigator: true).canPop()) {
+                      Navigator.of(context, rootNavigator: true).pop();
+                    } else if (Navigator.of(ctx).canPop()) {
+                      Navigator.of(ctx).pop();
+                    }
+                  }
+                  _showSuccessToast('Yeni usta başvurusu onay sırasına eklendi.');
+                } catch (e, stack) {
+                  debugPrint('Başvuru Kaydetme Hatası: $e\n$stack');
+                  _showSuccessToast('Başvuru kaydetme hatası: $e', isError: true);
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEA580C), foregroundColor: Colors.white),
               child: const Text('Başvuruyu Kaydet'),
@@ -967,17 +1071,32 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
-            ElevatedButton(
+            TextButton(
               onPressed: () {
-                if (titleCtrl.text.trim().isEmpty || nameCtrl.text.trim().isEmpty) return;
-                final cleanPrice = double.tryParse(priceCtrl.text.trim().replaceAll(RegExp(r'[^0-9.]'), '')) ?? 800.0;
-                setState(() {
-                  _activeJobs.insert(0, {
+                if (Navigator.of(context, rootNavigator: true).canPop()) {
+                  Navigator.of(context, rootNavigator: true).pop();
+                } else if (Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
+                }
+              },
+              child: const Text('İptal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  if (titleCtrl.text.trim().isEmpty) {
+                    _showSuccessToast('Lütfen arıza / iş başlığını giriniz.', isError: true);
+                    return;
+                  }
+                  final cleanPrice = _asDouble(priceCtrl.text.trim(), 800.0);
+                  final customerName = nameCtrl.text.trim().isEmpty ? 'Müşteri Talebi' : nameCtrl.text.trim();
+                  final customerPhone = phoneCtrl.text.trim().isEmpty ? '+90 500 000 00 00' : phoneCtrl.text.trim();
+
+                  final newJob = {
                     'id': 'ILN-${4080 + _activeJobs.length + 1}',
                     'title': titleCtrl.text.trim(),
-                    'customer_name': nameCtrl.text.trim(),
-                    'customer_phone': phoneCtrl.text.trim().isEmpty ? '+90 500 000 00 00' : phoneCtrl.text.trim(),
+                    'customer_name': customerName,
+                    'customer_phone': customerPhone,
                     'kategori': category,
                     'price': cleanPrice,
                     'district': selectedLocation,
@@ -989,12 +1108,27 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     'created_at': 'Şimdi',
                     'is_urgent': isUrgent,
                     'description': descCtrl.text.trim().isEmpty ? 'Kullanıcı tarafından servis çağrısı açıldı.' : descCtrl.text.trim(),
+                  };
+
+                  setState(() {
+                    _activeJobs.insert(0, newJob);
+                    _recalculateMetrics();
                   });
-                });
-                _recalculateMetrics();
-                _savePersistedData('admin_jobs');
-                Navigator.pop(ctx);
-                _showSuccessToast('✓ Yeni servis ilanı başarıyla açıldı ve ustalara iletildi!');
+
+                  await _savePersistedData('admin_jobs');
+
+                  if (context.mounted) {
+                    if (Navigator.of(context, rootNavigator: true).canPop()) {
+                      Navigator.of(context, rootNavigator: true).pop();
+                    } else if (Navigator.of(ctx).canPop()) {
+                      Navigator.of(ctx).pop();
+                    }
+                  }
+                  _showSuccessToast('✓ Yeni servis ilanı başarıyla açıldı ve ustalara iletildi!');
+                } catch (e, stack) {
+                  debugPrint('İlan Kaydetme Hatası: $e\n$stack');
+                  _showSuccessToast('İlan kaydetme hatası: $e', isError: true);
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.ustaPrimary, foregroundColor: Colors.white),
               child: const Text('İlanı Yayına Al'),
@@ -1057,41 +1191,63 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
-            ElevatedButton(
+            TextButton(
               onPressed: () {
-                final cleanPrice = double.tryParse(priceCtrl.text.replaceAll(' ₺', '').trim()) ?? 0.0;
-                setState(() {
-                  job['title'] = titleCtrl.text.trim();
-                  job['price'] = cleanPrice;
-                  job['district'] = districtCtrl.text.trim();
-                  job['status'] = status;
-                  job['description'] = descCtrl.text.trim();
+                if (Navigator.of(context, rootNavigator: true).canPop()) {
+                  Navigator.of(context, rootNavigator: true).pop();
+                } else if (Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
+                }
+              },
+              child: const Text('İptal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  final cleanPrice = _asDouble(priceCtrl.text.trim(), 0.0);
+                  setState(() {
+                    job['title'] = titleCtrl.text.trim();
+                    job['price'] = cleanPrice;
+                    job['district'] = districtCtrl.text.trim();
+                    job['status'] = status;
+                    job['description'] = descCtrl.text.trim();
 
-                  // Eğer bir ustaya bağlı hizmet ilanıysa usta profilinde de güncelle
-                  final uId = job['usta_id'] as String?;
-                  if (uId != null && uId.isNotEmpty) {
-                    for (final u in _activeUstalar) {
-                      if (u['id'] == uId) {
-                        final rawIlanlar = u['ilanlar'] as List<dynamic>?;
-                        if (rawIlanlar != null) {
-                          for (final il in rawIlanlar) {
-                            if (il['id'] == job['id']) {
-                              il['baslik'] = job['title'];
-                              il['fiyat'] = cleanPrice;
-                              il['aciklama'] = job['description'];
+                    // Eğer bir ustaya bağlı hizmet ilanıysa usta profilinde de güncelle
+                    final uId = job['usta_id'] as String?;
+                    if (uId != null && uId.isNotEmpty) {
+                      for (final u in _activeUstalar) {
+                        if (u['id'] == uId) {
+                          final rawIlanlar = u['ilanlar'] as List<dynamic>?;
+                          if (rawIlanlar != null) {
+                            for (final il in rawIlanlar) {
+                              if (il is Map && il['id'] == job['id']) {
+                                il['baslik'] = job['title'];
+                                il['fiyat'] = cleanPrice;
+                                il['aciklama'] = job['description'];
+                              }
                             }
                           }
                         }
                       }
+                      _savePersistedData('admin_active_ustalar');
                     }
-                    _savePersistedData('admin_active_ustalar');
+                    _recalculateMetrics();
+                  });
+
+                  await _savePersistedData('admin_jobs');
+
+                  if (context.mounted) {
+                    if (Navigator.of(context, rootNavigator: true).canPop()) {
+                      Navigator.of(context, rootNavigator: true).pop();
+                    } else if (Navigator.of(ctx).canPop()) {
+                      Navigator.of(ctx).pop();
+                    }
                   }
-                });
-                _recalculateMetrics();
-                _savePersistedData('admin_jobs');
-                Navigator.pop(ctx);
-                _showSuccessToast('İlan bilgileri güncellendi.');
+                  _showSuccessToast('İlan bilgileri güncellendi.');
+                } catch (e, stack) {
+                  debugPrint('İlan Güncelleme Hatası: $e\n$stack');
+                  _showSuccessToast('Güncelleme hatası: $e', isError: true);
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.ustaPrimary, foregroundColor: Colors.white),
               child: const Text('Güncelle'),
@@ -1558,26 +1714,51 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () {
+                if (Navigator.of(context, rootNavigator: true).canPop()) {
+                  Navigator.of(context, rootNavigator: true).pop();
+                } else if (Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
+                }
+              },
               child: const Text('İptal'),
             ),
             ElevatedButton(
-              onPressed: () {
-                if (nameCtrl.text.trim().isEmpty) return;
-                setState(() {
-                  _categories.insert(0, {
+              onPressed: () async {
+                try {
+                  final catName = nameCtrl.text.trim();
+                  if (catName.isEmpty) {
+                    _showSuccessToast('Lütfen kategori adını giriniz.', isError: true);
+                    return;
+                  }
+                  final newCat = {
                     'id': 'cat-${DateTime.now().millisecondsSinceEpoch}',
-                    'name': nameCtrl.text.trim(),
+                    'name': catName,
                     'type': type,
                     'icon': Icons.category_rounded,
                     'color': selectedColor,
                     'count': 0,
                     'description': descCtrl.text.trim().isEmpty ? 'Yeni eklenen hizmet alanı' : descCtrl.text.trim(),
+                  };
+
+                  setState(() {
+                    _categories.insert(0, newCat);
                   });
-                });
-                _savePersistedData('admin_categories');
-                Navigator.pop(ctx);
-                _showSuccessToast('"${nameCtrl.text.trim()}" kategorisi başarıyla eklendi!');
+
+                  await _savePersistedData('admin_categories');
+
+                  if (context.mounted) {
+                    if (Navigator.of(context, rootNavigator: true).canPop()) {
+                      Navigator.of(context, rootNavigator: true).pop();
+                    } else if (Navigator.of(ctx).canPop()) {
+                      Navigator.of(ctx).pop();
+                    }
+                  }
+                  _showSuccessToast('"$catName" kategorisi başarıyla eklendi!');
+                } catch (e, stack) {
+                  debugPrint('Kategori Kaydetme Hatası: $e\n$stack');
+                  _showSuccessToast('Kategori kaydetme hatası: $e', isError: true);
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.ustaPrimary, foregroundColor: Colors.white),
               child: const Text('Kaydet'),
@@ -1630,17 +1811,44 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
-            ElevatedButton(
+            TextButton(
               onPressed: () {
-                setState(() {
-                  cat['name'] = nameCtrl.text.trim();
-                  cat['type'] = type;
-                  cat['description'] = descCtrl.text.trim();
-                });
-                _savePersistedData('admin_categories');
-                Navigator.pop(ctx);
-                _showSuccessToast('Kategori güncellendi.');
+                if (Navigator.of(context, rootNavigator: true).canPop()) {
+                  Navigator.of(context, rootNavigator: true).pop();
+                } else if (Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
+                }
+              },
+              child: const Text('İptal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  final catName = nameCtrl.text.trim();
+                  if (catName.isEmpty) {
+                    _showSuccessToast('Lütfen kategori adını giriniz.', isError: true);
+                    return;
+                  }
+                  setState(() {
+                    cat['name'] = catName;
+                    cat['type'] = type;
+                    cat['description'] = descCtrl.text.trim();
+                  });
+
+                  await _savePersistedData('admin_categories');
+
+                  if (context.mounted) {
+                    if (Navigator.of(context, rootNavigator: true).canPop()) {
+                      Navigator.of(context, rootNavigator: true).pop();
+                    } else if (Navigator.of(ctx).canPop()) {
+                      Navigator.of(ctx).pop();
+                    }
+                  }
+                  _showSuccessToast('Kategori güncellendi.');
+                } catch (e, stack) {
+                  debugPrint('Kategori Güncelleme Hatası: $e\n$stack');
+                  _showSuccessToast('Güncelleme hatası: $e', isError: true);
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.ustaPrimary, foregroundColor: Colors.white),
               child: const Text('Güncelle'),
@@ -1723,29 +1931,36 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
-            ElevatedButton(
+            TextButton(
               onPressed: () {
-                if (titleCtrl.text.trim().isEmpty) {
-                  titleCtrl.text = selectedAddress;
+                if (Navigator.of(context, rootNavigator: true).canPop()) {
+                  Navigator.of(context, rootNavigator: true).pop();
+                } else if (Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
                 }
-                Color pColor = const Color(0xFF0284C7);
-                IconData pIcon = Icons.place_rounded;
-                if (pinType.contains('Kırmızı')) {
-                  pColor = const Color(0xFFEF4444);
-                  pIcon = Icons.warning_amber_rounded;
-                } else if (pinType.contains('Sarı')) {
-                  pColor = const Color(0xFFF59E0B);
-                  pIcon = Icons.storefront_rounded;
-                } else if (pinType.contains('Yeşil')) {
-                  pColor = const Color(0xFF10B981);
-                  pIcon = Icons.local_shipping_rounded;
-                }
+              },
+              child: const Text('İptal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  final pinTitle = titleCtrl.text.trim().isEmpty ? selectedAddress : titleCtrl.text.trim();
+                  Color pColor = const Color(0xFF0284C7);
+                  IconData pIcon = Icons.place_rounded;
+                  if (pinType.contains('Kırmızı')) {
+                    pColor = const Color(0xFFEF4444);
+                    pIcon = Icons.warning_amber_rounded;
+                  } else if (pinType.contains('Sarı')) {
+                    pColor = const Color(0xFFF59E0B);
+                    pIcon = Icons.storefront_rounded;
+                  } else if (pinType.contains('Yeşil')) {
+                    pColor = const Color(0xFF10B981);
+                    pIcon = Icons.local_shipping_rounded;
+                  }
 
-                setState(() {
-                  _mapPins.insert(0, {
+                  final newPin = {
                     'id': 'pin-${DateTime.now().millisecondsSinceEpoch}',
-                    'title': titleCtrl.text.trim(),
+                    'title': pinTitle,
                     'pin_type': pinType,
                     'color': pColor,
                     'icon': pIcon,
@@ -1753,11 +1968,26 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     'lng': selectedLng,
                     'description': descCtrl.text.trim().isEmpty ? selectedAddress : descCtrl.text.trim(),
                     'is_active': true,
+                  };
+
+                  setState(() {
+                    _mapPins.insert(0, newPin);
                   });
-                });
-                _savePersistedData('admin_map_pins');
-                Navigator.pop(ctx);
-                _showSuccessToast('Harita pini canlı sisteme eklendi!');
+
+                  await _savePersistedData('admin_map_pins');
+
+                  if (context.mounted) {
+                    if (Navigator.of(context, rootNavigator: true).canPop()) {
+                      Navigator.of(context, rootNavigator: true).pop();
+                    } else if (Navigator.of(ctx).canPop()) {
+                      Navigator.of(ctx).pop();
+                    }
+                  }
+                  _showSuccessToast('Harita pini canlı sisteme eklendi!');
+                } catch (e, stack) {
+                  debugPrint('Pin Ekleme Hatası: $e\n$stack');
+                  _showSuccessToast('Pin ekleme hatası: $e', isError: true);
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.ustaPrimary, foregroundColor: Colors.white),
               child: const Text('Ekle'),
@@ -1813,18 +2043,40 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
-            ElevatedButton(
+            TextButton(
               onPressed: () {
-                setState(() {
-                  pin['title'] = titleCtrl.text.trim();
-                  pin['description'] = descCtrl.text.trim();
-                  pin['lat'] = selectedLat;
-                  pin['lng'] = selectedLng;
-                });
-                _savePersistedData('admin_map_pins');
-                Navigator.pop(ctx);
-                _showSuccessToast('Pin güncellendi!');
+                if (Navigator.of(context, rootNavigator: true).canPop()) {
+                  Navigator.of(context, rootNavigator: true).pop();
+                } else if (Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
+                }
+              },
+              child: const Text('İptal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  setState(() {
+                    pin['title'] = titleCtrl.text.trim();
+                    pin['description'] = descCtrl.text.trim();
+                    pin['lat'] = selectedLat;
+                    pin['lng'] = selectedLng;
+                  });
+
+                  await _savePersistedData('admin_map_pins');
+
+                  if (context.mounted) {
+                    if (Navigator.of(context, rootNavigator: true).canPop()) {
+                      Navigator.of(context, rootNavigator: true).pop();
+                    } else if (Navigator.of(ctx).canPop()) {
+                      Navigator.of(ctx).pop();
+                    }
+                  }
+                  _showSuccessToast('Pin güncellendi!');
+                } catch (e, stack) {
+                  debugPrint('Pin Güncelleme Hatası: $e\n$stack');
+                  _showSuccessToast('Pin güncelleme hatası: $e', isError: true);
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.ustaPrimary, foregroundColor: Colors.white),
               child: const Text('Güncelle'),
@@ -1868,27 +2120,52 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
-          ElevatedButton(
+          TextButton(
             onPressed: () {
-              if (nameCtrl.text.trim().isEmpty) return;
-              setState(() {
-                _members.insert(0, {
-                  'id': 'usr-${DateTime.now().millisecondsSinceEpoch}',
-                  'full_name': nameCtrl.text.trim(),
-                  'phone': phoneCtrl.text.trim().isEmpty ? '+90 500 000 00 00' : phoneCtrl.text.trim(),
-                  'email': emailCtrl.text.trim().isEmpty ? 'uye@ustamburada.com' : emailCtrl.text.trim(),
-                  'role': 'Müşteri',
-                  'status': 'Aktif',
-                  'total_orders': 0,
-                  'registered_at': 'Bugün',
+              if (Navigator.of(context, rootNavigator: true).canPop()) {
+                Navigator.of(context, rootNavigator: true).pop();
+              } else if (Navigator.of(ctx).canPop()) {
+                Navigator.of(ctx).pop();
+              }
+            },
+            child: const Text('İptal'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                final memberName = nameCtrl.text.trim();
+                if (memberName.isEmpty) {
+                  _showSuccessToast('Lütfen üye adı soyadını giriniz.', isError: true);
+                  return;
+                }
+                setState(() {
+                  _members.insert(0, {
+                    'id': 'usr-${DateTime.now().millisecondsSinceEpoch}',
+                    'full_name': memberName,
+                    'phone': phoneCtrl.text.trim().isEmpty ? '+90 500 000 00 00' : phoneCtrl.text.trim(),
+                    'email': emailCtrl.text.trim().isEmpty ? 'uye@ustamburada.com' : emailCtrl.text.trim(),
+                    'role': 'Müşteri',
+                    'status': 'Aktif',
+                    'total_orders': 0,
+                    'registered_at': 'Bugün',
+                  });
+                  _totalCustomers = _members.length;
                 });
-                _totalCustomers = _members.length;
-              });
-              _recalculateMetrics();
-              _savePersistedData('admin_members');
-              Navigator.pop(ctx);
-              _showSuccessToast('Yeni üye kaydedildi.');
+                _recalculateMetrics();
+                await _savePersistedData('admin_members');
+
+                if (context.mounted) {
+                  if (Navigator.of(context, rootNavigator: true).canPop()) {
+                    Navigator.of(context, rootNavigator: true).pop();
+                  } else if (Navigator.of(ctx).canPop()) {
+                    Navigator.of(ctx).pop();
+                  }
+                }
+                _showSuccessToast('Yeni üye kaydedildi.');
+              } catch (e, stack) {
+                debugPrint('Üye Kaydetme Hatası: $e\n$stack');
+                _showSuccessToast('Üye kaydetme hatası: $e', isError: true);
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.ustaPrimary, foregroundColor: Colors.white),
             child: const Text('Kaydet'),
@@ -1922,17 +2199,43 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
-          ElevatedButton(
+          TextButton(
             onPressed: () {
-              setState(() {
-                member['full_name'] = nameCtrl.text.trim();
-                member['phone'] = phoneCtrl.text.trim();
-                member['email'] = emailCtrl.text.trim();
-              });
-              _savePersistedData('admin_members');
-              Navigator.pop(ctx);
-              _showSuccessToast('Üye bilgileri güncellendi.');
+              if (Navigator.of(context, rootNavigator: true).canPop()) {
+                Navigator.of(context, rootNavigator: true).pop();
+              } else if (Navigator.of(ctx).canPop()) {
+                Navigator.of(ctx).pop();
+              }
+            },
+            child: const Text('İptal'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                final memberName = nameCtrl.text.trim();
+                if (memberName.isEmpty) {
+                  _showSuccessToast('Lütfen üye adını giriniz.', isError: true);
+                  return;
+                }
+                setState(() {
+                  member['full_name'] = memberName;
+                  member['phone'] = phoneCtrl.text.trim();
+                  member['email'] = emailCtrl.text.trim();
+                });
+                await _savePersistedData('admin_members');
+
+                if (context.mounted) {
+                  if (Navigator.of(context, rootNavigator: true).canPop()) {
+                    Navigator.of(context, rootNavigator: true).pop();
+                  } else if (Navigator.of(ctx).canPop()) {
+                    Navigator.of(ctx).pop();
+                  }
+                }
+                _showSuccessToast('Üye bilgileri güncellendi.');
+              } catch (e, stack) {
+                debugPrint('Üye Güncelleme Hatası: $e\n$stack');
+                _showSuccessToast('Güncelleme hatası: $e', isError: true);
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.ustaPrimary, foregroundColor: Colors.white),
             child: const Text('Güncelle'),
@@ -1966,44 +2269,53 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   // 4. İşletme / Tedarikçi Metotları
   Future<void> _saveNewSupplier() async {
-    final name = _businessNameController.text.trim();
-    final address = _businessAddressController.text.trim();
-    final phone = _businessPhoneController.text.trim();
-    final lat = double.tryParse(_businessLatController.text.trim()) ?? 40.9905;
-    final lng = double.tryParse(_businessLngController.text.trim()) ?? 29.0270;
-
-    if (name.isEmpty || address.isEmpty) {
-      _showSuccessToast('Lütfen dükkan adı ve açık adres alanlarını doldurunuz.', isError: true);
-      return;
-    }
-
-    final newStore = {
-      'id': 'ted-${DateTime.now().millisecondsSinceEpoch}',
-      'ad': name,
-      'kategori': _selectedBusinessCategory,
-      'telefon': phone.isEmpty ? '+90 (216) 000 00 00' : phone,
-      'adres': address,
-      'enlem': lat,
-      'boylam': lng,
-      'indirim_orani': '%15 UstamBurada Anlaşmalı',
-      'created_at': DateTime.now().toIso8601String(),
-    };
-
-    final supabase = ref.read(supabaseClientProvider);
     try {
-      await supabase.from('tedarikciler').insert(newStore);
-    } catch (_) {}
+      final name = _businessNameController.text.trim();
+      final address = _businessAddressController.text.trim();
+      final phone = _businessPhoneController.text.trim();
+      final lat = _asDouble(_businessLatController.text.trim(), 40.9905);
+      final lng = _asDouble(_businessLngController.text.trim(), 29.0270);
 
-    setState(() {
-      _tedarikciler.insert(0, newStore);
-      _businessNameController.clear();
-      _businessPhoneController.clear();
-      _businessAddressController.clear();
-    });
-    _recalculateMetrics();
-    _savePersistedData('admin_tedarikciler');
+      if (name.isEmpty) {
+        _showSuccessToast('Lütfen işletme/dükkan adını giriniz.', isError: true);
+        return;
+      }
+      if (address.isEmpty) {
+        _showSuccessToast('Lütfen işletme adresini giriniz veya haritadan seçiniz.', isError: true);
+        return;
+      }
 
-    _showSuccessToast('✓ $name haritaya sarı pinli tedarikçi olarak eklendi!');
+      final newStore = {
+        'id': 'ted-${DateTime.now().millisecondsSinceEpoch}',
+        'ad': name,
+        'kategori': _selectedBusinessCategory,
+        'telefon': phone.isEmpty ? '+90 (216) 000 00 00' : phone,
+        'adres': address,
+        'enlem': lat,
+        'boylam': lng,
+        'indirim_orani': '%15 UstamBurada Anlaşmalı',
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      final supabase = ref.read(supabaseClientProvider);
+      try {
+        await supabase.from('tedarikciler').insert(newStore);
+      } catch (_) {}
+
+      setState(() {
+        _tedarikciler.insert(0, newStore);
+        _businessNameController.clear();
+        _businessPhoneController.clear();
+        _businessAddressController.clear();
+      });
+      _recalculateMetrics();
+      await _savePersistedData('admin_tedarikciler');
+
+      _showSuccessToast('✓ $name haritaya sarı pinli tedarikçi olarak eklendi!');
+    } catch (e, stack) {
+      debugPrint('İşletme Kaydetme Hatası: $e\n$stack');
+      _showSuccessToast('İşletme kaydetme hatası: $e', isError: true);
+    }
   }
 
   void _showEditSupplierDialog(Map<String, dynamic> store) {
@@ -2033,18 +2345,44 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
-          ElevatedButton(
+          TextButton(
             onPressed: () {
-              setState(() {
-                store['ad'] = nameCtrl.text.trim();
-                store['telefon'] = phoneCtrl.text.trim();
-                store['adres'] = addressCtrl.text.trim();
-                store['indirim_orani'] = discountCtrl.text.trim();
-              });
-              _savePersistedData('admin_tedarikciler');
-              Navigator.pop(ctx);
-              _showSuccessToast('İşletme bilgileri güncellendi.');
+              if (Navigator.of(context, rootNavigator: true).canPop()) {
+                Navigator.of(context, rootNavigator: true).pop();
+              } else if (Navigator.of(ctx).canPop()) {
+                Navigator.of(ctx).pop();
+              }
+            },
+            child: const Text('İptal'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                final storeName = nameCtrl.text.trim();
+                if (storeName.isEmpty) {
+                  _showSuccessToast('Lütfen işletme adını giriniz.', isError: true);
+                  return;
+                }
+                setState(() {
+                  store['ad'] = storeName;
+                  store['telefon'] = phoneCtrl.text.trim();
+                  store['adres'] = addressCtrl.text.trim();
+                  store['indirim_orani'] = discountCtrl.text.trim();
+                });
+                await _savePersistedData('admin_tedarikciler');
+
+                if (context.mounted) {
+                  if (Navigator.of(context, rootNavigator: true).canPop()) {
+                    Navigator.of(context, rootNavigator: true).pop();
+                  } else if (Navigator.of(ctx).canPop()) {
+                    Navigator.of(ctx).pop();
+                  }
+                }
+                _showSuccessToast('İşletme bilgileri güncellendi.');
+              } catch (e, stack) {
+                debugPrint('İşletme Güncelleme Hatası: $e\n$stack');
+                _showSuccessToast('Güncelleme hatası: $e', isError: true);
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.ustaPrimary, foregroundColor: Colors.white),
             child: const Text('Güncelle'),
@@ -2065,13 +2403,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   // 5. Usta Onay & Başvuru Metotları
   Future<void> _approveUsta(Map<String, dynamic> usta) async {
-    final supabase = ref.read(supabaseClientProvider);
+    final supabase = _getSupabaseSafe();
     final ustaId = usta['id'] ?? '';
     final ustaName = usta['full_name'] ?? 'Usta';
 
-    try {
-      await supabase.from(AppConstants.ustalarTable).update({'onay_durumu': 'onaylandi'}).eq('id', ustaId);
-    } catch (_) {}
+    if (supabase != null) {
+      try {
+        await supabase.from(AppConstants.ustalarTable).update({'onay_durumu': 'onaylandi'}).eq('id', ustaId);
+      } catch (_) {}
+    }
 
     setState(() {
       _pendingUstalar.removeWhere((u) => u['id'] == ustaId);
@@ -2121,21 +2461,39 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
-          ElevatedButton(
+          TextButton(
             onPressed: () {
-              final supabase = ref.read(supabaseClientProvider);
+              if (Navigator.of(context, rootNavigator: true).canPop()) {
+                Navigator.of(context, rootNavigator: true).pop();
+              } else if (Navigator.of(ctx).canPop()) {
+                Navigator.of(ctx).pop();
+              }
+            },
+            child: const Text('İptal'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final supabase = _getSupabaseSafe();
               final ustaId = usta['id'] ?? '';
-              try {
-                supabase.from(AppConstants.ustalarTable).update({'onay_durumu': 'reddedildi'}).eq('id', ustaId);
-              } catch (_) {}
+              if (supabase != null) {
+                try {
+                  await supabase.from(AppConstants.ustalarTable).update({'onay_durumu': 'reddedildi'}).eq('id', ustaId);
+                } catch (_) {}
+              }
 
               setState(() {
                 _pendingUstalar.removeWhere((u) => u['id'] == ustaId);
               });
               _recalculateMetrics();
-              _savePersistedData('admin_pending_ustalar');
-              Navigator.pop(ctx);
+              await _savePersistedData('admin_pending_ustalar');
+
+              if (context.mounted) {
+                if (Navigator.of(context, rootNavigator: true).canPop()) {
+                  Navigator.of(context, rootNavigator: true).pop();
+                } else if (Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
+                }
+              }
               _showSuccessToast('Usta başvurusu reddedildi.', isError: true);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
@@ -4979,28 +5337,30 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       _adminLoginErrorMessage = null;
     });
 
-    final supabase = ref.read(supabaseClientProvider);
+    final supabase = _getSupabaseSafe();
     bool authenticated = false;
 
     // 1. Supabase ile oturum açmayı dene
-    try {
-      final authRes = await supabase.auth
-          .signInWithPassword(email: email, password: password)
-          .timeout(const Duration(seconds: 3));
+    if (supabase != null) {
+      try {
+        final authRes = await supabase.auth
+            .signInWithPassword(email: email, password: password)
+            .timeout(const Duration(seconds: 3));
 
-      if (authRes.user != null) {
-        final profile = await supabase
-            .from(AppConstants.profilesTable)
-            .select('is_admin')
-            .eq('id', authRes.user!.id)
-            .maybeSingle()
-            .timeout(const Duration(seconds: 2));
+        if (authRes.user != null) {
+          final profile = await supabase
+              .from(AppConstants.profilesTable)
+              .select('is_admin')
+              .eq('id', authRes.user!.id)
+              .maybeSingle()
+              .timeout(const Duration(seconds: 2));
 
-        if (profile != null && profile['is_admin'] == true) {
-          authenticated = true;
+          if (profile != null && profile['is_admin'] == true) {
+            authenticated = true;
+          }
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
     // 2. Güvenli Yönetici Anahtarı Doğrulaması (admin@ustamburada.com / admin123)
     if (!authenticated) {

@@ -74,6 +74,9 @@ class _AddressLocationSearchFieldState extends State<AddressLocationSearchField>
       return;
     }
 
+    // Kullanıcı yazarken dahi geçerli adres ve koordinatı üst forma bildir
+    widget.onLocationChanged(query.trim(), _selectedLat ?? 40.9905, _selectedLng ?? 29.0270);
+
     setState(() => _isSearching = true);
     _debounceTimer = Timer(const Duration(milliseconds: 300), () async {
       final results = await LocationLookupService.searchAddress(query);
@@ -83,6 +86,16 @@ class _AddressLocationSearchFieldState extends State<AddressLocationSearchField>
         _showSuggestions = results.isNotEmpty;
         _isSearching = false;
       });
+
+      // İlk eşleşen konum varsa otomatik koordinat ata
+      if (results.isNotEmpty && _selectedAddressLabel == null) {
+        final top = results.first;
+        _selectedLat = top.lat;
+        _selectedLng = top.lng;
+        _latController.text = top.lat.toStringAsFixed(6);
+        _lngController.text = top.lng.toStringAsFixed(6);
+        widget.onLocationChanged(query.trim(), top.lat, top.lng);
+      }
     });
   }
 

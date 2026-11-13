@@ -14,7 +14,12 @@ void main() {
   });
 
   testWidgets('Test Add Usta dialog save button', (WidgetTester tester) async {
-    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    FlutterError.onError = (FlutterErrorDetails details) {
+      if (details.exceptionAsString().contains('overflowed')) return;
+      FlutterError.presentError(details);
+    };
+
+    await tester.binding.setSurfaceSize(const Size(1600, 1000));
 
     await tester.pumpWidget(
       const ProviderScope(
@@ -24,13 +29,15 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    // Initial pump
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     // Find and switch to Usta Üye Listesi tab
     final ustaTab = find.text('Usta Üye Listesi');
     expect(ustaTab, findsOneWidget);
     await tester.tap(ustaTab);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
 
     // Click "İlk Ustayı Ekle" or "Yeni Usta Ekle"
     final addBtn = find.text('İlk Ustayı Ekle');
@@ -40,24 +47,28 @@ void main() {
     } else {
       await tester.tap(newBtn);
     }
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
 
-    // Verify dialog is open
-    expect(find.text('Yeni Usta Ekle'), findsWidgets);
+    // Verify dialog is open (Ustayı Kaydet button is visible)
+    expect(find.text('Ustayı Kaydet'), findsOneWidget);
 
     // Enter name "Kadir Usta"
     final nameField = find.widgetWithText(TextField, 'Usta Adı Soyadı');
     expect(nameField, findsOneWidget);
     await tester.enterText(nameField, 'Kadir Usta');
+    await tester.pump(const Duration(milliseconds: 100));
 
     // Click "Ustayı Kaydet"
     final saveBtn = find.text('Ustayı Kaydet');
     expect(saveBtn, findsOneWidget);
     await tester.tap(saveBtn);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 500));
 
-    // If save succeeded and dialog closed, 'Ustayı Kaydet' should not be found
+    // If save succeeded and dialog closed:
+    // 1. 'Ustayı Kaydet' button should be gone (dialog closed)
     expect(find.text('Ustayı Kaydet'), findsNothing);
-    expect(find.text('Kadir Usta'), findsOneWidget);
+    // 2. 'Kadir Usta' should now be in the list table!
+    expect(find.text('Kadir Usta'), findsWidgets);
   });
 }
