@@ -98,14 +98,28 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('1 işlem seçildi'), findsNothing);
 
-    // 4. Tüm Kayıtları Temizle Butonu Testi
+    // 4. Tüm Kayıtları Temizle ve Kalıcı Silinme Doğrulaması
     final clearAllButton = find.text('Tüm Kayıtları Temizle');
     expect(clearAllButton, findsOneWidget);
     await tester.tap(clearAllButton);
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Tüm Finans Masasını Temizle'), findsOneWidget);
-    await tester.tap(find.text('Vazgeç'));
+    await tester.tap(find.text('Evet, Tümünü Temizle'));
     await tester.pump(const Duration(milliseconds: 500));
+
+    // Silindikten sonra boş durum (empty state) görünmeli ve kayıtlar geri gelmemeli
+    expect(find.text('demo_pay_1794610203985'), findsNothing);
+    expect(find.text('Finans masasında kayıtlı işlem bulunmuyor'), findsOneWidget);
+    expect(find.text('Varsayılan Demo Verileri Geri Yükle'), findsOneWidget);
+
+    // Tekrar rebuild edilse dahi kayıtlar boş kalmalı (geri yüklenmemeli)
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('demo_pay_1794610203985'), findsNothing);
+
+    // Varsayılan Demo Verileri Geri Yükle butonuna tıklayınca veriler tekrar yüklenmeli
+    await tester.tap(find.text('Varsayılan Demo Verileri Geri Yükle'));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('demo_pay_1794610203985'), findsOneWidget);
   });
 }

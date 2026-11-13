@@ -340,6 +340,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       // 7. Bekleyen Başvurular
       _pendingUstalar = await appData.getPendingApplications();
 
+      // 8. Finansal İşlemler & Hizmet Akışı
+      await _loadFinancialTransactionsFromPrefs();
+
       _recalculateMetrics();
     } catch (e) {
       debugPrint('Kalıcı veri yükleme hatası: $e');
@@ -418,6 +421,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         await appData.savePendingApplications(_pendingUstalar);
       } else if (key == 'admin_tedarikciler') {
         await appData.saveTedarikciler(_tedarikciler);
+      } else if (key == 'admin_financial_transactions') {
+        await _saveFinancialTransactionsToPrefs();
       }
     } catch (e) {
       debugPrint('$key kaydetme hatası: $e');
@@ -428,7 +433,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     _pendingApprovals = _pendingUstalar.length;
     _activeUstalarCount = _activeUstalar.length;
     _totalCustomers = _members.length;
-    _syncFinancialTransactions();
 
     double turnover = 0.0;
     for (final t in _financialTransactions) {
@@ -446,161 +450,189 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         : (turnover * 0.15);
   }
 
-  void _syncFinancialTransactions() {
-    if (_financialTransactions.isEmpty) {
-      _financialTransactions = [
-        {
-          'id': 'TRX-1794610203985',
-          'receipt_no': 'demo_pay_1794610203985',
-          'cagri_id': 'cagri-bolvadin-1794610203',
-          'hizmet_baslik': 'Standart Servis & Arıza Tespiti',
-          'kategori': 'Elektrik & Aydınlatma',
-          'musteri_ad': 'Zeynep Kaya',
-          'musteri_tel': '+90 532 111 22 33',
-          'musteri_adres': 'Ece Mahallesi, Sandıklı / Afyonkarahisar',
-          'usta_ad': 'Kadir Usta',
-          'usta_tel': '05524342069',
-          'usta_meslek': 'Elektrik & Aydınlatma Teknisyeni',
-          'usta_hakedis': 1750.00,
-          'komisyon_tutari': 262.50,
-          'komisyon_orani': 0.15,
-          'toplam_tutar': 2012.50,
-          'durum': 'Tamamlandı & Tahsil Edildi',
-          'flow_step': 4, // 1: Onay, 2: Kabul, 3: Yolda, 4: Bitti
-          'payment_provider': 'İyzico Sanal POS • 3D Secure',
-          'payment_status': 'Provizyon Kapandı / Tahsil Edildi',
-          'puan': 5.0,
-          'musteri_yorum': 'Kadir Usta tam zamanında geldi, sigorta panosundaki arızayı 20 dakikada çözdü. Çok teşekkürler.',
-          'created_at': '13.11.2026 • 22:50',
-          'is_payout_transferred': true,
-        },
-        {
-          'id': 'TRX-1794610203986',
-          'receipt_no': 'demo_pay_1794610203986',
-          'cagri_id': 'cagri-kadikoy-1794610204',
-          'hizmet_baslik': 'Mutfak Lavabo Altı Su Kaçağı & Boru Değişimi',
-          'kategori': 'Sıhhi Tesisat & Su Kaçağı',
-          'musteri_ad': 'Mehmet Ali Öztürk',
-          'musteri_tel': '+90 544 222 33 44',
-          'musteri_adres': 'Caferağa Mahallesi, Moda Caddesi No:18, Kadıköy / İstanbul',
-          'usta_ad': 'Ahmet Yılmaz',
-          'usta_tel': '+90 532 999 11 22',
-          'usta_meslek': 'Sıhhi Tesisat Teknisyeni',
-          'usta_hakedis': 850.00,
-          'komisyon_tutari': 127.50,
-          'komisyon_orani': 0.15,
-          'toplam_tutar': 977.50,
-          'durum': 'Usta Yolda',
-          'flow_step': 3,
-          'payment_provider': 'İyzico Provizyon (Askıda)',
-          'payment_status': 'Ön Provizyon Alındı',
-          'puan': 0.0,
-          'musteri_yorum': '',
-          'created_at': '14.11.2026 • 01:15',
-          'is_payout_transferred': false,
-        },
-        {
-          'id': 'TRX-1794610203987',
-          'receipt_no': 'demo_pay_1794610203987',
-          'cagri_id': 'cagri-uskudar-1794610205',
-          'hizmet_baslik': 'Çelik Kapı Kilidi Bozuldu, Anahtar Dönmüyor',
-          'kategori': 'Çilingir & Kapı Açma',
-          'musteri_ad': 'Burak Yılmazer',
-          'musteri_tel': '+90 555 333 44 55',
-          'musteri_adres': 'Altunizade, Kısıklı Caddesi No:52, Üsküdar / İstanbul',
-          'usta_ad': 'Serkan Yıldırım',
-          'usta_tel': '+90 542 888 77 66',
-          'usta_meslek': 'Çilingir & Kilit Teknisyeni',
-          'usta_hakedis': 750.00,
-          'komisyon_tutari': 112.50,
-          'komisyon_orani': 0.15,
-          'toplam_tutar': 862.50,
-          'durum': 'Kabul Edildi / İşlemde',
-          'flow_step': 2,
-          'payment_provider': 'İyzico Provizyon (Askıda)',
-          'payment_status': 'Ön Provizyon Alındı',
-          'puan': 0.0,
-          'musteri_yorum': '',
-          'created_at': '14.11.2026 • 00:45',
-          'is_payout_transferred': false,
-        },
-        {
-          'id': 'TRX-1794610203988',
-          'receipt_no': 'demo_pay_1794610203988',
-          'cagri_id': 'cagri-besiktas-1794610206',
-          'hizmet_baslik': 'Kombi Petek Temizliği & Kışlık Bakım',
-          'kategori': 'Klima & Havalandırma',
-          'musteri_ad': 'Selin Varol',
-          'musteri_tel': '+90 530 444 88 99',
-          'musteri_adres': 'Levazım Mahallesi, Koru Sitesi B Blok, Beşiktaş / İstanbul',
-          'usta_ad': 'Hasan Çetin',
-          'usta_tel': '+90 533 111 44 22',
-          'usta_meslek': 'İklimlendirme & Kombi Uzmanı',
-          'usta_hakedis': 1200.00,
-          'komisyon_tutari': 180.00,
-          'komisyon_orani': 0.15,
-          'toplam_tutar': 1380.00,
-          'durum': 'Tamamlandı & Tahsil Edildi',
-          'flow_step': 4,
-          'payment_provider': 'İyzico Sanal POS • 3D Secure',
-          'payment_status': 'Tahsilat Başarılı',
-          'puan': 4.9,
-          'musteri_yorum': 'Petekler eskisine göre çok daha iyi ısınıyor. Temiz işçilik.',
-          'created_at': '13.11.2026 • 18:30',
-          'is_payout_transferred': true,
-        },
-        {
-          'id': 'TRX-1794610203989',
-          'receipt_no': 'demo_pay_1794610203989',
-          'cagri_id': 'cagri-bolvadin-1794610207',
-          'hizmet_baslik': 'Avize Montajı ve 3lü Priz Hat Çekimi',
-          'kategori': 'Elektrik & Aydınlatma',
-          'musteri_ad': 'Ece Aksoy',
-          'musteri_tel': '+90 535 777 66 11',
-          'musteri_adres': 'İmaret Mahallesi, Cami Yanı No:12, Bolvadin / Afyonkarahisar',
-          'usta_ad': 'Kadir Usta',
-          'usta_tel': '05524342069',
-          'usta_meslek': 'Elektrik & Aydınlatma Teknisyeni',
-          'usta_hakedis': 950.00,
-          'komisyon_tutari': 142.50,
-          'komisyon_orani': 0.15,
-          'toplam_tutar': 1092.50,
-          'durum': 'Usta Onayı Bekleniyor',
-          'flow_step': 1,
-          'payment_provider': 'Ön Provizyon Alındı',
-          'payment_status': 'Kart Blokesi Bekliyor',
-          'puan': 0.0,
-          'musteri_yorum': '',
-          'created_at': '14.11.2026 • 01:40',
-          'is_payout_transferred': false,
-        },
-        {
-          'id': 'TRX-1794610203990',
-          'receipt_no': 'demo_pay_1794610203990',
-          'cagri_id': 'cagri-sandikli-1794610208',
-          'hizmet_baslik': 'Banyo Bataryası Değişimi & Tıkanıklık Açma',
-          'kategori': 'Sıhhi Tesisat & Su Kaçağı',
-          'musteri_ad': 'Kemal Sunal',
-          'musteri_tel': '+90 533 222 11 00',
-          'musteri_adres': 'Çakır Mahallesi No:9, Sandıklı / Afyonkarahisar',
-          'usta_ad': 'Ali Kemal Usta',
-          'usta_tel': '+90 541 333 22 11',
-          'usta_meslek': 'Tesisat & Montaj Ustası',
-          'usta_hakedis': 650.00,
-          'komisyon_tutari': 97.50,
-          'komisyon_orani': 0.15,
-          'toplam_tutar': 747.50,
-          'durum': 'Tamamlandı & Tahsil Edildi',
-          'flow_step': 4,
-          'payment_provider': 'İyzico Sanal POS • 3D Secure',
-          'payment_status': 'Tahsilat Başarılı',
-          'puan': 5.0,
-          'musteri_yorum': 'Bataryayı hızlıca değiştirdi, su sızdırmazlığı mükemmel.',
-          'created_at': '13.11.2026 • 15:20',
-          'is_payout_transferred': true,
-        },
-      ];
+  Future<void> _loadFinancialTransactionsFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString('admin_financial_transactions');
+      if (jsonStr != null) {
+        final List<dynamic> decoded = jsonDecode(jsonStr);
+        _financialTransactions = List<Map<String, dynamic>>.from(
+          decoded.map((item) => Map<String, dynamic>.from(item as Map)),
+        );
+      } else {
+        _seedDefaultFinancialTransactions();
+        await _saveFinancialTransactionsToPrefs();
+      }
+    } catch (e) {
+      debugPrint('Finansal verileri yükleme hatası: $e');
+      if (_financialTransactions.isEmpty) {
+        _seedDefaultFinancialTransactions();
+      }
     }
+  }
+
+  Future<void> _saveFinancialTransactionsToPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('admin_financial_transactions', jsonEncode(_financialTransactions));
+    } catch (e) {
+      debugPrint('Finansal verileri kaydetme hatası: $e');
+    }
+  }
+
+  void _seedDefaultFinancialTransactions() {
+    _financialTransactions = [
+      {
+        'id': 'TRX-1794610203985',
+        'receipt_no': 'demo_pay_1794610203985',
+        'cagri_id': 'cagri-bolvadin-1794610203',
+        'hizmet_baslik': 'Standart Servis & Arıza Tespiti',
+        'kategori': 'Elektrik & Aydınlatma',
+        'musteri_ad': 'Zeynep Kaya',
+        'musteri_tel': '+90 532 111 22 33',
+        'musteri_adres': 'Ece Mahallesi, Sandıklı / Afyonkarahisar',
+        'usta_ad': 'Kadir Usta',
+        'usta_tel': '05524342069',
+        'usta_meslek': 'Elektrik & Aydınlatma Teknisyeni',
+        'usta_hakedis': 1750.00,
+        'komisyon_tutari': 262.50,
+        'komisyon_orani': 0.15,
+        'toplam_tutar': 2012.50,
+        'durum': 'Tamamlandı & Tahsil Edildi',
+        'flow_step': 4, // 1: Onay, 2: Kabul, 3: Yolda, 4: Bitti
+        'payment_provider': 'İyzico Sanal POS • 3D Secure',
+        'payment_status': 'Provizyon Kapandı / Tahsil Edildi',
+        'puan': 5.0,
+        'musteri_yorum': 'Kadir Usta tam zamanında geldi, sigorta panosundaki arızayı 20 dakikada çözdü. Çok teşekkürler.',
+        'created_at': '13.11.2026 • 22:50',
+        'is_payout_transferred': true,
+      },
+      {
+        'id': 'TRX-1794610203986',
+        'receipt_no': 'demo_pay_1794610203986',
+        'cagri_id': 'cagri-kadikoy-1794610204',
+        'hizmet_baslik': 'Mutfak Lavabo Altı Su Kaçağı & Boru Değişimi',
+        'kategori': 'Sıhhi Tesisat & Su Kaçağı',
+        'musteri_ad': 'Mehmet Ali Öztürk',
+        'musteri_tel': '+90 544 222 33 44',
+        'musteri_adres': 'Caferağa Mahallesi, Moda Caddesi No:18, Kadıköy / İstanbul',
+        'usta_ad': 'Ahmet Yılmaz',
+        'usta_tel': '+90 532 999 11 22',
+        'usta_meslek': 'Sıhhi Tesisat Teknisyeni',
+        'usta_hakedis': 850.00,
+        'komisyon_tutari': 127.50,
+        'komisyon_orani': 0.15,
+        'toplam_tutar': 977.50,
+        'durum': 'Usta Yolda',
+        'flow_step': 3,
+        'payment_provider': 'İyzico Provizyon (Askıda)',
+        'payment_status': 'Ön Provizyon Alındı',
+        'puan': 0.0,
+        'musteri_yorum': '',
+        'created_at': '14.11.2026 • 01:15',
+        'is_payout_transferred': false,
+      },
+      {
+        'id': 'TRX-1794610203987',
+        'receipt_no': 'demo_pay_1794610203987',
+        'cagri_id': 'cagri-uskudar-1794610205',
+        'hizmet_baslik': 'Çelik Kapı Kilidi Bozuldu, Anahtar Dönmüyor',
+        'kategori': 'Çilingir & Kapı Açma',
+        'musteri_ad': 'Burak Yılmazer',
+        'musteri_tel': '+90 555 333 44 55',
+        'musteri_adres': 'Altunizade, Kısıklı Caddesi No:52, Üsküdar / İstanbul',
+        'usta_ad': 'Serkan Yıldırım',
+        'usta_tel': '+90 542 888 77 66',
+        'usta_meslek': 'Çilingir & Kilit Teknisyeni',
+        'usta_hakedis': 750.00,
+        'komisyon_tutari': 112.50,
+        'komisyon_orani': 0.15,
+        'toplam_tutar': 862.50,
+        'durum': 'Kabul Edildi / İşlemde',
+        'flow_step': 2,
+        'payment_provider': 'İyzico Provizyon (Askıda)',
+        'payment_status': 'Ön Provizyon Alındı',
+        'puan': 0.0,
+        'musteri_yorum': '',
+        'created_at': '14.11.2026 • 00:45',
+        'is_payout_transferred': false,
+      },
+      {
+        'id': 'TRX-1794610203988',
+        'receipt_no': 'demo_pay_1794610203988',
+        'cagri_id': 'cagri-besiktas-1794610206',
+        'hizmet_baslik': 'Kombi Petek Temizliği & Kışlık Bakım',
+        'kategori': 'Klima & Havalandırma',
+        'musteri_ad': 'Selin Varol',
+        'musteri_tel': '+90 530 444 88 99',
+        'musteri_adres': 'Levazım Mahallesi, Koru Sitesi B Blok, Beşiktaş / İstanbul',
+        'usta_ad': 'Hasan Çetin',
+        'usta_tel': '+90 533 111 44 22',
+        'usta_meslek': 'İklimlendirme & Kombi Uzmanı',
+        'usta_hakedis': 1200.00,
+        'komisyon_tutari': 180.00,
+        'komisyon_orani': 0.15,
+        'toplam_tutar': 1380.00,
+        'durum': 'Tamamlandı & Tahsil Edildi',
+        'flow_step': 4,
+        'payment_provider': 'İyzico Sanal POS • 3D Secure',
+        'payment_status': 'Tahsilat Başarılı',
+        'puan': 4.9,
+        'musteri_yorum': 'Petekler eskisine göre çok daha iyi ısınıyor. Temiz işçilik.',
+        'created_at': '13.11.2026 • 18:30',
+        'is_payout_transferred': true,
+      },
+      {
+        'id': 'TRX-1794610203989',
+        'receipt_no': 'demo_pay_1794610203989',
+        'cagri_id': 'cagri-bolvadin-1794610207',
+        'hizmet_baslik': 'Avize Montajı ve 3lü Priz Hat Çekimi',
+        'kategori': 'Elektrik & Aydınlatma',
+        'musteri_ad': 'Ece Aksoy',
+        'musteri_tel': '+90 535 777 66 11',
+        'musteri_adres': 'İmaret Mahallesi, Cami Yanı No:12, Bolvadin / Afyonkarahisar',
+        'usta_ad': 'Kadir Usta',
+        'usta_tel': '05524342069',
+        'usta_meslek': 'Elektrik & Aydınlatma Teknisyeni',
+        'usta_hakedis': 950.00,
+        'komisyon_tutari': 142.50,
+        'komisyon_orani': 0.15,
+        'toplam_tutar': 1092.50,
+        'durum': 'Usta Onayı Bekleniyor',
+        'flow_step': 1,
+        'payment_provider': 'Ön Provizyon Alındı',
+        'payment_status': 'Kart Blokesi Bekliyor',
+        'puan': 0.0,
+        'musteri_yorum': '',
+        'created_at': '14.11.2026 • 01:40',
+        'is_payout_transferred': false,
+      },
+      {
+        'id': 'TRX-1794610203990',
+        'receipt_no': 'demo_pay_1794610203990',
+        'cagri_id': 'cagri-sandikli-1794610208',
+        'hizmet_baslik': 'Banyo Bataryası Değişimi & Tıkanıklık Açma',
+        'kategori': 'Sıhhi Tesisat & Su Kaçağı',
+        'musteri_ad': 'Kemal Sunal',
+        'musteri_tel': '+90 533 222 11 00',
+        'musteri_adres': 'Çakır Mahallesi No:9, Sandıklı / Afyonkarahisar',
+        'usta_ad': 'Ali Kemal Usta',
+        'usta_tel': '+90 541 333 22 11',
+        'usta_meslek': 'Tesisat & Montaj Ustası',
+        'usta_hakedis': 650.00,
+        'komisyon_tutari': 97.50,
+        'komisyon_orani': 0.15,
+        'toplam_tutar': 747.50,
+        'durum': 'Tamamlandı & Tahsil Edildi',
+        'flow_step': 4,
+        'payment_provider': 'İyzico Sanal POS • 3D Secure',
+        'payment_status': 'Tahsilat Başarılı',
+        'puan': 5.0,
+        'musteri_yorum': 'Bataryayı hızlıca değiştirdi, su sızdırmazlığı mükemmel.',
+        'created_at': '13.11.2026 • 15:20',
+        'is_payout_transferred': true,
+      },
+    ];
   }
 
   IconData _iconFromName(String? name) {
@@ -5392,8 +5424,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   // ==========================================
 
   Widget _buildFinancialReportsTab() {
-    _syncFinancialTransactions();
-
     // Filtreleme
     final filteredTransactions = _financialTransactions.where((t) {
       final query = _financialSearchQuery.trim().toLowerCase();
@@ -5574,9 +5604,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       runSpacing: 10,
                       children: [
                         OutlinedButton.icon(
-                          onPressed: () {
+                          onPressed: () async {
+                            await _loadFinancialTransactionsFromPrefs();
                             setState(() {
-                              _syncFinancialTransactions();
                               _recalculateMetrics();
                             });
                             _showSuccessToast('Canlı finansal akış ve çağrılar güncellendi.');
@@ -5772,12 +5802,82 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
               // Veri Tablosu
               if (filteredTransactions.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(48.0),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 48.0, horizontal: 24.0),
                   child: Center(
-                    child: Text(
-                      'Kriterlere uygun finansal işlem veya servis çağrısı bulunamadı.',
-                      style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF1F5F9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.receipt_long_rounded, size: 40, color: Color(0xFF94A3B8)),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _financialTransactions.isEmpty
+                              ? 'Finans masasında kayıtlı işlem bulunmuyor'
+                              : 'Arama kriterlerine uygun işlem bulunamadı',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _financialTransactions.isEmpty
+                              ? 'Tüm kayıtlar silinmiş veya temizlenmiş. Yeni bir işlem ekleyebilir veya varsayılan demo verileri geri yükleyebilirsiniz.'
+                              : 'Lütfen arama terimini veya durum filtresini değiştirip tekrar deneyin.',
+                          style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 20),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 10,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: _showAddTransactionDialog,
+                              icon: const Icon(Icons.add_circle_outline_rounded, size: 16),
+                              label: const Text('Yeni İşlem / Çağrı Kaydı'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFEA580C),
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                            if (_financialTransactions.isEmpty)
+                              OutlinedButton.icon(
+                                onPressed: () async {
+                                  setState(() {
+                                    _seedDefaultFinancialTransactions();
+                                    _recalculateMetrics();
+                                  });
+                                  await _saveFinancialTransactionsToPrefs();
+                                  _showSuccessToast('Varsayılan 6 adet demo işlem kaydı geri yüklendi.');
+                                },
+                                icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                                label: const Text('Varsayılan Demo Verileri Geri Yükle'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF0F172A),
+                                  side: const BorderSide(color: Color(0xFFCBD5E1)),
+                                ),
+                              )
+                            else
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _financialSearchQuery = '';
+                                    _financialStatusFilter = 'Tümü';
+                                    _financialPeriodFilter = 'Tüm Zamanlar';
+                                  });
+                                },
+                                icon: const Icon(Icons.clear_rounded, size: 16),
+                                label: const Text('Filtreleri Temizle'),
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 )
@@ -5891,6 +5991,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                       setState(() {
                                         tx['is_payout_transferred'] = true;
                                       });
+                                      _saveFinancialTransactionsToPrefs();
                                       _showSuccessToast('${tx['usta_ad']} hesabına ${ustaPayout.toStringAsFixed(2)} ₺ aktarıldı.');
                                     },
                                   ),
@@ -6664,6 +6765,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             });
                             _recalculateMetrics();
                           });
+                          _saveFinancialTransactionsToPrefs();
                           Navigator.of(ctx).pop();
                           _showSuccessToast('Yeni finansal hizmet kaydı başarıyla eklendi.');
                         },
@@ -6716,10 +6818,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   void _deleteTransaction(String id) {
     setState(() {
-      _financialTransactions.removeWhere((t) => t['id'] == id);
+      _financialTransactions.removeWhere((t) => (t['id'] ?? '').toString() == id);
       _selectedTransactionIds.remove(id);
       _recalculateMetrics();
     });
+    _saveFinancialTransactionsToPrefs();
     _showSuccessToast('İşlem kaydı başarıyla silindi.');
   }
 
@@ -6741,11 +6844,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
           ElevatedButton(
             onPressed: () {
+              final toDelete = Set<String>.from(_selectedTransactionIds);
               setState(() {
-                _financialTransactions.removeWhere((t) => _selectedTransactionIds.contains(t['id']));
+                _financialTransactions.removeWhere((t) => toDelete.contains((t['id'] ?? '').toString()));
                 _selectedTransactionIds.clear();
                 _recalculateMetrics();
               });
+              _saveFinancialTransactionsToPrefs();
               Navigator.pop(ctx);
               _showSuccessToast('Seçilen finansal işlemler başarıyla silindi.');
             },
@@ -6780,8 +6885,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 _selectedTransactionIds.clear();
                 _recalculateMetrics();
               });
+              _saveFinancialTransactionsToPrefs();
               Navigator.pop(ctx);
-              _showSuccessToast('Tüm finansal kayıtlar temizlendi.');
+              _showSuccessToast('Tüm finansal kayıtlar kalıcı olarak temizlendi.');
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
             child: const Text('Evet, Tümünü Temizle'),
@@ -6846,6 +6952,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   }
                   _recalculateMetrics();
                 });
+                _saveFinancialTransactionsToPrefs();
                 Navigator.pop(ctx);
                 _showSuccessToast('${_selectedTransactionIds.length} işlemin durumu güncellendi.');
               },
@@ -6871,6 +6978,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         }
       }
     });
+    _saveFinancialTransactionsToPrefs();
     _showSuccessToast('$count ustanın toplam ${totalPayout.toStringAsFixed(2)} ₺ hakedişi bankaya aktarıldı.');
   }
 
@@ -6901,6 +7009,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       }
       _recalculateMetrics();
     });
+    _saveFinancialTransactionsToPrefs();
     _showSuccessToast('${tx['receipt_no']} aşaması: "$newStatus" olarak güncellendi.');
   }
 
@@ -7148,6 +7257,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     tx['musteri_yorum'] = commentCtrl.text.trim();
                     _recalculateMetrics();
                   });
+                  _saveFinancialTransactionsToPrefs();
                   Navigator.of(ctx).pop();
                   _showSuccessToast('✓ "${tx['receipt_no']}" bilgileri başarıyla güncellendi.');
                 },
