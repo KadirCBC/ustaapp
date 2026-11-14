@@ -122,4 +122,46 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('demo_pay_1794610203985'), findsOneWidget);
   });
+
+  testWidgets('Admin Paneli Açık / Koyu Tema Geçişi ve Kalıcı Tercih Testi', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'is_admin_session_active': true,
+      'admin_logged_in': true,
+      'admin_is_dark_mode': false,
+    });
+
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(
+          home: AdminDashboardScreen(),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // Başlangıçta Açık Mod aktif olmalı, butonda "Açık Tema" yazmalı
+    expect(find.text('Açık Tema'), findsOneWidget);
+
+    // Açık Tema butonuna tıkla -> Koyu Moda geçiş
+    await tester.tap(find.text('Açık Tema'));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // Koyu Moda geçiş yapıldığını doğrula
+    expect(find.text('Koyu Tema'), findsOneWidget);
+    final prefs1 = await SharedPreferences.getInstance();
+    expect(prefs1.getBool('admin_is_dark_mode'), isTrue);
+
+    // Tekrar butona tıkla -> Açık Moda dönüş
+    await tester.tap(find.text('Koyu Tema'));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // Tekrar Açık Moda geçildiğini doğrula
+    expect(find.text('Açık Tema'), findsOneWidget);
+    final prefs2 = await SharedPreferences.getInstance();
+    expect(prefs2.getBool('admin_is_dark_mode'), isFalse);
+  });
 }

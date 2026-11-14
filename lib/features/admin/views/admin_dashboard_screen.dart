@@ -108,9 +108,52 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   StreamSubscription<void>? _syncSubscription;
 
+  // ==========================================
+  // PROFESYONEL TEMA (LIGHT & DARK MODE)
+  // ==========================================
+  bool _isDarkMode = false;
+
+  Color get _bgPrimary => _isDarkMode ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC);
+  Color get _bgSurface => _isDarkMode ? const Color(0xFF131B2E) : Colors.white;
+  Color get _bgSurfaceElevated => _isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
+  Color get _borderPrimary => _isDarkMode ? const Color(0xFF263345) : const Color(0xFFE2E8F0);
+  Color get _borderSecondary => _isDarkMode ? const Color(0xFF334155) : const Color(0xFFCBD5E1);
+  Color get _textPrimary => _isDarkMode ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+  Color get _textSecondary => _isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF475569);
+  Color get _textMuted => _isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+  Color get _inputFill => _isDarkMode ? const Color(0xFF0D1424) : const Color(0xFFF8FAFC);
+  Color get _tableHeader => _isDarkMode ? const Color(0xFF162035) : const Color(0xFFF8FAFC);
+  Color get _headerBg => _isDarkMode ? const Color(0xFF111827) : Colors.white;
+  Color get _sidebarBg => _isDarkMode ? const Color(0xFF080C14) : const Color(0xFF090D16);
+  Color get _cardShadow => _isDarkMode ? Colors.black.withValues(alpha: 0.35) : Colors.black.withValues(alpha: 0.03);
+  List<BoxShadow> get _cardBoxShadow => [
+    BoxShadow(
+      color: _cardShadow,
+      blurRadius: 12,
+      offset: const Offset(0, 4),
+    ),
+  ];
+
+  Future<void> _loadThemePreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final dark = prefs.getBool('admin_is_dark_mode') ?? false;
+      if (mounted) setState(() => _isDarkMode = dark);
+    } catch (_) {}
+  }
+
+  Future<void> _toggleThemeMode() async {
+    setState(() => _isDarkMode = !_isDarkMode);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('admin_is_dark_mode', _isDarkMode);
+    } catch (_) {}
+  }
+
   @override
   void initState() {
     super.initState();
+    _loadThemePreference();
     final appData = ref.read(appDataServiceProvider);
     _syncSubscription = appData.onDataChanged.listen((_) {
       if (mounted && _isAdmin) {
@@ -2829,8 +2872,48 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       return _buildUnauthorizedScreen();
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
+    final themeData = (_isDarkMode ? ThemeData.dark() : ThemeData.light()).copyWith(
+      scaffoldBackgroundColor: _bgPrimary,
+      cardColor: _bgSurface,
+      canvasColor: _bgSurface,
+      dividerColor: _borderSecondary,
+      dialogBackgroundColor: _bgSurface,
+      dialogTheme: DialogThemeData(
+        backgroundColor: _bgSurface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        titleTextStyle: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: _textPrimary),
+        contentTextStyle: TextStyle(fontSize: 13, color: _textSecondary),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: _inputFill,
+        hintStyle: TextStyle(color: _textMuted, fontSize: 13),
+        labelStyle: TextStyle(color: _textSecondary, fontSize: 13),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: _borderPrimary),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF0284C7), width: 1.5),
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: _borderPrimary),
+        ),
+      ),
+      colorScheme: (_isDarkMode ? const ColorScheme.dark() : const ColorScheme.light()).copyWith(
+        primary: AppTheme.ustaPrimary,
+        surface: _bgSurface,
+        onSurface: _textPrimary,
+      ),
+    );
+
+    return Theme(
+      data: themeData,
+      child: Scaffold(
+        backgroundColor: _bgPrimary,
       body: Row(
         children: [
           // 1. SOL SIDEBAR
@@ -2875,8 +2958,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ==========================================
   // SİDEBAR & HEADER
@@ -2884,7 +2968,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   Widget _buildSidebar() {
     return Material(
-      color: const Color(0xFF090D16),
+      color: _sidebarBg,
       child: SizedBox(
         width: 270,
         child: Column(
@@ -3133,9 +3217,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+      decoration: BoxDecoration(
+        color: _headerBg,
+        border: Border(bottom: BorderSide(color: _borderPrimary)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3144,39 +3228,139 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             children: [
               Text(
                 _getMenuTitle(),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE0F2FE),
-                  borderRadius: BorderRadius.circular(6),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: _textPrimary,
+                  letterSpacing: -0.3,
                 ),
-                child: const Text(
-                  'Web Canlı Mod',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0284C7)),
+              ),
+              const SizedBox(width: 14),
+              // Canlı Senkronizasyon Rozeti
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _isDarkMode
+                      ? const Color(0xFF064E3B).withValues(alpha: 0.5)
+                      : const Color(0xFFE0F2FE),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _isDarkMode ? const Color(0xFF059669) : const Color(0xFF38BDF8),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFF10B981),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Web Canlı Mod • Port 8090',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _isDarkMode ? const Color(0xFF34D399) : const Color(0xFF0284C7),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
           Row(
             children: [
-              IconButton(
-                icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B)),
-                tooltip: 'Verileri Yenile',
-                onPressed: _loadDashboardData,
+              // Tema Değiştirici (Light / Dark Switcher)
+              InkWell(
+                onTap: _toggleThemeMode,
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: _isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _borderPrimary),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                        size: 16,
+                        color: _isDarkMode ? const Color(0xFFFBBF24) : const Color(0xFFEA580C),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _isDarkMode ? 'Koyu Tema' : 'Açık Tema',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: _textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(width: 12),
-              const CircleAvatar(
-                radius: 17,
-                backgroundColor: Color(0xFF0F172A),
-                child: Icon(Icons.admin_panel_settings, color: Colors.white, size: 18),
+
+              // Verileri Yenile Butonu
+              IconButton(
+                icon: Icon(Icons.refresh_rounded, color: _textSecondary),
+                tooltip: 'Verileri Canlı Yenile',
+                onPressed: _loadDashboardData,
               ),
               const SizedBox(width: 8),
-              const Text(
-                'Sistem Yöneticisi',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+              Container(
+                height: 24,
+                width: 1,
+                color: _borderPrimary,
+              ),
+              const SizedBox(width: 14),
+
+              // Profil & Yönetici Bilgisi
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: _isDarkMode ? const Color(0xFF1E293B) : const Color(0xFF0F172A),
+                child: const Icon(Icons.admin_panel_settings, color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Sistem Yöneticisi',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFF10B981),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Süper Admin • Çevrimiçi',
+                        style: TextStyle(fontSize: 10.5, color: _textMuted),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),
@@ -3291,15 +3475,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _bgSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _borderPrimary),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
+            color: _cardShadow,
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -3315,26 +3499,31 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 13, color: _textSecondary, fontWeight: FontWeight.w600),
                 ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
+                  color: color.withValues(alpha: _isDarkMode ? 0.22 : 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, color: color, size: 20),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             value,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: _textPrimary,
+              letterSpacing: -0.5,
+            ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 5),
           Text(
             subtitle,
             maxLines: 1,
@@ -3460,9 +3649,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _bgSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _borderPrimary),
+        boxShadow: _cardBoxShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -3472,17 +3662,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Column(
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Canlı İlanlar & Servis Talebi Akışı',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _textPrimary),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       'Müşterilerin oluşturduğu anlık arıza, tamir ve montaj çağrıları.',
-                      style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                      style: TextStyle(fontSize: 12.5, color: _textSecondary),
                     ),
                   ],
                 ),
@@ -3500,16 +3690,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          Divider(height: 1, color: _borderSecondary),
           if (_activeJobs.isEmpty)
             Padding(
               padding: const EdgeInsets.all(32.0),
               child: Center(
                 child: Column(
                   children: [
-                    const Icon(Icons.campaign_outlined, size: 40, color: Color(0xFFCBD5E1)),
+                    Icon(Icons.campaign_outlined, size: 40, color: _textMuted),
                     const SizedBox(height: 8),
-                    const Text('Henüz aktif bir ilan veya servis çağrısı bulunmuyor.', style: TextStyle(color: Color(0xFF64748B), fontSize: 13.5)),
+                    Text('Henüz aktif bir ilan veya servis çağrısı bulunmuyor.', style: TextStyle(color: _textSecondary, fontSize: 13.5)),
                     const SizedBox(height: 12),
                     ElevatedButton.icon(
                       onPressed: _showAddJobDialog,
@@ -3536,14 +3726,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: _borderSecondary)),
               ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(color: const Color(0xFF0F172A), borderRadius: BorderRadius.circular(6)),
+                    decoration: BoxDecoration(
+                      color: _isDarkMode ? const Color(0xFF334155) : const Color(0xFF0F172A),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
                     child: Text((job['id'] ?? '').toString(), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(width: 12),
@@ -3551,9 +3744,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text((job['title'] ?? '').toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                        Text((job['title'] ?? '').toString(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: _textPrimary)),
                         const SizedBox(height: 2),
-                        Text('$kat • $dist • $cust', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                        Text('$kat • $dist • $cust', style: TextStyle(fontSize: 12, color: _textSecondary)),
                       ],
                     ),
                   ),
@@ -3565,7 +3758,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   const SizedBox(width: 16),
                   Text(
                     job['price'] is num ? '${(job['price'] as num).toStringAsFixed(0)} ₺' : (job['price']?.toString() ?? '0 ₺'),
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: _textPrimary),
                   ),
                   const SizedBox(width: 12),
                   IconButton(
@@ -3600,9 +3793,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _bgSurface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: _borderPrimary),
+          boxShadow: _cardBoxShadow,
         ),
         child: Row(
           children: [
@@ -3619,12 +3813,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF0F172A))),
-                  Text(subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                  Text(title, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: _textPrimary)),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: TextStyle(fontSize: 11.5, color: _textSecondary)),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 20),
+            Icon(Icons.chevron_right_rounded, color: _textMuted, size: 20),
           ],
         ),
       ),
@@ -3743,9 +3938,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         // Ana İlan Masası Kartı
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _bgSurface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: _borderPrimary),
+            boxShadow: _cardBoxShadow,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -3759,14 +3955,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Aktif İlanlar & Servis Çağrıları Masası',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _textPrimary),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Müşteri servis taleplerini inceleyin, usta atayın, güncelleyin veya yeni ilan açın.',
-                          style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                          style: TextStyle(fontSize: 12.5, color: _textSecondary),
                         ),
                       ],
                     ),
@@ -3784,7 +3980,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ],
                 ),
               ),
-              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              Divider(height: 1, color: _borderSecondary),
 
               // Filtre & Arama Araç Çubuğu
               Padding(
@@ -3840,7 +4036,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ],
                 ),
               ),
-              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              Divider(height: 1, color: _borderSecondary),
 
               // Toplu Seçim Aksiyon Çubuğu (Varsa)
               if (_selectedJobIds.isNotEmpty)
@@ -3922,7 +4118,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: DataTable(
-                    headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                    headingRowColor: WidgetStateProperty.all(_tableHeader),
                     columns: [
                       DataColumn(
                         label: Checkbox(
@@ -3939,15 +4135,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           },
                         ),
                       ),
-                      const DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold))),
-                      const DataColumn(label: Text('İlan No & Başlık', style: TextStyle(fontWeight: FontWeight.bold))),
-                      const DataColumn(label: Text('Kategori', style: TextStyle(fontWeight: FontWeight.bold))),
-                      const DataColumn(label: Text('Müşteri / Usta', style: TextStyle(fontWeight: FontWeight.bold))),
-                      const DataColumn(label: Text('Bölge / İlçe', style: TextStyle(fontWeight: FontWeight.bold))),
-                      const DataColumn(label: Text('Tahmini Ücret', style: TextStyle(fontWeight: FontWeight.bold))),
-                      const DataColumn(label: Text('Durum', style: TextStyle(fontWeight: FontWeight.bold))),
-                      const DataColumn(label: Text('Görevli Usta', style: TextStyle(fontWeight: FontWeight.bold))),
-                      const DataColumn(label: Text('Zaman', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                      DataColumn(label: Text('İlan No & Başlık', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                      DataColumn(label: Text('Kategori', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                      DataColumn(label: Text('Müşteri / Usta', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                      DataColumn(label: Text('Bölge / İlçe', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                      DataColumn(label: Text('Tahmini Ücret', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                      DataColumn(label: Text('Durum', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                      DataColumn(label: Text('Görevli Usta', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                      DataColumn(label: Text('Zaman', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
                     ],
                     rows: filteredJobs.map((job) {
                       final status = job['status'] ?? 'Bekliyor';
@@ -4161,9 +4357,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Widget _buildUstaApprovalsCard() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _bgSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _borderPrimary),
+        boxShadow: _cardBoxShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -4176,14 +4373,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Usta Başvuru & Onay Masası',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _textPrimary),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Toplam ${_pendingUstalar.length} usta adayı inceleme ve onay bekliyor.',
-                      style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                      style: TextStyle(fontSize: 12.5, color: _textSecondary),
                     ),
                   ],
                 ),
@@ -4209,16 +4406,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          Divider(height: 1, color: _borderSecondary),
           if (_pendingUstalar.isEmpty)
             Padding(
               padding: const EdgeInsets.all(40.0),
               child: Center(
                 child: Column(
                   children: [
-                    const Icon(Icons.verified_user_outlined, size: 40, color: Color(0xFFCBD5E1)),
+                    Icon(Icons.verified_user_outlined, size: 40, color: _textMuted),
                     const SizedBox(height: 10),
-                    const Text('Onay bekleyen yeni başvuru bulunmuyor.', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                    Text('Onay bekleyen yeni başvuru bulunmuyor.', style: TextStyle(fontWeight: FontWeight.bold, color: _textSecondary)),
                     const SizedBox(height: 12),
                     ElevatedButton.icon(
                       onPressed: _showAddPendingApplicationDialog,
@@ -4234,15 +4431,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: DataTable(
-                headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-                columns: const [
-                  DataColumn(label: Text('Usta Adı Soyadı', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Telefon Numarası', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Meslek / Kategori', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Tecrübe', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Yüklenen Belgeler', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Başvuru Zamanı', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold))),
+                headingRowColor: WidgetStateProperty.all(_tableHeader),
+                columns: [
+                  DataColumn(label: Text('Usta Adı Soyadı', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                  DataColumn(label: Text('Telefon Numarası', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                  DataColumn(label: Text('Meslek / Kategori', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                  DataColumn(label: Text('Tecrübe', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                  DataColumn(label: Text('Yüklenen Belgeler', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                  DataColumn(label: Text('Başvuru Zamanı', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                  DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
                 ],
                 rows: _pendingUstalar.map((usta) {
                   return DataRow(
@@ -4346,9 +4543,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _bgSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _borderPrimary),
+        boxShadow: _cardBoxShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -4361,14 +4559,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Kayıtlı & Aktif Ustalar Listesi',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _textPrimary),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Sistemde onaylı çalışan toplam ${_activeUstalar.length} usta bulunmaktadır.',
-                      style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                      style: TextStyle(fontSize: 12.5, color: _textSecondary),
                     ),
                   ],
                 ),
@@ -4422,7 +4620,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          Divider(height: 1, color: _borderSecondary),
 
           // Toplu Seçim Aksiyon Çubuğu (Varsa)
           if (_selectedUstaIds.isNotEmpty)
@@ -4484,7 +4682,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              headingRowColor: WidgetStateProperty.all(_tableHeader),
               columns: [
                 DataColumn(
                   label: Checkbox(
@@ -4501,15 +4699,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     },
                   ),
                 ),
-                const DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold))),
-                const DataColumn(label: Text('Usta / İşletme', style: TextStyle(fontWeight: FontWeight.bold))),
-                const DataColumn(label: Text('Telefon', style: TextStyle(fontWeight: FontWeight.bold))),
-                const DataColumn(label: Text('Kategori', style: TextStyle(fontWeight: FontWeight.bold))),
-                const DataColumn(label: Text('Ücret / Fiyat', style: TextStyle(fontWeight: FontWeight.bold))),
-                const DataColumn(label: Text('Puan & Yorum', style: TextStyle(fontWeight: FontWeight.bold))),
-                const DataColumn(label: Text('Tamamlanan İş', style: TextStyle(fontWeight: FontWeight.bold))),
-                const DataColumn(label: Text('Durum', style: TextStyle(fontWeight: FontWeight.bold))),
-                const DataColumn(label: Text('Bölge', style: TextStyle(fontWeight: FontWeight.bold))),
+                DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Usta / İşletme', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Telefon', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Kategori', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Ücret / Fiyat', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Puan & Yorum', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Tamamlanan İş', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Durum', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Bölge', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
               ],
               rows: filteredUstalar.map((u) {
                 final isOnline = u['status'] == 'Çevrimiçi';
@@ -4640,9 +4838,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _bgSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _borderPrimary),
+        boxShadow: _cardBoxShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -4655,14 +4854,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Müşteri & Üye Yönetim Masası',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _textPrimary),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Toplam ${_members.length} kayıtlı müşteri. Üye ekleyebilir, banlayabilir veya silebilirsiniz.',
-                      style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                      style: TextStyle(fontSize: 12.5, color: _textSecondary),
                     ),
                   ],
                 ),
@@ -4716,7 +4915,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          Divider(height: 1, color: _borderSecondary),
 
           // Toplu Seçim Aksiyon Çubuğu (Varsa)
           if (_selectedMemberIds.isNotEmpty)
@@ -4778,7 +4977,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              headingRowColor: WidgetStateProperty.all(_tableHeader),
               columns: [
                 DataColumn(
                   label: Checkbox(
@@ -4795,14 +4994,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     },
                   ),
                 ),
-                const DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold))),
-                const DataColumn(label: Text('Müşteri Adı', style: TextStyle(fontWeight: FontWeight.bold))),
-                const DataColumn(label: Text('Telefon', style: TextStyle(fontWeight: FontWeight.bold))),
-                const DataColumn(label: Text('E-Posta', style: TextStyle(fontWeight: FontWeight.bold))),
-                const DataColumn(label: Text('Rol', style: TextStyle(fontWeight: FontWeight.bold))),
-                const DataColumn(label: Text('Durum', style: TextStyle(fontWeight: FontWeight.bold))),
-                const DataColumn(label: Text('Toplam Çağrı', style: TextStyle(fontWeight: FontWeight.bold))),
-                const DataColumn(label: Text('Kayıt Tarihi', style: TextStyle(fontWeight: FontWeight.bold))),
+                DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Müşteri Adı', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Telefon', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('E-Posta', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Rol', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Durum', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Toplam Çağrı', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Kayıt Tarihi', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
               ],
               rows: filteredMembers.map((m) {
                 final isBanned = m['status'] == 'Banlandı';
@@ -4903,9 +5102,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _bgSurface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: _borderPrimary),
+            boxShadow: _cardBoxShadow,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -4921,16 +5121,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     child: const Icon(Icons.storefront_rounded, color: Color(0xFF854D0E), size: 22),
                   ),
                   const SizedBox(width: 12),
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Haritaya Yeni Tedarikçi / İşletme Ekle (Sarı Pin)',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _textPrimary),
                       ),
                       Text(
                         'Eklenen dükkanlar müşteri ve usta haritasında anlaşmalı sarı pin olarak görüntülenir.',
-                        style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                        style: TextStyle(fontSize: 12.5, color: _textSecondary),
                       ),
                     ],
                   ),
@@ -5025,9 +5225,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         // Mevcut İşletmeler Tablosu
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _bgSurface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: _borderPrimary),
+            boxShadow: _cardBoxShadow,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -5036,21 +5237,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 padding: const EdgeInsets.all(20.0),
                 child: Text(
                   'Kayıtlı Anlaşmalı Tedarikçiler (${_tedarikciler.length})',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _textPrimary),
                 ),
               ),
-              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              Divider(height: 1, color: _borderSecondary),
               if (_tedarikciler.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(40.0),
+                Padding(
+                  padding: const EdgeInsets.all(40.0),
                   child: Center(
                     child: Column(
                       children: [
-                        Icon(Icons.store_outlined, size: 48, color: Color(0xFFCBD5E1)),
-                        SizedBox(height: 12),
-                        Text('Henüz kayıtlı tedarikçi veya anlaşmalı dükkan bulunmuyor.', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-                        SizedBox(height: 4),
-                        Text('Yukarıdaki formu doldurarak haritaya sarı pinli yeni bir tedarikçi ekleyebilirsiniz.', style: TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8))),
+                        Icon(Icons.store_outlined, size: 48, color: _textMuted),
+                        const SizedBox(height: 12),
+                        Text('Henüz kayıtlı tedarikçi veya anlaşmalı dükkan bulunmuyor.', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: _textSecondary)),
+                        const SizedBox(height: 4),
+                        Text('Yukarıdaki formu doldurarak haritaya sarı pinli yeni bir tedarikçi ekleyebilirsiniz.', style: TextStyle(fontSize: 12.5, color: _textMuted)),
                       ],
                     ),
                   ),
@@ -5059,15 +5260,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: DataTable(
-                  headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-                  columns: const [
-                    DataColumn(label: Text('İşletme Adı', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('Kategori', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('Telefon', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('Konum (Lat / Lng)', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('Adres', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('İndirim Oranı', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold))),
+                  headingRowColor: WidgetStateProperty.all(_tableHeader),
+                  columns: [
+                    DataColumn(label: Text('İşletme Adı', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                    DataColumn(label: Text('Kategori', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                    DataColumn(label: Text('Telefon', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                    DataColumn(label: Text('Konum (Lat / Lng)', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                    DataColumn(label: Text('Adres', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                    DataColumn(label: Text('İndirim Oranı', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                    DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
                   ],
                   rows: _tedarikciler.map((biz) {
                     return DataRow(
@@ -5138,9 +5339,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Widget _buildMapPinsTab() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _bgSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _borderPrimary),
+        boxShadow: _cardBoxShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -5153,14 +5355,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Harita Pin & Özel Nokta Yönetimi',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _textPrimary),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Haritada gösterilen özel servis, toplanma ve acil müdahale pinlerini yönetin (${_mapPins.length} Pin).',
-                      style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                      style: TextStyle(fontSize: 12.5, color: _textSecondary),
                     ),
                   ],
                 ),
@@ -5177,18 +5379,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          Divider(height: 1, color: _borderSecondary),
           if (_mapPins.isEmpty)
             Padding(
               padding: const EdgeInsets.all(40.0),
               child: Center(
                 child: Column(
                   children: [
-                    const Icon(Icons.location_off_outlined, size: 48, color: Color(0xFFCBD5E1)),
+                    Icon(Icons.location_off_outlined, size: 48, color: _textMuted),
                     const SizedBox(height: 12),
-                    const Text('Henüz harita pini eklenmedi.', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                    Text('Henüz harita pini eklenmedi.', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: _textSecondary)),
                     const SizedBox(height: 4),
-                    const Text('Haritada gösterilecek istasyonları veya servis noktalarını ekleyebilirsiniz.', style: TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8))),
+                    Text('Haritada gösterilecek istasyonları veya servis noktalarını ekleyebilirsiniz.', style: TextStyle(fontSize: 12.5, color: _textMuted)),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: _showAddPinDialog,
@@ -5204,14 +5406,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-              columns: const [
-                DataColumn(label: Text('Pin Başlığı', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Pin Türü', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Koordinatlar (Lat / Lng)', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Açıklama', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Haritada Görünüm', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold))),
+              headingRowColor: WidgetStateProperty.all(_tableHeader),
+              columns: [
+                DataColumn(label: Text('Pin Başlığı', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Pin Türü', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Koordinatlar (Lat / Lng)', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Açıklama', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Haritada Görünüm', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
               ],
               rows: _mapPins.map((p) {
                 final color = p['color'] as Color;
@@ -5291,9 +5493,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Widget _buildCategoriesTab() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _bgSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _borderPrimary),
+        boxShadow: _cardBoxShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -5306,14 +5509,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Hizmet & İşletme Kategori Yönetimi',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _textPrimary),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Uygulamadaki usta meslek kollarını ve dükkan kategorilerini yönetin (${_categories.length} Kategori).',
-                      style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                      style: TextStyle(fontSize: 12.5, color: _textSecondary),
                     ),
                   ],
                 ),
@@ -5330,18 +5533,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          Divider(height: 1, color: _borderSecondary),
           if (_categories.isEmpty)
             Padding(
               padding: const EdgeInsets.all(40.0),
               child: Center(
                 child: Column(
                   children: [
-                    const Icon(Icons.category_outlined, size: 48, color: Color(0xFFCBD5E1)),
+                    Icon(Icons.category_outlined, size: 48, color: _textMuted),
                     const SizedBox(height: 12),
-                    const Text('Henüz kayıtlı kategori bulunmuyor.', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                    Text('Henüz kayıtlı kategori bulunmuyor.', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: _textSecondary)),
                     const SizedBox(height: 4),
-                    const Text('Usta meslek alanlarını veya dükkan türlerini oluşturmak için kategori ekleyin.', style: TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8))),
+                    Text('Usta meslek alanlarını veya dükkan türlerini oluşturmak için kategori ekleyin.', style: TextStyle(fontSize: 12.5, color: _textMuted)),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: _showAddCategoryDialog,
@@ -5357,13 +5560,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-              columns: const [
-                DataColumn(label: Text('Kategori Adı', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Tür', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Açıklama', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Kayıtlı Varlık', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold))),
+              headingRowColor: WidgetStateProperty.all(_tableHeader),
+              columns: [
+                DataColumn(label: Text('Kategori Adı', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Tür', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Açıklama', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Kayıtlı Varlık', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
               ],
               rows: _categories.map((c) {
                 final color = c['color'] as Color;
@@ -5548,9 +5751,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         // 2. ANA İŞLEM VE HİZMET AKIŞI MASASI
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _bgSurface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: _borderPrimary),
+            boxShadow: [
+              BoxShadow(
+                color: _cardShadow,
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -5572,25 +5782,37 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           spacing: 12,
                           runSpacing: 8,
                           children: [
-                            const Text(
+                            Text(
                               'Hizmet Akışı & Finansal Raporlar Masası',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _textPrimary),
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFECFDF5),
+                                color: _isDarkMode
+                                    ? const Color(0xFF064E3B).withValues(alpha: 0.5)
+                                    : const Color(0xFFECFDF5),
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: const Color(0xFF10B981)),
+                                border: Border.all(
+                                  color: _isDarkMode ? const Color(0xFF059669) : const Color(0xFF10B981),
+                                ),
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.lock_outline_rounded, size: 12, color: Color(0xFF047857)),
-                                  SizedBox(width: 4),
+                                  Icon(
+                                    Icons.lock_outline_rounded,
+                                    size: 12,
+                                    color: _isDarkMode ? const Color(0xFF34D399) : const Color(0xFF047857),
+                                  ),
+                                  const SizedBox(width: 4),
                                   Text(
                                     'İyzico Sanal POS • %15 Komisyon',
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF047857)),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: _isDarkMode ? const Color(0xFF34D399) : const Color(0xFF047857),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -5598,9 +5820,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           ],
                         ),
                         const SizedBox(height: 4),
-                        const Text(
+                        Text(
                           'Tüm servis çağrıları, canlı akış aşamaları (Onay ➔ Kabul ➔ Yolda ➔ Bitti), usta hakedişleri ve şirketimiz komisyon kazançları.',
-                          style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                          style: TextStyle(fontSize: 12.5, color: _textSecondary),
                         ),
                       ],
                     ),
@@ -5619,8 +5841,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           icon: const Icon(Icons.refresh_rounded, size: 16),
                           label: const Text('Akışı Yenile'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF0F172A),
-                            side: const BorderSide(color: Color(0xFFCBD5E1)),
+                            foregroundColor: _textPrimary,
+                            side: BorderSide(color: _borderSecondary),
                           ),
                         ),
                         ElevatedButton.icon(
@@ -5637,7 +5859,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           icon: const Icon(Icons.download_rounded, size: 16),
                           label: const Text('Mali Rapor (Excel)'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0F172A),
+                            backgroundColor: _isDarkMode ? const Color(0xFF1E293B) : const Color(0xFF0F172A),
                             foregroundColor: Colors.white,
                           ),
                         ),
@@ -5654,7 +5876,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ],
                 ),
               ),
-              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              Divider(height: 1, color: _borderPrimary),
 
               // Toplu İşlem Çubuğu (Bulk Action Toolbar)
               if (_selectedTransactionIds.isNotEmpty)
@@ -5732,20 +5954,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       flex: 4,
                       child: TextField(
                         onChanged: (val) => setState(() => _financialSearchQuery = val),
+                        style: TextStyle(fontSize: 13, color: _textPrimary),
                         decoration: InputDecoration(
                           hintText: 'Dekont No, Usta Adı, Müşteri Adı veya İlçe ile ara...',
-                          hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                          prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF64748B)),
+                          hintStyle: TextStyle(fontSize: 13, color: _textMuted),
+                          prefixIcon: Icon(Icons.search_rounded, size: 18, color: _textSecondary),
                           filled: true,
-                          fillColor: const Color(0xFFF8FAFC),
+                          fillColor: _inputFill,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                            borderSide: BorderSide(color: _borderPrimary),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                            borderSide: BorderSide(color: _borderPrimary),
                           ),
                         ),
                       ),
@@ -5755,14 +5978,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: _inputFill,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: _borderPrimary),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _financialStatusFilter,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                          dropdownColor: _bgSurface,
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _textPrimary),
                           items: const [
                             DropdownMenuItem(value: 'Tümü', child: Text('Tüm Durumlar')),
                             DropdownMenuItem(value: 'Tamamlandı & Tahsil Edildi', child: Text('✓ Tamamlandı & Tahsil Edildi')),
@@ -5781,14 +6005,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: _inputFill,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: _borderPrimary),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _financialPeriodFilter,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                          dropdownColor: _bgSurface,
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _textPrimary),
                           items: const [
                             DropdownMenuItem(value: 'Tüm Zamanlar', child: Text('Tüm Zamanlar')),
                             DropdownMenuItem(value: 'Bugün', child: Text('Bugün')),
@@ -5890,7 +6115,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: DataTable(
-                    headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                    headingRowColor: WidgetStateProperty.all(_tableHeader),
                     dataRowMinHeight: 68,
                     dataRowMaxHeight: 76,
                     columnSpacing: 20,
@@ -5912,27 +6137,27 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         ),
                       ),
                       // 2. Aksiyonlar (Hemen başta - Asla kaybolmaz, doğrudan erişilebilir!)
-                      const DataColumn(label: Text('İşlemler / Aksiyon', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)))),
+                      DataColumn(label: Text('İşlemler / Aksiyon', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
                       // 3. Dekont / İşlem No
-                      const DataColumn(label: Text('Dekont / İşlem No', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      DataColumn(label: Text('Dekont / İşlem No', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
                       // 4. Hizmet & Kategori
-                      const DataColumn(label: Text('Hizmet & Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      DataColumn(label: Text('Hizmet & Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
                       // 5. Müşteri
-                      const DataColumn(label: Text('Müşteri', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      DataColumn(label: Text('Müşteri', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
                       // 6. Görevli Usta
-                      const DataColumn(label: Text('Görevli Usta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      DataColumn(label: Text('Görevli Usta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
                       // 7. Usta Tabanı
-                      const DataColumn(label: Text('Hizmet Bedeli\n(Usta Taban)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                      DataColumn(label: Text('Hizmet Bedeli\n(Usta Taban)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
                       // 8. Komisyon (%15)
                       const DataColumn(label: Text('Bizim Komisyon\nKazancımız (%15)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF16A34A)))),
                       // 9. Toplam Çekilen
                       const DataColumn(label: Text('Toplam Çekilen\nTutar (Müşteri)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0284C7)))),
                       // 10. Hizmet Akış Aşaması
-                      const DataColumn(label: Text('Hizmet Akış Aşaması', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      DataColumn(label: Text('Hizmet Akış Aşaması', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
                       // 11. Ödeme Sağlayıcı
-                      const DataColumn(label: Text('Ödeme Sağlayıcı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      DataColumn(label: Text('Ödeme Sağlayıcı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
                       // 12. Tarih / Saat
-                      const DataColumn(label: Text('Tarih / Saat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5))),
+                      DataColumn(label: Text('Tarih / Saat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
                     ],
                     rows: filteredTransactions.map((tx) {
                       final status = (tx['durum'] ?? '').toString();
@@ -6040,7 +6265,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                     const SizedBox(height: 2),
                                     Text(
                                       (tx['cagri_id'] ?? tx['id'] ?? '').toString(),
-                                      style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                      style: TextStyle(fontSize: 11, color: _textMuted),
                                     ),
                                   ],
                                 ),
@@ -6056,18 +6281,19 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               children: [
                                 Text(
                                   (tx['hizmet_baslik'] ?? 'Servis Çağrısı').toString(),
-                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
+                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _textPrimary),
                                 ),
                                 const SizedBox(height: 2),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF1F5F9),
+                                    color: _bgSurfaceElevated,
                                     borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: _borderPrimary),
                                   ),
                                   child: Text(
                                     (tx['kategori'] ?? 'Genel').toString(),
-                                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                                    style: TextStyle(fontSize: 11, color: _textSecondary, fontWeight: FontWeight.w600),
                                   ),
                                 ),
                               ],
@@ -6082,11 +6308,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               children: [
                                 Text(
                                   (tx['musteri_ad'] ?? 'Müşteri').toString(),
-                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: Color(0xFF0F172A)),
+                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: _textPrimary),
                                 ),
                                 Text(
                                   '${tx['musteri_tel']} • ${(tx['musteri_adres'] ?? '').toString().split(',').first}',
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                  style: TextStyle(fontSize: 11, color: _textMuted),
                                 ),
                               ],
                             ),
@@ -6105,13 +6331,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                     const SizedBox(width: 4),
                                     Text(
                                       (tx['usta_ad'] ?? '—').toString(),
-                                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF0F172A)),
+                                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: _textPrimary),
                                     ),
                                   ],
                                 ),
                                 Text(
                                   '${tx['usta_meslek'] ?? ''} • ${tx['usta_tel'] ?? ''}',
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                  style: TextStyle(fontSize: 11, color: _textMuted),
                                 ),
                               ],
                             ),
@@ -6121,7 +6347,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           DataCell(
                             Text(
                               '${ustaPayout.toStringAsFixed(2)} ₺',
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: Color(0xFF0F172A)),
+                              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: _textPrimary),
                             ),
                           ),
 
@@ -6130,13 +6356,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFECFDF5),
+                                color: _isDarkMode
+                                    ? const Color(0xFF064E3B).withValues(alpha: 0.6)
+                                    : const Color(0xFFECFDF5),
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: const Color(0xFFA7F3D0)),
+                                border: Border.all(
+                                  color: _isDarkMode ? const Color(0xFF059669) : const Color(0xFFA7F3D0),
+                                ),
                               ),
                               child: Text(
                                 '+${commission.toStringAsFixed(2)} ₺',
-                                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF047857)),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 13,
+                                  color: _isDarkMode ? const Color(0xFF34D399) : const Color(0xFF047857),
+                                ),
                               ),
                             ),
                           ),
@@ -6145,7 +6379,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           DataCell(
                             Text(
                               '${totalAmount.toStringAsFixed(2)} ₺',
-                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF0284C7)),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 14,
+                                color: _isDarkMode ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+                              ),
                             ),
                           ),
 
@@ -6157,11 +6395,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.credit_card_rounded, size: 14, color: Color(0xFF64748B)),
+                                Icon(Icons.credit_card_rounded, size: 14, color: _textMuted),
                                 const SizedBox(width: 4),
                                 Text(
                                   (tx['payment_provider'] ?? 'İyzico POS').toString(),
-                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: _textSecondary),
                                 ),
                               ],
                             ),
@@ -6171,7 +6409,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           DataCell(
                             Text(
                               (tx['created_at'] ?? '—').toString(),
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                              style: TextStyle(fontSize: 12, color: _textMuted),
                             ),
                           ),
                         ],
@@ -6195,27 +6433,27 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     switch (step) {
       case 1:
-        bg = const Color(0xFFFEF3C7);
-        fg = const Color(0xFF92400E);
+        bg = _isDarkMode ? const Color(0xFF451A03) : const Color(0xFFFEF3C7);
+        fg = _isDarkMode ? const Color(0xFFFCD34D) : const Color(0xFF92400E);
         icon = Icons.hourglass_top_rounded;
         label = '1. Usta Onayı Bekleniyor';
         break;
       case 2:
-        bg = const Color(0xFFF3E8FF);
-        fg = const Color(0xFF6B21A8);
+        bg = _isDarkMode ? const Color(0xFF3B0764) : const Color(0xFFF3E8FF);
+        fg = _isDarkMode ? const Color(0xFFD8B4FE) : const Color(0xFF6B21A8);
         icon = Icons.check_circle_outline_rounded;
         label = '2. Çağrı Kabul Edildi';
         break;
       case 3:
-        bg = const Color(0xFFE0F2FE);
-        fg = const Color(0xFF0369A1);
+        bg = _isDarkMode ? const Color(0xFF0C4A6E) : const Color(0xFFE0F2FE);
+        fg = _isDarkMode ? const Color(0xFF7DD3FC) : const Color(0xFF0369A1);
         icon = Icons.directions_car_filled_rounded;
         label = '3. Usta Yolda';
         break;
       case 4:
       default:
-        bg = const Color(0xFFDCFCE7);
-        fg = const Color(0xFF15803D);
+        bg = _isDarkMode ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7);
+        fg = _isDarkMode ? const Color(0xFF6EE7B7) : const Color(0xFF15803D);
         icon = Icons.verified_rounded;
         label = '4. Tamamlandı & Tahsil Edildi';
         break;
@@ -6249,7 +6487,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final totalAmount = _asDouble(tx['toplam_tutar'], 0.0);
     final step = _asInt(tx['flow_step'], 4);
     final receiptNo = (tx['receipt_no'] ?? tx['id'] ?? '').toString();
-    final status = (tx['durum'] ?? '').toString();
     final rating = _asDouble(tx['puan'], 5.0);
     final comment = (tx['musteri_yorum'] ?? '').toString();
 
@@ -6260,6 +6497,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         child: Container(
           width: 780,
           padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: _bgSurface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _borderPrimary),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -6273,7 +6515,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFECFDF5),
+                          color: _isDarkMode ? const Color(0xFF064E3B) : const Color(0xFFECFDF5),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF059669), size: 24),
@@ -6282,14 +6524,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Resmi Hizmet Özeti & Dijital Dekont',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _textPrimary),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             'Dekont No: $receiptNo • ${tx['created_at']}',
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontFamily: 'monospace'),
+                            style: TextStyle(fontSize: 12, color: _textSecondary, fontFamily: 'monospace'),
                           ),
                         ],
                       ),
@@ -6298,9 +6540,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
+                      color: _inputFill,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                      border: Border.all(color: _borderPrimary),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
@@ -6317,23 +6559,23 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              Divider(height: 1, color: _borderSecondary),
               const SizedBox(height: 18),
 
               // CANLI HİZMET AKIŞ AŞAMALARI (1 Onay -> 2 Kabul -> 3 Yolda -> 4 Bitti)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: _inputFill,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: _borderPrimary),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Canlı Hizmet Akış Durumu',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF64748B)),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: _textSecondary),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -6361,26 +6603,26 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: _bgSurfaceElevated,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: _borderPrimary),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Row(
+                          Row(
                             children: [
-                              Icon(Icons.person_pin_rounded, size: 16, color: Color(0xFF0284C7)),
-                              SizedBox(width: 6),
-                              Text('Müşteri Bilgileri', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                              const Icon(Icons.person_pin_rounded, size: 16, color: Color(0xFF0284C7)),
+                              const SizedBox(width: 6),
+                              Text('Müşteri Bilgileri', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary)),
                             ],
                           ),
                           const SizedBox(height: 10),
-                          Text(tx['musteri_ad'] ?? '—', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                          Text(tx['musteri_ad'] ?? '—', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: _textPrimary)),
                           const SizedBox(height: 4),
-                          Text('Telefon: ${tx['musteri_tel'] ?? '—'}', style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+                          Text('Telefon: ${tx['musteri_tel'] ?? '—'}', style: TextStyle(fontSize: 12.5, color: _textSecondary)),
                           const SizedBox(height: 4),
-                          Text('Adres: ${tx['musteri_adres'] ?? '—'}', style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+                          Text('Adres: ${tx['musteri_adres'] ?? '—'}', style: TextStyle(fontSize: 12.5, color: _textSecondary)),
                         ],
                       ),
                     ),
@@ -6392,26 +6634,26 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: _bgSurfaceElevated,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: _borderPrimary),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Row(
+                          Row(
                             children: [
-                              Icon(Icons.engineering_rounded, size: 16, color: Color(0xFF059669)),
-                              SizedBox(width: 6),
-                              Text('Hizmet Veren Usta', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                              const Icon(Icons.engineering_rounded, size: 16, color: Color(0xFF059669)),
+                              const SizedBox(width: 6),
+                              Text('Hizmet Veren Usta', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary)),
                             ],
                           ),
                           const SizedBox(height: 10),
-                          Text(tx['usta_ad'] ?? '—', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                          Text(tx['usta_ad'] ?? '—', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: _textPrimary)),
                           const SizedBox(height: 4),
-                          Text('Meslek: ${tx['usta_meslek'] ?? '—'}', style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+                          Text('Meslek: ${tx['usta_meslek'] ?? '—'}', style: TextStyle(fontSize: 12.5, color: _textSecondary)),
                           const SizedBox(height: 4),
-                          Text('İletişim: ${tx['usta_tel'] ?? '—'}', style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+                          Text('İletişim: ${tx['usta_tel'] ?? '—'}', style: TextStyle(fontSize: 12.5, color: _textSecondary)),
                         ],
                       ),
                     ),
@@ -6424,9 +6666,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: _inputFill,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: _borderPrimary),
                 ),
                 child: Column(
                   children: [
@@ -6443,10 +6685,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       'Tahakkuk Eden KDV (%20 Dahil):',
                       '${(commission * 0.20).toStringAsFixed(2)} ₺',
                       isBold: false,
-                      valueColor: const Color(0xFF64748B),
+                      valueColor: _textSecondary,
                     ),
                     const SizedBox(height: 8),
-                    const Divider(height: 1, color: Color(0xFFCBD5E1)),
+                    Divider(height: 1, color: _borderSecondary),
                     const SizedBox(height: 8),
                     _buildReceiptRow(
                       'Müşteri Kartından Çekilen Toplam Tutar:',
@@ -6465,9 +6707,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBEB),
+                    color: _isDarkMode ? const Color(0xFF451A03) : const Color(0xFFFFFBEB),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFFDE68A)),
+                    border: Border.all(color: _isDarkMode ? const Color(0xFF78350F) : const Color(0xFFFDE68A)),
                   ),
                   child: Row(
                     children: [
@@ -6479,10 +6721,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           children: [
                             Text(
                               '$rating / 5.0 • Mükemmel Hizmet Değerlendirmesi',
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF92400E)),
+                              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: _isDarkMode ? const Color(0xFFFCD34D) : const Color(0xFF92400E)),
                             ),
                             const SizedBox(height: 2),
-                            Text('"$comment"', style: const TextStyle(fontSize: 12, color: Color(0xFF78350F), fontStyle: FontStyle.italic)),
+                            Text('"$comment"', style: TextStyle(fontSize: 12, color: _isDarkMode ? const Color(0xFFFDE68A) : const Color(0xFF78350F), fontStyle: FontStyle.italic)),
                           ],
                         ),
                       ),
@@ -6508,7 +6750,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ElevatedButton(
                     onPressed: () => Navigator.of(ctx).pop(),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0F172A),
+                      backgroundColor: _isDarkMode ? const Color(0xFF334155) : const Color(0xFF0F172A),
                       foregroundColor: Colors.white,
                     ),
                     child: const Text('Kapat'),
@@ -6528,15 +6770,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     required bool isCompleted,
     required bool isCurrent,
   }) {
-    Color circleColor = const Color(0xFFE2E8F0);
-    Color textColor = const Color(0xFF94A3B8);
+    Color circleColor = _isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    Color textColor = _textMuted;
 
     if (isCompleted) {
       circleColor = const Color(0xFF10B981);
-      textColor = const Color(0xFF065F46);
+      textColor = _isDarkMode ? const Color(0xFF34D399) : const Color(0xFF065F46);
     } else if (isCurrent) {
       circleColor = const Color(0xFF0284C7);
-      textColor = const Color(0xFF0369A1);
+      textColor = _isDarkMode ? const Color(0xFF38BDF8) : const Color(0xFF0369A1);
     }
 
     return Column(
@@ -6567,7 +6809,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return Expanded(
       child: Container(
         height: 3,
-        color: isCompleted ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
+        color: isCompleted ? const Color(0xFF10B981) : _borderPrimary,
         margin: const EdgeInsets.only(bottom: 16),
       ),
     );
@@ -6582,7 +6824,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           style: TextStyle(
             fontSize: fontSize,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-            color: const Color(0xFF334155),
+            color: _textSecondary,
           ),
         ),
         Text(
@@ -6590,7 +6832,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           style: TextStyle(
             fontSize: fontSize,
             fontWeight: isBold ? FontWeight.w900 : FontWeight.bold,
-            color: valueColor ?? const Color(0xFF0F172A),
+            color: valueColor ?? _textPrimary,
           ),
         ),
       ],
@@ -6620,18 +6862,23 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             child: Container(
               width: 580,
               padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: _bgSurface,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: _borderPrimary),
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
+                  Text(
                     'Yeni Finansal Hizmet & Çağrı Kaydı',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: _textPrimary),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Manuel olarak sisteme tahsil edilmiş veya devam eden servis çağrısı ekleyin.',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    style: TextStyle(fontSize: 12, color: _textSecondary),
                   ),
                   const SizedBox(height: 18),
                   Row(
@@ -6718,8 +6965,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
+                      color: _inputFill,
                       borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _borderPrimary),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -6775,7 +7023,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _showSuccessToast('Yeni finansal hizmet kaydı başarıyla eklendi.');
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0F172A),
+                          backgroundColor: _isDarkMode ? const Color(0xFF334155) : const Color(0xFF0F172A),
                           foregroundColor: Colors.white,
                         ),
                         child: const Text('Kaydı Ekle'),
@@ -7166,8 +7414,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
+                        color: _inputFill,
                         borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: _borderPrimary),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -7289,9 +7538,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: _bgSurface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _borderPrimary),
+        boxShadow: [
+          BoxShadow(
+            color: _cardShadow,
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -7302,25 +7558,44 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _textSecondary,
+                    fontWeight: FontWeight.bold,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (icon != null)
                 Container(
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
+                    color: color.withValues(alpha: _isDarkMode ? 0.22 : 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(icon, size: 16, color: color),
                 ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: color)),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: color,
+              letterSpacing: -0.3,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(change, style: const TextStyle(fontSize: 11, color: Color(0xFF10B981), fontWeight: FontWeight.w600)),
+          Text(
+            change,
+            style: TextStyle(
+              fontSize: 11,
+              color: _textMuted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
