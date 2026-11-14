@@ -143,24 +143,23 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 500));
 
-    // Başlangıçta Açık Mod aktif olmalı, butonda "Açık Tema" yazmalı
-    expect(find.text('Açık Tema'), findsOneWidget);
+    // Başlangıçta Açık ve Koyu butonları bulunmalı
+    expect(find.text('Açık'), findsOneWidget);
+    expect(find.text('Koyu'), findsOneWidget);
 
-    // Açık Tema butonuna tıkla -> Koyu Moda geçiş
-    await tester.tap(find.text('Açık Tema'));
+    // Koyu seçeneğine tıkla -> Koyu Moda geçiş
+    await tester.tap(find.text('Koyu'));
     await tester.pump(const Duration(milliseconds: 500));
 
-    // Koyu Moda geçiş yapıldığını doğrula
-    expect(find.text('Koyu Tema'), findsOneWidget);
+    // Koyu Mod kaydedildiğini doğrula
     final prefs1 = await SharedPreferences.getInstance();
     expect(prefs1.getBool('admin_is_dark_mode'), isTrue);
 
-    // Tekrar butona tıkla -> Açık Moda dönüş
-    await tester.tap(find.text('Koyu Tema'));
+    // Tekrar Açık seçeneğine tıkla -> Açık Moda dönüş
+    await tester.tap(find.text('Açık'));
     await tester.pump(const Duration(milliseconds: 500));
 
-    // Tekrar Açık Moda geçildiğini doğrula
-    expect(find.text('Açık Tema'), findsOneWidget);
+    // Tekrar Açık Mod kaydedildiğini doğrula
     final prefs2 = await SharedPreferences.getInstance();
     expect(prefs2.getBool('admin_is_dark_mode'), isFalse);
   });

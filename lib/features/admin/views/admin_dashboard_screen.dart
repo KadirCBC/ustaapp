@@ -2935,9 +2935,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // Üst 4'lü Metrik Kartı
-                              _buildMetricCardsRow(),
-                              const SizedBox(height: 24),
+                              // Üst 4'lü Metrik Kartı (Finansal Masada kendi 5'li KPI kartları olduğu için tekrarlanmaz)
+                              if (_selectedMenuIndex != 8) ...[
+                                _buildMetricCardsRow(),
+                                const SizedBox(height: 24),
+                              ],
 
                               // Seçili Modül
                               if (_selectedMenuIndex == 0) _buildOverviewTab(),
@@ -3275,36 +3277,104 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ),
           Row(
             children: [
-              // Tema Değiştirici (Light / Dark Switcher)
-              InkWell(
-                onTap: _toggleThemeMode,
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: _isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _borderPrimary),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                        size: 16,
-                        color: _isDarkMode ? const Color(0xFFFBBF24) : const Color(0xFFEA580C),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _isDarkMode ? 'Koyu Tema' : 'Açık Tema',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: _textPrimary,
+              // Dual-Segmented Tema Değiştirici [ ☀️ Açık | 🌙 Koyu ]
+              Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: _isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _borderSecondary),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Açık Tema Seçeneği
+                    InkWell(
+                      onTap: () {
+                        if (_isDarkMode) _toggleThemeMode();
+                      },
+                      borderRadius: BorderRadius.circular(9),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: !_isDarkMode ? Colors.white : Colors.transparent,
+                          borderRadius: BorderRadius.circular(9),
+                          boxShadow: !_isDarkMode
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  )
+                                ]
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.light_mode_rounded,
+                              size: 14,
+                              color: !_isDarkMode ? const Color(0xFFEA580C) : const Color(0xFF64748B),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Açık',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: !_isDarkMode ? FontWeight.w800 : FontWeight.w600,
+                                color: !_isDarkMode ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    // Koyu Tema Seçeneği
+                    InkWell(
+                      onTap: () {
+                        if (!_isDarkMode) _toggleThemeMode();
+                      },
+                      borderRadius: BorderRadius.circular(9),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _isDarkMode ? const Color(0xFF0F172A) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(9),
+                          boxShadow: _isDarkMode
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.35),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  )
+                                ]
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.dark_mode_rounded,
+                              size: 14,
+                              color: _isDarkMode ? const Color(0xFF38BDF8) : const Color(0xFF64748B),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Koyu',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: _isDarkMode ? FontWeight.w800 : FontWeight.w600,
+                                color: _isDarkMode ? Colors.white : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 12),
@@ -3475,62 +3545,105 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: _bgSurface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _borderPrimary),
         boxShadow: [
           BoxShadow(
-            color: _cardShadow,
-            blurRadius: 12,
+            color: color.withValues(alpha: _isDarkMode ? 0.1 : 0.05),
+            blurRadius: 16,
             offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: _cardShadow,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, color: _textSecondary, fontWeight: FontWeight.w600),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.all(9),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 3.5,
+              child: Container(
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: _isDarkMode ? 0.22 : 0.12),
-                  borderRadius: BorderRadius.circular(10),
+                  gradient: LinearGradient(
+                    colors: [color, color.withValues(alpha: 0.3)],
+                  ),
                 ),
-                child: Icon(icon, color: color, size: 20),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              color: _textPrimary,
-              letterSpacing: -0.5,
             ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 11.5, color: Color(0xFF10B981), fontWeight: FontWeight.w600),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 13, color: _textSecondary, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.all(9),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: _isDarkMode ? 0.22 : 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: color.withValues(alpha: _isDarkMode ? 0.4 : 0.2)),
+                        ),
+                        child: Icon(icon, color: color, size: 20),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: _textPrimary,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: color,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11.5, color: _textMuted, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -7536,67 +7649,115 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     IconData? icon,
   }) {
     return Container(
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: _bgSurface,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _borderPrimary),
         boxShadow: [
           BoxShadow(
+            color: color.withValues(alpha: _isDarkMode ? 0.1 : 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
             color: _cardShadow,
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: _textSecondary,
-                    fontWeight: FontWeight.bold,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            // Üst İnce Renkli Çizgi (Accent Line)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 3.5,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [color, color.withValues(alpha: 0.3)],
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (icon != null)
-                Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: _isDarkMode ? 0.22 : 0.12),
-                    borderRadius: BorderRadius.circular(8),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _textSecondary,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.1,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (icon != null) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: _isDarkMode ? 0.22 : 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: color.withValues(alpha: _isDarkMode ? 0.4 : 0.2)),
+                          ),
+                          child: Icon(icon, size: 16, color: color),
+                        ),
+                      ],
+                    ],
                   ),
-                  child: Icon(icon, size: 16, color: color),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              color: color,
-              letterSpacing: -0.3,
+                  const SizedBox(height: 12),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: _textPrimary,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: color,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          change,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _textMuted,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            change,
-            style: TextStyle(
-              fontSize: 11,
-              color: _textMuted,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
