@@ -25,6 +25,7 @@ class AppDataService {
   static const String _kMapPinsKey = 'app_shared_map_pins';
   static const String _kMembersKey = 'app_shared_members';
   static const String _kPendingUstalarKey = 'app_shared_pending_ustalar';
+  static const String _kFinancialTransactionsKey = 'app_shared_financial_transactions';
 
   static const int _kSyncPort = 8090;
 
@@ -154,6 +155,10 @@ class AppDataService {
           if (data['tedarikciler'] is List) {
             _cachedTedarikciler = List<Map<String, dynamic>>.from(data['tedarikciler']);
           }
+          if (data['financial_transactions'] is List) {
+            _cachedFinancialTransactions = List<Map<String, dynamic>>.from(data['financial_transactions']);
+            _persistFinancialTransactionsToPrefs(_cachedFinancialTransactions!);
+          }
           _changesStreamController.add(null);
         }
       } else if (event == 'ustalar_updated' && data is List) {
@@ -180,6 +185,10 @@ class AppDataService {
         _changesStreamController.add(null);
       } else if (event == 'tedarikciler_updated' && data is List) {
         _cachedTedarikciler = List<Map<String, dynamic>>.from(data);
+        _changesStreamController.add(null);
+      } else if (event == 'financial_transactions_updated' && data is List) {
+        _cachedFinancialTransactions = List<Map<String, dynamic>>.from(data);
+        _persistFinancialTransactionsToPrefs(_cachedFinancialTransactions!);
         _changesStreamController.add(null);
       } else if (event == 'all_cleared') {
         _cachedUstalar = [];
@@ -235,6 +244,15 @@ class AppDataService {
     }
   }
 
+  Future<void> _persistFinancialTransactionsToPrefs(List<Map<String, dynamic>> list) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kFinancialTransactionsKey, jsonEncode(list));
+    } catch (e) {
+      debugPrint('SharedPreferences financial_transactions kaydetme hatası: $e');
+    }
+  }
+
   // Bellek İçi Önbellek (Hızlı erişim için)
   List<NearbyUstaModel>? _cachedUstalar;
   List<Map<String, dynamic>>? _cachedCategories;
@@ -243,6 +261,7 @@ class AppDataService {
   List<Map<String, dynamic>>? _cachedPins;
   List<Map<String, dynamic>>? _cachedMembers;
   List<Map<String, dynamic>>? _cachedPending;
+  List<Map<String, dynamic>>? _cachedFinancialTransactions;
 
   // ==========================================
   // 1. USTALAR & HARİTA VERİSİ (CRUD)
@@ -757,12 +776,73 @@ class AppDataService {
     _postToSyncServer('/api/pending_ustalar', list);
   }
 
+  // ==========================================
+  // 6. FİNANSAL İŞLEMLER & HİZMET AKIŞI
+  // ==========================================
+
+  Future<List<Map<String, dynamic>>> getFinancialTransactions() async {
+    if (_cachedFinancialTransactions != null) {
+      return List.from(_cachedFinancialTransactions!);
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final str = prefs.getString(_kFinancialTransactionsKey);
+      if (str != null) {
+        final decoded = jsonDecode(str);
+        if (decoded is List) {
+          _cachedFinancialTransactions = List<Map<String, dynamic>>.from(decoded);
+          return List.from(_cachedFinancialTransactions!);
+        }
+      }
+    } catch (e) {
+      debugPrint('Finansal verileri okuma hatası: $e');
+    }
+
+    await _fetchServerData();
+    if (_cachedFinancialTransactions != null) return List.from(_cachedFinancialTransactions!);
+
+    _cachedFinancialTransactions = [];
+    return [];
+  }
+
+  Future<void> saveFinancialTransactions(List<Map<String, dynamic>> list) async {
+    _cachedFinancialTransactions = List.from(list);
+    await _persistFinancialTransactionsToPrefs(list);
+    _changesStreamController.add(null);
+    _postToSyncServer('/api/financial_transactions', list);
+  }
+
+  Future<void> addOrUpdateFinancialTransaction(Map<String, dynamic> tx) async {
+    final list = await getFinancialTransactions();
+    final txId = (tx['id'] ?? tx['receipt_no'] ?? tx['cagri_id'] ?? '').toString();
+    final receiptNo = (tx['receipt_no'] ?? '').toString();
+    final cagriId = (tx['cagri_id'] ?? '').toString();
+
+    final existingIndex = list.indexWhere((item) {
+      final itemId = (item['id'] ?? '').toString();
+      final itemReceipt = (item['receipt_no'] ?? '').toString();
+      final itemCagri = (item['cagri_id'] ?? '').toString();
+      return (txId.isNotEmpty && itemId == txId) ||
+             (receiptNo.isNotEmpty && itemReceipt == receiptNo) ||
+             (cagriId.isNotEmpty && itemCagri == cagriId);
+    });
+
+    if (existingIndex >= 0) {
+      list[existingIndex] = {...list[existingIndex], ...tx};
+    } else {
+      list.insert(0, tx);
+    }
+    await saveFinancialTransactions(list);
+  }
+
   Future<void> clearAll() async {
     _cachedUstalar = [];
     _cachedJobs = [];
     _cachedMembers = [];
+    _cachedFinancialTransactions = [];
     await _persistUstalarToPrefs([]);
     await _persistJobsToPrefs([]);
+    await _persistFinancialTransactionsToPrefs([]);
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kMembersKey, '[]');

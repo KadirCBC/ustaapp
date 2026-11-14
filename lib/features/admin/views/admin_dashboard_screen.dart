@@ -452,27 +452,32 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   Future<void> _loadFinancialTransactionsFromPrefs() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonStr = prefs.getString('admin_financial_transactions');
-      if (jsonStr != null) {
-        final List<dynamic> decoded = jsonDecode(jsonStr);
-        _financialTransactions = List<Map<String, dynamic>>.from(
-          decoded.map((item) => Map<String, dynamic>.from(item as Map)),
-        );
+      final appData = ref.read(appDataServiceProvider);
+      final list = await appData.getFinancialTransactions();
+      if (list.isNotEmpty) {
+        _financialTransactions = list;
       } else {
-        _seedDefaultFinancialTransactions();
-        await _saveFinancialTransactionsToPrefs();
+        final prefs = await SharedPreferences.getInstance();
+        final jsonStr = prefs.getString('admin_financial_transactions');
+        if (jsonStr != null) {
+          final List<dynamic> decoded = jsonDecode(jsonStr);
+          _financialTransactions = List<Map<String, dynamic>>.from(
+            decoded.map((item) => Map<String, dynamic>.from(item as Map)),
+          );
+        } else {
+          _seedDefaultFinancialTransactions();
+          await _saveFinancialTransactionsToPrefs();
+        }
       }
     } catch (e) {
       debugPrint('Finansal verileri yükleme hatası: $e');
-      if (_financialTransactions.isEmpty) {
-        _seedDefaultFinancialTransactions();
-      }
     }
   }
 
   Future<void> _saveFinancialTransactionsToPrefs() async {
     try {
+      final appData = ref.read(appDataServiceProvider);
+      await appData.saveFinancialTransactions(_financialTransactions);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('admin_financial_transactions', jsonEncode(_financialTransactions));
     } catch (e) {

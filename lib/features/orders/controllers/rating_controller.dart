@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
+import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/features/orders/models/cagri_model.dart';
 
@@ -40,14 +41,16 @@ class RatingState {
 final ratingControllerProvider = StateNotifierProvider.autoDispose
     .family<RatingController, RatingState, String>((ref, cagriId) {
   final supabase = ref.watch(supabaseClientProvider);
-  return RatingController(supabase, cagriId);
+  final appDataService = ref.watch(appDataServiceProvider);
+  return RatingController(supabase, appDataService, cagriId);
 });
 
 class RatingController extends StateNotifier<RatingState> {
   final SupabaseClient _supabase;
+  final AppDataService _appDataService;
   final String _cagriId;
 
-  RatingController(this._supabase, this._cagriId) : super(const RatingState());
+  RatingController(this._supabase, this._appDataService, this._cagriId) : super(const RatingState());
 
   void setRating(int rating) {
     if (rating < 1 || rating > 5 || state.isSubmitted) return;
@@ -70,6 +73,11 @@ class RatingController extends StateNotifier<RatingState> {
         ustaAverageRating: simulatedAvg,
       );
       DemoCallRepository.saveWorkflow(_cagriId, wf);
+      _appDataService.addOrUpdateFinancialTransaction({
+        'cagri_id': cagri.id,
+        'puan': puan.toDouble(),
+        'musteri_yorum': trimmedComment ?? '',
+      });
       state = state.copyWith(
         isSubmitting: false,
         isSubmitted: true,

@@ -1110,6 +1110,37 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
       );
       DemoCallRepository.save(demoCall);
 
+      final now = DateTime.now();
+      final dateStr =
+          '${now.day.toString().padLeft(2, '0')}.${now.month.toString().padLeft(2, '0')}.${now.year} • ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+      _appDataService.addOrUpdateFinancialTransaction({
+        'id': 'TRX-${demoId.replaceAll(RegExp(r'[^0-9]'), '')}',
+        'receipt_no': 'demo_pay_${now.millisecondsSinceEpoch}',
+        'cagri_id': demoId,
+        'hizmet_baslik': usta.ilanlar.isNotEmpty ? usta.ilanlar.first.baslik : 'Standart Servis & Arıza Tespiti',
+        'kategori': usta.kategori == 'elektrik'
+            ? 'Elektrik & Aydınlatma'
+            : (usta.kategori == 'tesisat' ? 'Sıhhi Tesisat & Su Kaçağı' : 'Çilingir & Kapı Açma'),
+        'musteri_ad': 'Zeynep Kaya',
+        'musteri_tel': '+90 532 111 22 33',
+        'musteri_adres': adresTarifi.trim().isNotEmpty ? adresTarifi.trim() : state.currentAddressLabel,
+        'usta_ad': usta.fullName,
+        'usta_tel': usta.phone,
+        'usta_meslek': usta.uzmanlikBasligi,
+        'usta_hakedis': usta.ustaHakedis,
+        'komisyon_tutari': usta.komisyonTutari,
+        'komisyon_orani': 0.15,
+        'toplam_tutar': usta.toplamTutar,
+        'durum': 'Usta Onayı Bekleniyor',
+        'flow_step': 1,
+        'payment_provider': 'İyzico Provizyon (Askıda)',
+        'payment_status': 'Ön Provizyon Alındı',
+        'puan': 0.0,
+        'musteri_yorum': '',
+        'created_at': dateStr,
+        'is_payout_transferred': false,
+      });
+
       state = state.copyWith(
         isCreatingCall: false,
         activeCallId: demoId,

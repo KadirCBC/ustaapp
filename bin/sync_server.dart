@@ -25,6 +25,7 @@ Future<void> _loadDataFromFile() async {
     try {
       final content = await _dataFile.readAsString();
       _data = jsonDecode(content) as Map<String, dynamic>;
+      _data['financial_transactions'] ??= [];
       stdout.writeln('[Sync Server] Mevcut veriler dosyadan yüklendi.');
       return;
     } catch (e) {
@@ -41,6 +42,7 @@ Future<void> _loadDataFromFile() async {
     'members': [],
     'pending_ustalar': [],
     'tedarikciler': [],
+    'financial_transactions': [],
     'initialized': true,
   };
   await _saveDataToFile();
@@ -200,6 +202,15 @@ Future<void> _handleRequest(HttpRequest request) async {
         await _saveDataToFile();
         _broadcast('tedarikciler_updated', body);
         response.write(jsonEncode({'status': 'ok'}));
+        await response.close();
+        return;
+      }
+
+      if (path == '/api/financial_transactions') {
+        _data['financial_transactions'] = body;
+        await _saveDataToFile();
+        _broadcast('financial_transactions_updated', body);
+        response.write(jsonEncode({'status': 'ok', 'count': (body as List).length}));
         await response.close();
         return;
       }

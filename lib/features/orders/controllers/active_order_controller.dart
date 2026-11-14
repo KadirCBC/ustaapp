@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
+import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/payment_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/features/orders/models/cagri_model.dart';
@@ -86,12 +87,14 @@ final activeOrderControllerProvider = StateNotifierProvider.autoDispose
     .family<ActiveOrderController, ActiveOrderState, String>((ref, cagriId) {
   final supabase = ref.watch(supabaseClientProvider);
   final paymentService = ref.watch(paymentServiceProvider);
-  return ActiveOrderController(supabase, paymentService, cagriId);
+  final appDataService = ref.watch(appDataServiceProvider);
+  return ActiveOrderController(supabase, paymentService, appDataService, cagriId);
 });
 
 class ActiveOrderController extends StateNotifier<ActiveOrderState> {
   final SupabaseClient _supabase;
   final PaymentService _paymentService;
+  final AppDataService _appDataService;
   final String _cagriId;
 
   StreamSubscription<List<Map<String, dynamic>>>? _cagriStreamSub;
@@ -100,7 +103,7 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
   Timer? _pendingTimer;
   Timer? _demoAutoAcceptTimer;
 
-  ActiveOrderController(this._supabase, this._paymentService, this._cagriId)
+  ActiveOrderController(this._supabase, this._paymentService, this._appDataService, this._cagriId)
       : super(const ActiveOrderState(isLoading: true)) {
     _initAndListen();
   }
@@ -510,6 +513,10 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
         cagri: state.cagri?.copyWith(durum: CagriDurumu.tamamlandi),
         successMessage: 'İş onaylandı ve ödeme güvenli şekilde tamamlandı.',
       );
+      await _syncToFinancialReports(
+        status: CagriDurumu.tamamlandi,
+        receiptId: receiptId,
+      );
       return result;
     } catch (e) {
       debugPrint('confirmCompletionAndCapturePayment hatası: $e');
@@ -580,6 +587,7 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
         cagri: state.cagri?.copyWith(durum: CagriDurumu.kabulEdildi),
         successMessage: 'Çağrı kabul edildi!',
       );
+      await _syncToFinancialReports(status: CagriDurumu.kabulEdildi);
       return true;
     }
 
@@ -599,6 +607,7 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
           isActionInProgress: false,
           successMessage: 'Çağrı başarıyla kabul edildi!',
         );
+        await _syncToFinancialReports(status: CagriDurumu.kabulEdildi);
         return true;
       } else {
         state = state.copyWith(
@@ -629,6 +638,7 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
         cagri: state.cagri?.copyWith(durum: newStatus),
         successMessage: 'Durum güncellendi: ${newStatus.displayName}',
       );
+      await _syncToFinancialReports(status: newStatus);
       return true;
     }
 
@@ -651,6 +661,7 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
         isActionInProgress: false,
         successMessage: 'Durum güncellendi: ${newStatus.displayName}',
       );
+      await _syncToFinancialReports(status: newStatus);
       return true;
     } catch (e) {
       debugPrint('updateStatus hatası: $e');
@@ -665,6 +676,96 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
   /// Müşteri veya Usta için: Çağrıyı iptal et
   Future<bool> cancelCall({String? reason}) async {
     return await updateStatus(CagriDurumu.iptal, reason: reason);
+  }
+
+  /// Çağrı akışını ve finansal veriyi anında Admin Dashboard'a senkronize eder
+  Future<void> _syncToFinancialReports({
+    required CagriDurumu status,
+    String? receiptId,
+    double? rating,
+    String? comment,
+  }) async {
+    try {
+      final c = state.cagri;
+      final ustaPrice = c?.ustaHakedis ?? 1750.0;
+      final commission = c?.komisyonTutari ?? (ustaPrice * 0.15);
+      final total = c?.toplamTutar ?? (ustaPrice + commission);
+
+      int flowStep;
+      String statusStr;
+      switch (status) {
+        case CagriDurumu.bekliyor:
+          flowStep = 1;
+          statusStr = 'Usta Onayı Bekleniyor';
+          break;
+        case CagriDurumu.kabulEdildi:
+          flowStep = 2;
+          statusStr = 'Kabul Edildi / İşlemde';
+          break;
+        case CagriDurumu.yolda:
+          flowStep = 3;
+          statusStr = 'Usta Yolda';
+          break;
+        case CagriDurumu.tamamlandi:
+          flowStep = 4;
+          statusStr = 'Tamamlandı & Tahsil Edildi';
+          break;
+        case CagriDurumu.iptal:
+          flowStep = 1;
+          statusStr = 'Çağrı İptal Edildi';
+          break;
+      }
+
+      final now = DateTime.now();
+      final dateStr =
+          '${now.day.toString().padLeft(2, '0')}.${now.month.toString().padLeft(2, '0')}.${now.year} • ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+      final cleanDigits = _cagriId.replaceAll(RegExp(r'[^0-9]'), '');
+      final txId = cleanDigits.isNotEmpty
+          ? 'TRX-$cleanDigits'
+          : 'TRX-${now.millisecondsSinceEpoch}';
+
+      final tx = {
+        'id': txId,
+        'receipt_no': receiptId ??
+            state.receiptId ??
+            'demo_pay_${now.millisecondsSinceEpoch}',
+        'cagri_id': _cagriId,
+        'hizmet_baslik': 'Standart Servis & Arıza Tespiti',
+        'kategori': 'Elektrik & Aydınlatma',
+        'musteri_ad': (c?.musteriFullName != null && c!.musteriFullName!.isNotEmpty)
+            ? c.musteriFullName
+            : 'Zeynep Kaya',
+        'musteri_tel': c?.musteriPhone ?? '+90 532 111 22 33',
+        'musteri_adres':
+            (c?.adresTarifi != null && c!.adresTarifi!.isNotEmpty)
+                ? c.adresTarifi
+                : 'Sandıklı / Afyonkarahisar',
+        'usta_ad': (c?.ustaFullName != null && c!.ustaFullName!.isNotEmpty)
+            ? c.ustaFullName
+            : 'Kadir Usta',
+        'usta_tel': c?.ustaPhone ?? '05524342069',
+        'usta_meslek': 'Elektrik & Aydınlatma Teknisyeni',
+        'usta_hakedis': ustaPrice,
+        'komisyon_tutari': commission,
+        'komisyon_orani': 0.15,
+        'toplam_tutar': total,
+        'durum': statusStr,
+        'flow_step': flowStep,
+        'payment_provider': 'İyzico Sanal POS • 3D Secure',
+        'payment_status': status == CagriDurumu.tamamlandi
+            ? 'Provizyon Kapandı / Tahsil Edildi'
+            : 'Ön Provizyon Alındı',
+        'puan': rating ?? 5.0,
+        'musteri_yorum': comment ?? '',
+        'created_at': dateStr,
+        'is_payout_transferred': status == CagriDurumu.tamamlandi,
+      };
+
+      await _appDataService.addOrUpdateFinancialTransaction(tx);
+    } catch (e) {
+      debugPrint('Finansal işlem senkronizasyon hatası: $e');
+    }
   }
 
   @override
