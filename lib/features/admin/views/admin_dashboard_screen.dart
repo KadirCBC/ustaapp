@@ -3757,6 +3757,75 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
+  Widget _buildActionIconButton({
+    required IconData icon,
+    required Color color,
+    required String tooltip,
+    required VoidCallback onPressed,
+    double size = 16,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(8),
+        hoverColor: color.withValues(alpha: 0.15),
+        child: Container(
+          padding: const EdgeInsets.all(7),
+          margin: const EdgeInsets.symmetric(horizontal: 2.5),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: _isDarkMode ? 0.20 : 0.08),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: color.withValues(alpha: _isDarkMode ? 0.35 : 0.22),
+              width: 1,
+            ),
+          ),
+          child: Icon(icon, size: size, color: color),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusDotPill({
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: _isDarkMode ? 0.18 : 0.10),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: color.withValues(alpha: _isDarkMode ? 0.35 : 0.22),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLiveJobsOverviewCard() {
     final recentJobs = _activeJobs.take(3).toList();
 
@@ -3863,24 +3932,30 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: sColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
-                    child: Text(status, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: sColor)),
-                  ),
+                  _buildStatusDotPill(label: status, color: sColor),
                   const SizedBox(width: 16),
-                  Text(
-                    job['price'] is num ? '${(job['price'] as num).toStringAsFixed(0)} ₺' : (job['price']?.toString() ?? '0 ₺'),
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: _textPrimary),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _borderPrimary),
+                    ),
+                    child: Text(
+                      job['price'] is num ? '${(job['price'] as num).toStringAsFixed(0)} ₺' : (job['price']?.toString() ?? '0 ₺'),
+                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5, color: _textPrimary),
+                    ),
                   ),
-                  const SizedBox(width: 12),
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF0284C7)),
+                  const SizedBox(width: 8),
+                  _buildActionIconButton(
+                    icon: Icons.edit_outlined,
+                    color: const Color(0xFF0284C7),
                     tooltip: 'Düzenle',
                     onPressed: () => _showEditJobDialog(job),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                  _buildActionIconButton(
+                    icon: Icons.delete_outline_rounded,
+                    color: const Color(0xFFEF4444),
                     tooltip: 'Sil',
                     onPressed: () => _deleteJob(job['id']),
                   ),
@@ -4228,229 +4303,248 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ),
                 )
               else
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    headingRowColor: WidgetStateProperty.all(_tableHeader),
-                    columns: [
-                      DataColumn(
-                        label: Checkbox(
-                          value: filteredJobs.isNotEmpty && _selectedJobIds.length == filteredJobs.length,
-                          tristate: _selectedJobIds.isNotEmpty && _selectedJobIds.length < filteredJobs.length,
-                          onChanged: (val) {
-                            setState(() {
-                              if (val == true) {
-                                _selectedJobIds.addAll(filteredJobs.map((j) => (j['id'] ?? '').toString()));
-                              } else {
-                                _selectedJobIds.clear();
-                              }
-                            });
-                          },
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                        child: DataTable(
+                          headingRowColor: WidgetStateProperty.all(_tableHeader),
+                          dataRowMinHeight: 64,
+                          dataRowMaxHeight: 72,
+                          columnSpacing: 18,
+                          columns: [
+                            DataColumn(
+                              label: Checkbox(
+                                value: filteredJobs.isNotEmpty && _selectedJobIds.length == filteredJobs.length,
+                                tristate: _selectedJobIds.isNotEmpty && _selectedJobIds.length < filteredJobs.length,
+                                onChanged: (val) {
+                                  setState(() {
+                                    if (val == true) {
+                                      _selectedJobIds.addAll(filteredJobs.map((j) => (j['id'] ?? '').toString()));
+                                    } else {
+                                      _selectedJobIds.clear();
+                                    }
+                                  });
+                                },
+                              ),
+                            ),
+                            DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
+                            DataColumn(label: Text('İlan No & Başlık', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Müşteri', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Bölge / İlçe', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Tahmini Ücret', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Durum', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Görevli Usta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Zaman', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                          ],
+                          rows: filteredJobs.map((job) {
+                            final status = job['status'] ?? 'Bekliyor';
+                            Color sColor = const Color(0xFF0284C7);
+                            if (status == 'Bekliyor') sColor = const Color(0xFFF59E0B);
+                            if (status == 'Usta Yolda') sColor = const Color(0xFF6366F1);
+                            if (status == 'İşlemde') sColor = const Color(0xFF0EA5E9);
+                            if (status == 'Tamamlandı') sColor = const Color(0xFF10B981);
+                            if (status == 'İptal Edildi') sColor = const Color(0xFFEF4444);
+
+                            final isUrgent = job['is_urgent'] == true;
+                            final jobIdStr = (job['id'] ?? '').toString();
+                            final isSelected = _selectedJobIds.contains(jobIdStr);
+
+                            return DataRow(
+                              selected: isSelected,
+                              cells: [
+                                DataCell(
+                                  Checkbox(
+                                    value: isSelected,
+                                    onChanged: (val) {
+                                      setState(() {
+                                        if (val == true) {
+                                          _selectedJobIds.add(jobIdStr);
+                                        } else {
+                                          _selectedJobIds.remove(jobIdStr);
+                                        }
+                                      });
+                                    },
+                                  ),
+                                ),
+                                DataCell(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      _buildActionIconButton(
+                                        icon: Icons.remove_red_eye_rounded,
+                                        color: const Color(0xFF0284C7),
+                                        tooltip: 'İlan Detayını Görüntüle',
+                                        onPressed: () => _showJobDetailDialog(job),
+                                      ),
+                                      _buildActionIconButton(
+                                        icon: Icons.edit_outlined,
+                                        color: const Color(0xFFD97706),
+                                        tooltip: 'İlanı Düzenle',
+                                        onPressed: () => _showEditJobDialog(job),
+                                      ),
+                                      _buildActionIconButton(
+                                        icon: Icons.delete_outline_rounded,
+                                        color: const Color(0xFFEF4444),
+                                        tooltip: 'İlanı Sil',
+                                        onPressed: () => _confirmDeleteJob(job),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                DataCell(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                                        decoration: BoxDecoration(
+                                          color: _isDarkMode ? const Color(0xFF1E293B) : const Color(0xFF0F172A),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: _borderPrimary),
+                                        ),
+                                        child: Text(
+                                          job['id'] ?? '-',
+                                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      if (isUrgent) ...[
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFEE2E2),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: const Color(0xFFFCA5A5)),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.local_fire_department, size: 12, color: Color(0xFFDC2626)),
+                                              SizedBox(width: 2),
+                                              Text('ACİL', style: TextStyle(color: Color(0xFFDC2626), fontSize: 10, fontWeight: FontWeight.w800)),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      ConstrainedBox(
+                                        constraints: const BoxConstraints(maxWidth: 200),
+                                        child: Text(
+                                          job['title'] ?? '-',
+                                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _textPrimary),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                    decoration: BoxDecoration(
+                                      color: _bgSurfaceElevated,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: _borderPrimary),
+                                    ),
+                                    child: Text(
+                                      job['kategori'] ?? '-',
+                                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: _textSecondary),
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(job['customer_name'] ?? '-', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: _textPrimary)),
+                                      Text(job['customer_phone'] ?? '-', style: TextStyle(fontSize: 11, color: _textMuted)),
+                                    ],
+                                  ),
+                                ),
+                                DataCell(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFFD97706)),
+                                      const SizedBox(width: 4),
+                                      Text(job['district'] ?? '-', style: TextStyle(fontSize: 12, color: _textSecondary, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                ),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: _isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: _borderPrimary),
+                                    ),
+                                    child: Text(
+                                      job['price'] is num ? '${(job['price'] as num).toStringAsFixed(0)} ₺' : (job['price']?.toString() ?? '-'),
+                                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: _textPrimary),
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  _buildStatusDotPill(label: status, color: sColor),
+                                ),
+                                DataCell(
+                                  job['assigned_usta'] != null
+                                      ? InkWell(
+                                          onTap: () => _showAssignUstaDialog(job),
+                                          borderRadius: BorderRadius.circular(6),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF0284C7).withValues(alpha: _isDarkMode ? 0.2 : 0.08),
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.25)),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.person_pin_circle_rounded, size: 15, color: Color(0xFF0284C7)),
+                                                const SizedBox(width: 5),
+                                                Text(
+                                                  job['assigned_usta']?.toString() ?? 'Atama Yapılmadı',
+                                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF0284C7)),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                const Icon(Icons.swap_horiz, size: 14, color: Color(0xFF0284C7)),
+                                              ],
+                                            ),
+                                          ),
+                                        )
+                                      : OutlinedButton.icon(
+                                          onPressed: () => _showAssignUstaDialog(job),
+                                          icon: const Icon(Icons.person_add_alt_1_rounded, size: 14),
+                                          label: const Text('Usta Ata', style: TextStyle(fontSize: 11.5)),
+                                          style: OutlinedButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            visualDensity: VisualDensity.compact,
+                                            foregroundColor: AppTheme.ustaPrimary,
+                                            side: BorderSide(color: AppTheme.ustaPrimary),
+                                          ),
+                                        ),
+                                ),
+                                DataCell(
+                                  Text(
+                                    job['time_ago'] ?? '-',
+                                    style: TextStyle(fontSize: 11.5, color: _textMuted),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
                         ),
                       ),
-                      DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                      DataColumn(label: Text('İlan No & Başlık', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                      DataColumn(label: Text('Kategori', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                      DataColumn(label: Text('Müşteri / Usta', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                      DataColumn(label: Text('Bölge / İlçe', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                      DataColumn(label: Text('Tahmini Ücret', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                      DataColumn(label: Text('Durum', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                      DataColumn(label: Text('Görevli Usta', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                      DataColumn(label: Text('Zaman', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                    ],
-                    rows: filteredJobs.map((job) {
-                      final status = job['status'] ?? 'Bekliyor';
-                      Color sColor = const Color(0xFF0284C7);
-                      if (status == 'Bekliyor') sColor = const Color(0xFFF59E0B);
-                      if (status == 'Usta Yolda') sColor = const Color(0xFF6366F1);
-                      if (status == 'İşlemde') sColor = const Color(0xFF0EA5E9);
-                      if (status == 'Tamamlandı') sColor = const Color(0xFF10B981);
-                      if (status == 'İptal Edildi') sColor = const Color(0xFFEF4444);
-
-                      final isUrgent = job['is_urgent'] == true;
-                      final jobIdStr = (job['id'] ?? '').toString();
-                      final isSelected = _selectedJobIds.contains(jobIdStr);
-
-                      return DataRow(
-                        selected: isSelected,
-                        cells: [
-                          DataCell(
-                            Checkbox(
-                              value: isSelected,
-                              onChanged: (val) {
-                                setState(() {
-                                  if (val == true) {
-                                    _selectedJobIds.add(jobIdStr);
-                                  } else {
-                                    _selectedJobIds.remove(jobIdStr);
-                                  }
-                                });
-                              },
-                            ),
-                          ),
-                          DataCell(
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.remove_red_eye_outlined, size: 18, color: Color(0xFF64748B)),
-                                  tooltip: 'Detay',
-                                  onPressed: () => _showJobDetailDialog(job),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF0284C7)),
-                                  tooltip: 'Düzenle',
-                                  onPressed: () => _showEditJobDialog(job),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                                  tooltip: 'Sil',
-                                  onPressed: () => _confirmDeleteJob(job),
-                                ),
-                              ],
-                            ),
-                          ),
-                          DataCell(
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF0F172A),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    job['id'] ?? '-',
-                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                if (isUrgent) ...[
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFFEE2E2),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.local_fire_department, size: 12, color: Color(0xFFEF4444)),
-                                        SizedBox(width: 2),
-                                        Text('ACİL', style: TextStyle(color: Color(0xFFEF4444), fontSize: 10, fontWeight: FontWeight.bold)),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                ],
-                                ConstrainedBox(
-                                  constraints: const BoxConstraints(maxWidth: 220),
-                                  child: Text(
-                                    job['title'] ?? '-',
-                                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          DataCell(
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                job['kategori'] ?? '-',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
-                              ),
-                            ),
-                          ),
-                          DataCell(
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(job['customer_name'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                                Text(job['customer_phone'] ?? '-', style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
-                              ],
-                            ),
-                          ),
-                          DataCell(
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.location_on_outlined, size: 15, color: Color(0xFF64748B)),
-                                const SizedBox(width: 4),
-                                Text(job['district'] ?? '-', style: const TextStyle(fontSize: 12.5)),
-                              ],
-                            ),
-                          ),
-                          DataCell(
-                            Text(
-                              job['price'] is num ? '${(job['price'] as num).toStringAsFixed(0)} ₺' : (job['price']?.toString() ?? '-'),
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: Color(0xFF0F172A)),
-                            ),
-                          ),
-                          DataCell(
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: sColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                status,
-                                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: sColor),
-                              ),
-                            ),
-                          ),
-                          DataCell(
-                            job['assigned_usta'] != null
-                                ? InkWell(
-                                    onTap: () => _showAssignUstaDialog(job),
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(Icons.person_pin_circle_rounded, size: 16, color: Color(0xFF0284C7)),
-                                          const SizedBox(width: 5),
-                                          Text(
-                                            job['assigned_usta']?.toString() ?? 'Atama Yapılmadı',
-                                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF0284C7)),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          const Icon(Icons.swap_horiz, size: 14, color: Color(0xFF64748B)),
-                                        ],
-                                      ),
-                                    ),
-                                  )
-                                : OutlinedButton.icon(
-                                    onPressed: () => _showAssignUstaDialog(job),
-                                    icon: const Icon(Icons.person_add_alt_1_rounded, size: 14),
-                                    label: const Text('Usta Ata', style: TextStyle(fontSize: 11.5)),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      visualDensity: VisualDensity.compact,
-                                      foregroundColor: AppTheme.ustaPrimary,
-                                      side: BorderSide(color: AppTheme.ustaPrimary),
-                                    ),
-                                  ),
-                          ),
-                          DataCell(
-                            Text(
-                              job['time_ago'] ?? '-',
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                            ),
-                          ),
-                        ],
-                      );
-                    }).toList(),
-                  ),
+                    );
+                  },
                 ),
             ],
           ),
@@ -4541,101 +4635,147 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ),
             )
           else
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                headingRowColor: WidgetStateProperty.all(_tableHeader),
-                columns: [
-                  DataColumn(label: Text('Usta Adı Soyadı', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                  DataColumn(label: Text('Telefon Numarası', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                  DataColumn(label: Text('Meslek / Kategori', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                  DataColumn(label: Text('Tecrübe', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                  DataColumn(label: Text('Yüklenen Belgeler', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                  DataColumn(label: Text('Başvuru Zamanı', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                  DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                ],
-                rows: _pendingUstalar.map((usta) {
-                  return DataRow(
-                    cells: [
-                      DataCell(
-                        Row(
-                          children: [
-                            const CircleAvatar(
-                              radius: 14,
-                              backgroundColor: Color(0xFFE2E8F0),
-                              child: Icon(Icons.person, size: 16, color: Color(0xFF475569)),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: DataTable(
+                      headingRowColor: WidgetStateProperty.all(_tableHeader),
+                      dataRowMinHeight: 64,
+                      dataRowMaxHeight: 72,
+                      columnSpacing: 18,
+                      columns: [
+                        DataColumn(label: Text('Usta Adı Soyadı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
+                        DataColumn(label: Text('Telefon Numarası', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Meslek / Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Tecrübe', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Yüklenen Belgeler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Başvuru Zamanı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
+                      ],
+                      rows: _pendingUstalar.map((usta) {
+                        return DataRow(
+                          cells: [
+                            DataCell(
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 16,
+                                    backgroundColor: _isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                    child: Icon(Icons.person, size: 18, color: _isDarkMode ? Colors.white70 : const Color(0xFF475569)),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(usta['full_name'] ?? 'İsimsiz', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _textPrimary)),
+                                ],
+                              ),
                             ),
-                            const SizedBox(width: 8),
-                            Text(usta['full_name'] ?? 'İsimsiz', style: const TextStyle(fontWeight: FontWeight.w700)),
+                            DataCell(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.phone_outlined, size: 14, color: _textMuted),
+                                  const SizedBox(width: 5),
+                                  Text(usta['phone'] ?? '-', style: TextStyle(fontSize: 12, fontFamily: 'monospace', color: _textSecondary, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0284C7).withValues(alpha: _isDarkMode ? 0.2 : 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.25)),
+                                ),
+                                child: Text(
+                                  usta['kategori'] ?? 'Genel Usta',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0284C7)),
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                decoration: BoxDecoration(
+                                  color: _bgSurfaceElevated,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: _borderPrimary),
+                                ),
+                                child: Text(
+                                  '${usta['tecrube_yil'] ?? 5} Yıl',
+                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: _textSecondary),
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              InkWell(
+                                onTap: () => _showUstaDocumentModal(usta),
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0284C7).withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.2)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.file_present_rounded, size: 15, color: Color(0xFF0284C7)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        usta['belgeler'] ?? 'Belgeleri İncele',
+                                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF0284C7), fontWeight: FontWeight.w700),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              Text(usta['created_at'] ?? 'Yeni', style: TextStyle(fontSize: 12, color: _textMuted)),
+                            ),
+                            DataCell(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ElevatedButton.icon(
+                                    onPressed: () => _approveUsta(usta),
+                                    icon: const Icon(Icons.check_rounded, size: 14),
+                                    label: const Text('Onayla'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF16A34A),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                      minimumSize: Size.zero,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  OutlinedButton.icon(
+                                    onPressed: () => _showRejectUstaDialog(usta),
+                                    icon: const Icon(Icons.close_rounded, size: 14),
+                                    label: const Text('Reddet'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: const Color(0xFFEF4444),
+                                      side: const BorderSide(color: Color(0xFFFCA5A5)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                      minimumSize: Size.zero,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
-                        ),
-                      ),
-                      DataCell(Text(usta['phone'] ?? '-')),
-                      DataCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFFBFDBFE)),
-                          ),
-                          child: Text(
-                            usta['kategori'] ?? 'Genel Usta',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8)),
-                          ),
-                        ),
-                      ),
-                      DataCell(Text('${usta['tecrube_yil'] ?? 5} Yıl')),
-                      DataCell(
-                        InkWell(
-                          onTap: () => _showUstaDocumentModal(usta),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.file_present_rounded, size: 16, color: Color(0xFF0284C7)),
-                              const SizedBox(width: 4),
-                              Text(
-                                usta['belgeler'] ?? 'Belgeleri İncele',
-                                style: const TextStyle(fontSize: 12, color: Color(0xFF0284C7), fontWeight: FontWeight.w600, decoration: TextDecoration.underline),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      DataCell(Text(usta['created_at'] ?? 'Yeni')),
-                      DataCell(
-                        Row(
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: () => _approveUsta(usta),
-                              icon: const Icon(Icons.check, size: 14),
-                              label: const Text('Onayla'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF16A34A),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                minimumSize: Size.zero,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            OutlinedButton.icon(
-                              onPressed: () => _showRejectUstaDialog(usta),
-                              icon: const Icon(Icons.close, size: 14),
-                              label: const Text('Reddet'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.redAccent,
-                                side: const BorderSide(color: Colors.redAccent),
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                minimumSize: Size.zero,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
-              ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                );
+              },
             ),
         ],
       ),
@@ -4792,145 +4932,224 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ),
             )
           else
-            SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(_tableHeader),
-              columns: [
-                DataColumn(
-                  label: Checkbox(
-                    value: filteredUstalar.isNotEmpty && _selectedUstaIds.length == filteredUstalar.length,
-                    tristate: _selectedUstaIds.isNotEmpty && _selectedUstaIds.length < filteredUstalar.length,
-                    onChanged: (val) {
-                      setState(() {
-                        if (val == true) {
-                          _selectedUstaIds.addAll(filteredUstalar.map((u) => (u['id'] ?? '').toString()));
-                        } else {
-                          _selectedUstaIds.clear();
-                        }
-                      });
-                    },
-                  ),
-                ),
-                DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Usta / İşletme', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Telefon', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Kategori', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Ücret / Fiyat', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Puan & Yorum', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Tamamlanan İş', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Durum', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Bölge', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-              ],
-              rows: filteredUstalar.map((u) {
-                final isOnline = u['status'] == 'Çevrimiçi';
-                final isBusy = u['status'] == 'Meşgul';
-                final isSuspended = u['status'] == 'Askıda';
-                final priceVal = (u['price'] as num?)?.toDouble() ?? 750.0;
-                final ustaIdStr = (u['id'] ?? '').toString();
-                final isSelected = _selectedUstaIds.contains(ustaIdStr);
-
-                Color statusColor = const Color(0xFF64748B);
-                if (isOnline) statusColor = const Color(0xFF16A34A);
-                if (isBusy) statusColor = const Color(0xFFF59E0B);
-                if (isSuspended) statusColor = const Color(0xFFEF4444);
-
-                return DataRow(
-                  selected: isSelected,
-                  cells: [
-                    DataCell(
-                      Checkbox(
-                        value: isSelected,
-                        onChanged: (val) {
-                          setState(() {
-                            if (val == true) {
-                              _selectedUstaIds.add(ustaIdStr);
-                            } else {
-                              _selectedUstaIds.remove(ustaIdStr);
-                            }
-                          });
-                        },
-                      ),
-                    ),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF0284C7)),
-                            tooltip: 'Usta Bilgilerini & Fiyatını Düzenle',
-                            onPressed: () => _showEditUstaDialog(u),
-                          ),
-                          IconButton(
-                            icon: Icon(isSuspended ? Icons.play_arrow_rounded : Icons.pause_rounded, size: 18, color: isSuspended ? Colors.green : Colors.orange),
-                            tooltip: isSuspended ? 'Ustayla Çalışmayı Aktif Et' : 'Geçici Olarak Askıya Al',
-                            onPressed: () {
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: DataTable(
+                      headingRowColor: WidgetStateProperty.all(_tableHeader),
+                      dataRowMinHeight: 64,
+                      dataRowMaxHeight: 72,
+                      columnSpacing: 18,
+                      columns: [
+                        DataColumn(
+                          label: Checkbox(
+                            value: filteredUstalar.isNotEmpty && _selectedUstaIds.length == filteredUstalar.length,
+                            tristate: _selectedUstaIds.isNotEmpty && _selectedUstaIds.length < filteredUstalar.length,
+                            onChanged: (val) {
                               setState(() {
-                                u['status'] = isSuspended ? 'Çevrimiçi' : 'Askıda';
+                                if (val == true) {
+                                  _selectedUstaIds.addAll(filteredUstalar.map((u) => (u['id'] ?? '').toString()));
+                                } else {
+                                  _selectedUstaIds.clear();
+                                }
                               });
-                              _savePersistedData('admin_active_ustalar');
-                              _showSuccessToast('${u['full_name']} durumu değiştirildi.');
                             },
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                            tooltip: 'Ustayla İlişiği Kes',
-                            onPressed: () {
-                              setState(() {
-                                _activeUstalar.removeWhere((item) => item['id'] == u['id']);
-                                _selectedUstaIds.remove(u['id']);
-                                _recalculateMetrics();
-                              });
-                              _savePersistedData('admin_active_ustalar');
-                              _showSuccessToast('Usta sistemden çıkarıldı.');
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    DataCell(
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 14,
-                            backgroundColor: AppTheme.ustaPrimary.withValues(alpha: 0.15),
-                            child: const Icon(Icons.handyman, size: 16, color: AppTheme.ustaPrimary),
-                          ),
-                          const SizedBox(width: 8),
-                          Text((u['full_name'] ?? 'Usta').toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
-                    DataCell(Text((u['phone'] ?? '-').toString())),
-                    DataCell(Text((u['kategori'] ?? '-').toString())),
-                    DataCell(Text('${priceVal.toStringAsFixed(0)} ₺', style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A)))),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
-                          const SizedBox(width: 3),
-                          Text('${u['rating'] ?? 5.0} (${u['review_count'] ?? 0})', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
-                    DataCell(Text('${u['completed_jobs'] ?? 0} Görev')),
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text((u['status'] ?? 'Çevrimiçi').toString(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusColor)),
-                      ),
+                        DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
+                        DataColumn(label: Text('Usta / İşletme', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Telefon', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Taban Fiyat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Puan & Yorum', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Tamamlanan İş', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Durum', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Bölge', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                      ],
+                      rows: filteredUstalar.map((u) {
+                        final isOnline = u['status'] == 'Çevrimiçi';
+                        final isBusy = u['status'] == 'Meşgul';
+                        final isSuspended = u['status'] == 'Askıda';
+                        final priceVal = (u['price'] as num?)?.toDouble() ?? 750.0;
+                        final ustaIdStr = (u['id'] ?? '').toString();
+                        final isSelected = _selectedUstaIds.contains(ustaIdStr);
+
+                        Color statusColor = const Color(0xFF64748B);
+                        if (isOnline) statusColor = const Color(0xFF16A34A);
+                        if (isBusy) statusColor = const Color(0xFFF59E0B);
+                        if (isSuspended) statusColor = const Color(0xFFEF4444);
+
+                        return DataRow(
+                          selected: isSelected,
+                          cells: [
+                            DataCell(
+                              Checkbox(
+                                value: isSelected,
+                                onChanged: (val) {
+                                  setState(() {
+                                    if (val == true) {
+                                      _selectedUstaIds.add(ustaIdStr);
+                                    } else {
+                                      _selectedUstaIds.remove(ustaIdStr);
+                                    }
+                                  });
+                                },
+                              ),
+                            ),
+                            DataCell(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildActionIconButton(
+                                    icon: Icons.edit_outlined,
+                                    color: const Color(0xFF0284C7),
+                                    tooltip: 'Usta Bilgilerini & Fiyatını Düzenle',
+                                    onPressed: () => _showEditUstaDialog(u),
+                                  ),
+                                  _buildActionIconButton(
+                                    icon: isSuspended ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                                    color: isSuspended ? const Color(0xFF16A34A) : const Color(0xFFF59E0B),
+                                    tooltip: isSuspended ? 'Ustayla Çalışmayı Aktif Et' : 'Geçici Olarak Askıya Al',
+                                    onPressed: () {
+                                      setState(() {
+                                        u['status'] = isSuspended ? 'Çevrimiçi' : 'Askıda';
+                                      });
+                                      _savePersistedData('admin_active_ustalar');
+                                      _showSuccessToast('${u['full_name']} durumu değiştirildi.');
+                                    },
+                                  ),
+                                  _buildActionIconButton(
+                                    icon: Icons.delete_outline_rounded,
+                                    color: const Color(0xFFEF4444),
+                                    tooltip: 'Ustayla İlişiği Kes',
+                                    onPressed: () {
+                                      setState(() {
+                                        _activeUstalar.removeWhere((item) => item['id'] == u['id']);
+                                        _selectedUstaIds.remove(u['id']);
+                                        _recalculateMetrics();
+                                      });
+                                      _savePersistedData('admin_active_ustalar');
+                                      _showSuccessToast('Usta sistemden çıkarıldı.');
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            DataCell(
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 15,
+                                    backgroundColor: AppTheme.ustaPrimary.withValues(alpha: 0.15),
+                                    child: const Icon(Icons.handyman, size: 16, color: AppTheme.ustaPrimary),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text((u['full_name'] ?? 'Usta').toString(), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _textPrimary)),
+                                ],
+                              ),
+                            ),
+                            DataCell(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.phone_outlined, size: 13, color: _textMuted),
+                                  const SizedBox(width: 5),
+                                  Text((u['phone'] ?? '-').toString(), style: TextStyle(fontSize: 12, fontFamily: 'monospace', color: _textSecondary, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                decoration: BoxDecoration(
+                                  color: _bgSurfaceElevated,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: _borderPrimary),
+                                ),
+                                child: Text(
+                                  (u['kategori'] ?? '-').toString(),
+                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: _textSecondary),
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: _borderPrimary),
+                                ),
+                                child: Text(
+                                  '${priceVal.toStringAsFixed(0)} ₺',
+                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5, color: _textPrimary),
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF3C7),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFFFDE68A)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.star_rounded, color: Color(0xFFD97706), size: 15),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '${u['rating'] ?? 5.0}',
+                                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11.5, color: Color(0xFFB45309)),
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '(${u['review_count'] ?? 0})',
+                                      style: const TextStyle(fontSize: 10.5, color: Color(0xFFB45309)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                decoration: BoxDecoration(
+                                  color: _bgSurfaceElevated,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: _borderPrimary),
+                                ),
+                                child: Text(
+                                  '${u['completed_jobs'] ?? 0} Görev',
+                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: _textSecondary),
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              _buildStatusDotPill(label: (u['status'] ?? 'Çevrimiçi').toString(), color: statusColor),
+                            ),
+                            DataCell(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.location_on_outlined, size: 14, color: _textMuted),
+                                  const SizedBox(width: 4),
+                                  Text((u['location'] ?? 'İstanbul').toString(), style: TextStyle(fontSize: 12, color: _textSecondary)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
                     ),
-                    DataCell(Text((u['location'] ?? 'İstanbul').toString())),
-                  ],
+                  ),
                 );
-              }).toList(),
+              },
             ),
-          ),
         ],
       ),
     );
@@ -5370,74 +5589,145 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ),
                 )
               else
-                SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  headingRowColor: WidgetStateProperty.all(_tableHeader),
-                  columns: [
-                    DataColumn(label: Text('İşletme Adı', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                    DataColumn(label: Text('Kategori', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                    DataColumn(label: Text('Telefon', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                    DataColumn(label: Text('Konum (Lat / Lng)', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                    DataColumn(label: Text('Adres', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                    DataColumn(label: Text('İndirim Oranı', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                    DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                  ],
-                  rows: _tedarikciler.map((biz) {
-                    return DataRow(
-                      cells: [
-                        DataCell(
-                          Row(
-                            children: [
-                              const Icon(Icons.location_on, color: Color(0xFFD97706), size: 18),
-                              const SizedBox(width: 6),
-                              Text(biz['ad'] ?? '-', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            ],
-                          ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                        child: DataTable(
+                          headingRowColor: WidgetStateProperty.all(_tableHeader),
+                          dataRowMinHeight: 64,
+                          dataRowMaxHeight: 70,
+                          columnSpacing: 18,
+                          columns: [
+                            DataColumn(label: Text('İşletme Adı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
+                            DataColumn(label: Text('Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Telefon', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Konum (Lat / Lng)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Adres', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('İndirim Oranı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
+                          ],
+                          rows: _tedarikciler.map((biz) {
+                            return DataRow(
+                              cells: [
+                                DataCell(
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFEF3C7),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(Icons.storefront_rounded, color: Color(0xFFD97706), size: 17),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(biz['ad'] ?? '-', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _textPrimary)),
+                                    ],
+                                  ),
+                                ),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                    decoration: BoxDecoration(
+                                      color: _bgSurfaceElevated,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: _borderPrimary),
+                                    ),
+                                    child: Text(
+                                      biz['kategori'] ?? '-',
+                                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: _textSecondary),
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.phone_outlined, size: 13, color: _textMuted),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        biz['telefon'] ?? '-',
+                                        style: TextStyle(fontSize: 12, fontFamily: 'monospace', color: _textSecondary, fontWeight: FontWeight.w600),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                    decoration: BoxDecoration(
+                                      color: _isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: _borderPrimary),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.explore_outlined, size: 13, color: Color(0xFFD97706)),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${biz['enlem']} , ${biz['boylam']}',
+                                          style: TextStyle(fontFamily: 'monospace', fontSize: 11.5, fontWeight: FontWeight.w600, color: _textSecondary),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  SizedBox(
+                                    width: 250,
+                                    child: Text(
+                                      biz['adres'] ?? '-',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(fontSize: 12.5, color: _textSecondary),
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFEF3C7),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: const Color(0xFFFDE68A)),
+                                    ),
+                                    child: Text(
+                                      biz['indirim_orani'] ?? '%10 İndirim',
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFFB45309)),
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      _buildActionIconButton(
+                                        icon: Icons.edit_outlined,
+                                        color: const Color(0xFF0284C7),
+                                        tooltip: 'Tedarikçiyi Düzenle',
+                                        onPressed: () => _showEditSupplierDialog(biz),
+                                      ),
+                                      _buildActionIconButton(
+                                        icon: Icons.delete_outline_rounded,
+                                        color: const Color(0xFFEF4444),
+                                        tooltip: 'Tedarikçiyi Sil',
+                                        onPressed: () => _deleteSupplier(biz['id']),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
                         ),
-                        DataCell(Text(biz['kategori'] ?? '-')),
-                        DataCell(Text(biz['telefon'] ?? '-')),
-                        DataCell(Text('${biz['enlem']} , ${biz['boylam']}')),
-                        DataCell(
-                          SizedBox(
-                            width: 250,
-                            child: Text(biz['adres'] ?? '-', maxLines: 1, overflow: TextOverflow.ellipsis),
-                          ),
-                        ),
-                        DataCell(
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFEF3C7),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              biz['indirim_orani'] ?? '%10 İndirim',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF0284C7)),
-                                tooltip: 'Düzenle',
-                                onPressed: () => _showEditSupplierDialog(biz),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                                tooltip: 'Sil',
-                                onPressed: () => _deleteSupplier(biz['id']),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                      ),
                     );
-                  }).toList(),
+                  },
                 ),
-              ),
             ],
           ),
         ),
@@ -5516,84 +5806,114 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ),
             )
           else
-            SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(_tableHeader),
-              columns: [
-                DataColumn(label: Text('Pin Başlığı', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Pin Türü', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Koordinatlar (Lat / Lng)', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Açıklama', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Haritada Görünüm', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-              ],
-              rows: _mapPins.map((p) {
-                final color = p['color'] as Color;
-                final icon = p['icon'] as IconData;
-                final isActive = p['is_active'] == true;
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: DataTable(
+                      headingRowColor: WidgetStateProperty.all(_tableHeader),
+                      dataRowMinHeight: 64,
+                      dataRowMaxHeight: 70,
+                      columnSpacing: 18,
+                      columns: [
+                        DataColumn(label: Text('Pin Başlığı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
+                        DataColumn(label: Text('Pin Türü', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Koordinatlar (Lat / Lng)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Açıklama', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Haritada Görünüm', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
+                      ],
+                      rows: _mapPins.map((p) {
+                        final color = p['color'] as Color;
+                        final icon = p['icon'] as IconData;
+                        final isActive = p['is_active'] == true;
 
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
-                            child: Icon(icon, color: color, size: 18),
-                          ),
-                          const SizedBox(width: 8),
-                          Text((p['title'] ?? '').toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      ),
+                        return DataRow(
+                          cells: [
+                            DataCell(
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(7),
+                                    decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
+                                    child: Icon(icon, color: color, size: 18),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text((p['title'] ?? '').toString(), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _textPrimary)),
+                                ],
+                              ),
+                            ),
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                decoration: BoxDecoration(
+                                  color: color.withValues(alpha: _isDarkMode ? 0.2 : 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: color.withValues(alpha: 0.25)),
+                                ),
+                                child: Text((p['pin_type'] ?? 'Tedarikçi (Sarı)').toString(), style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: color)),
+                              ),
+                            ),
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                decoration: BoxDecoration(
+                                  color: _isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: _borderPrimary),
+                                ),
+                                child: Text(
+                                  '${p['lat']} , ${p['lng']}',
+                                  style: TextStyle(fontFamily: 'monospace', fontSize: 11.5, fontWeight: FontWeight.w600, color: _textSecondary),
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              SizedBox(
+                                width: 260,
+                                child: Text((p['description'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: _textSecondary)),
+                              ),
+                            ),
+                            DataCell(
+                              Switch(
+                                value: isActive,
+                                activeColor: const Color(0xFF16A34A),
+                                onChanged: (val) {
+                                  setState(() => p['is_active'] = val);
+                                  _savePersistedData('admin_map_pins');
+                                  _showSuccessToast(val ? 'Pin haritada aktif edildi.' : 'Pin haritada gizlendi.');
+                                },
+                              ),
+                            ),
+                            DataCell(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildActionIconButton(
+                                    icon: Icons.edit_outlined,
+                                    color: const Color(0xFF0284C7),
+                                    tooltip: 'Pini Düzenle',
+                                    onPressed: () => _showEditPinDialog(p),
+                                  ),
+                                  _buildActionIconButton(
+                                    icon: Icons.delete_outline_rounded,
+                                    color: const Color(0xFFEF4444),
+                                    tooltip: 'Pini Kaldır',
+                                    onPressed: () => _deletePin(p['id']),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
                     ),
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
-                        child: Text((p['pin_type'] ?? 'Tedarikçi (Sarı)').toString(), style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: color)),
-                      ),
-                    ),
-                    DataCell(Text('${p['lat']} , ${p['lng']}')),
-                    DataCell(
-                      SizedBox(
-                        width: 260,
-                        child: Text((p['description'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      ),
-                    ),
-                    DataCell(
-                      Switch(
-                        value: isActive,
-                        activeColor: const Color(0xFF16A34A),
-                        onChanged: (val) {
-                          setState(() => p['is_active'] = val);
-                          _savePersistedData('admin_map_pins');
-                          _showSuccessToast(val ? 'Pin haritada aktif edildi.' : 'Pin haritada gizlendi.');
-                        },
-                      ),
-                    ),
-                    DataCell(
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF0284C7)),
-                            tooltip: 'Düzenle',
-                            onPressed: () => _showEditPinDialog(p),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                            tooltip: 'Pini Kaldır',
-                            onPressed: () => _deletePin(p['id']),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 );
-              }).toList(),
+              },
             ),
-          ),
         ],
       ),
     );
@@ -5670,71 +5990,109 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ),
             )
           else
-            SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(_tableHeader),
-              columns: [
-                DataColumn(label: Text('Kategori Adı', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Tür', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Açıklama', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Kayıtlı Varlık', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
-              ],
-              rows: _categories.map((c) {
-                final color = c['color'] as Color;
-                final icon = c['icon'] as IconData;
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: DataTable(
+                      headingRowColor: WidgetStateProperty.all(_tableHeader),
+                      dataRowMinHeight: 64,
+                      dataRowMaxHeight: 70,
+                      columnSpacing: 20,
+                      columns: [
+                        DataColumn(label: Text('Kategori Adı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
+                        DataColumn(label: Text('Tür', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Açıklama', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Kayıtlı Varlık', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
+                      ],
+                      rows: _categories.map((c) {
+                        final color = c['color'] as Color;
+                        final icon = c['icon'] as IconData;
 
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-                            child: Icon(icon, color: color, size: 20),
-                          ),
-                          const SizedBox(width: 10),
-                          Text((c['name'] ?? '').toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      ),
+                        return DataRow(
+                          cells: [
+                            DataCell(
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(7),
+                                    decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                                    child: Icon(icon, color: color, size: 20),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text((c['name'] ?? '').toString(), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _textPrimary)),
+                                ],
+                              ),
+                            ),
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0284C7).withValues(alpha: _isDarkMode ? 0.2 : 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.25)),
+                                ),
+                                child: Text(
+                                  (c['type'] ?? 'Usta Hizmeti').toString(),
+                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF0284C7)),
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              SizedBox(
+                                width: 360,
+                                child: Text(
+                                  (c['description'] ?? '').toString(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 12.5, color: _textSecondary),
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                decoration: BoxDecoration(
+                                  color: _bgSurfaceElevated,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: _borderPrimary),
+                                ),
+                                child: Text(
+                                  '${c['count']} Kayıtlı',
+                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: _textSecondary),
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildActionIconButton(
+                                    icon: Icons.edit_outlined,
+                                    color: const Color(0xFF0284C7),
+                                    tooltip: 'Kategoriyi Düzenle',
+                                    onPressed: () => _showEditCategoryDialog(c),
+                                  ),
+                                  _buildActionIconButton(
+                                    icon: Icons.delete_outline_rounded,
+                                    color: const Color(0xFFEF4444),
+                                    tooltip: 'Kategoriyi Sil',
+                                    onPressed: () => _deleteCategory(c['id']),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
                     ),
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(color: const Color(0xFFE0F2FE), borderRadius: BorderRadius.circular(6)),
-                        child: Text((c['type'] ?? 'Usta Hizmeti').toString(), style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF0369A1))),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 320,
-                        child: Text((c['description'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      ),
-                    ),
-                    DataCell(Text('${c['count']} Kayıtlı')),
-                    DataCell(
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF0284C7)),
-                            tooltip: 'Düzenle',
-                            onPressed: () => _showEditCategoryDialog(c),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                            tooltip: 'Sil',
-                            onPressed: () => _deleteCategory(c['id']),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 );
-              }).toList(),
+              },
             ),
-          ),
         ],
       ),
     );
@@ -6225,310 +6583,361 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ),
                 )
               else
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    headingRowColor: WidgetStateProperty.all(_tableHeader),
-                    dataRowMinHeight: 68,
-                    dataRowMaxHeight: 76,
-                    columnSpacing: 20,
-                    columns: [
-                      // 1. Checkbox Tümünü Seç
-                      DataColumn(
-                        label: Checkbox(
-                          value: filteredTransactions.isNotEmpty && _selectedTransactionIds.length == filteredTransactions.length,
-                          tristate: _selectedTransactionIds.isNotEmpty && _selectedTransactionIds.length < filteredTransactions.length,
-                          onChanged: (val) {
-                            setState(() {
-                              if (val == true) {
-                                _selectedTransactionIds.addAll(filteredTransactions.map((t) => (t['id'] ?? '').toString()));
-                              } else {
-                                _selectedTransactionIds.clear();
-                              }
-                            });
-                          },
-                        ),
-                      ),
-                      // 2. Aksiyonlar (Hemen başta - Asla kaybolmaz, doğrudan erişilebilir!)
-                      DataColumn(label: Text('İşlemler / Aksiyon', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
-                      // 3. Dekont / İşlem No
-                      DataColumn(label: Text('Dekont / İşlem No', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
-                      // 4. Hizmet & Kategori
-                      DataColumn(label: Text('Hizmet & Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
-                      // 5. Müşteri
-                      DataColumn(label: Text('Müşteri', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
-                      // 6. Görevli Usta
-                      DataColumn(label: Text('Görevli Usta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
-                      // 7. Usta Tabanı
-                      DataColumn(label: Text('Hizmet Bedeli\n(Usta Taban)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                      // 8. Komisyon (%15)
-                      const DataColumn(label: Text('Bizim Komisyon\nKazancımız (%15)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF16A34A)))),
-                      // 9. Toplam Çekilen
-                      const DataColumn(label: Text('Toplam Çekilen\nTutar (Müşteri)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0284C7)))),
-                      // 10. Hizmet Akış Aşaması
-                      DataColumn(label: Text('Hizmet Akış Aşaması', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
-                      // 11. Ödeme Sağlayıcı
-                      DataColumn(label: Text('Ödeme Sağlayıcı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
-                      // 12. Tarih / Saat
-                      DataColumn(label: Text('Tarih / Saat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
-                    ],
-                    rows: filteredTransactions.map((tx) {
-                      final status = (tx['durum'] ?? '').toString();
-                      final step = _asInt(tx['flow_step'], 1);
-                      final ustaPayout = _asDouble(tx['usta_hakedis'], 0.0);
-                      final commission = _asDouble(tx['komisyon_tutari'], 0.0);
-                      final totalAmount = _asDouble(tx['toplam_tutar'], 0.0);
-                      final receiptNo = (tx['receipt_no'] ?? tx['id'] ?? '').toString();
-                      final isPayoutDone = tx['is_payout_transferred'] == true;
-                      final txId = (tx['id'] ?? '').toString();
-                      final isSelected = _selectedTransactionIds.contains(txId);
-
-                      return DataRow(
-                        selected: isSelected,
-                        cells: [
-                          // 1. Checkbox
-                          DataCell(
-                            Checkbox(
-                              value: isSelected,
-                              onChanged: (val) {
-                                setState(() {
-                                  if (val == true) {
-                                    _selectedTransactionIds.add(txId);
-                                  } else {
-                                    _selectedTransactionIds.remove(txId);
-                                  }
-                                });
-                              },
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                        child: DataTable(
+                          headingRowColor: WidgetStateProperty.all(_tableHeader),
+                          dataRowMinHeight: 70,
+                          dataRowMaxHeight: 78,
+                          columnSpacing: 18,
+                          columns: [
+                            // 1. Checkbox Tümünü Seç
+                            DataColumn(
+                              label: Checkbox(
+                                value: filteredTransactions.isNotEmpty && _selectedTransactionIds.length == filteredTransactions.length,
+                                tristate: _selectedTransactionIds.isNotEmpty && _selectedTransactionIds.length < filteredTransactions.length,
+                                onChanged: (val) {
+                                  setState(() {
+                                    if (val == true) {
+                                      _selectedTransactionIds.addAll(filteredTransactions.map((t) => (t['id'] ?? '').toString()));
+                                    } else {
+                                      _selectedTransactionIds.clear();
+                                    }
+                                  });
+                                },
+                              ),
                             ),
-                          ),
+                            // 2. Aksiyonlar (Hemen başta - Asla kaybolmaz, doğrudan erişilebilir!)
+                            DataColumn(label: Text('İşlemler / Aksiyon', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
+                            // 3. Dekont / İşlem No
+                            DataColumn(label: Text('Dekont / İşlem No', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            // 4. Hizmet & Kategori
+                            DataColumn(label: Text('Hizmet & Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            // 5. Müşteri
+                            DataColumn(label: Text('Müşteri', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            // 6. Görevli Usta
+                            DataColumn(label: Text('Görevli Usta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            // 7. Usta Tabanı
+                            DataColumn(label: Text('Hizmet Bedeli\n(Usta Taban)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
+                            // 8. Komisyon (%15)
+                            const DataColumn(label: Text('Bizim Komisyon\nKazancımız (%15)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF16A34A)))),
+                            // 9. Toplam Çekilen
+                            const DataColumn(label: Text('Toplam Çekilen\nTutar (Müşteri)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0284C7)))),
+                            // 10. Hizmet Akış Aşaması
+                            DataColumn(label: Text('Hizmet Akış Aşaması', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            // 11. Ödeme Sağlayıcı
+                            DataColumn(label: Text('Ödeme Sağlayıcı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            // 12. Tarih / Saat
+                            DataColumn(label: Text('Tarih / Saat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                          ],
+                          rows: filteredTransactions.map((tx) {
+                            final status = (tx['durum'] ?? '').toString();
+                            final step = _asInt(tx['flow_step'], 1);
+                            final ustaPayout = _asDouble(tx['usta_hakedis'], 0.0);
+                            final commission = _asDouble(tx['komisyon_tutari'], 0.0);
+                            final totalAmount = _asDouble(tx['toplam_tutar'], 0.0);
+                            final receiptNo = (tx['receipt_no'] ?? tx['id'] ?? '').toString();
+                            final isPayoutDone = tx['is_payout_transferred'] == true;
+                            final txId = (tx['id'] ?? '').toString();
+                            final isSelected = _selectedTransactionIds.contains(txId);
 
-                          // 2. Aksiyon Butonları (İncele, Düzenle, Aşamayı İlerlet, Hakediş Aktar, Sil)
-                          DataCell(
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // İncele (Dekont)
-                                IconButton(
-                                  icon: const Icon(Icons.remove_red_eye_rounded, size: 18, color: Color(0xFF0284C7)),
-                                  tooltip: 'Dekont & Süreç Detayını İncele',
-                                  onPressed: () => _showTransactionDetailDialog(tx),
-                                ),
-                                // Düzenle
-                                IconButton(
-                                  icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFFD97706)),
-                                  tooltip: 'İşlemi & Hizmet Akışını Düzenle',
-                                  onPressed: () => _showEditTransactionDialog(tx),
-                                ),
-                                // Hızlı Aşama İlerletme (Onay ➔ Kabul ➔ Yolda ➔ Bitti)
-                                IconButton(
-                                  icon: const Icon(Icons.play_arrow_rounded, size: 20, color: Color(0xFF7C3AED)),
-                                  tooltip: 'Aşamayı İlerlet ($step/4)',
-                                  onPressed: () => _advanceTransactionStep(tx),
-                                ),
-                                // Hakediş Transferi
-                                if (status.contains('Tamamlandı') && !isPayoutDone)
-                                  IconButton(
-                                    icon: const Icon(Icons.send_rounded, size: 18, color: Color(0xFF16A34A)),
-                                    tooltip: 'Usta Hakedişini Bankaya Aktar',
-                                    onPressed: () {
+                            return DataRow(
+                              selected: isSelected,
+                              cells: [
+                                // 1. Checkbox
+                                DataCell(
+                                  Checkbox(
+                                    value: isSelected,
+                                    onChanged: (val) {
                                       setState(() {
-                                        tx['is_payout_transferred'] = true;
+                                        if (val == true) {
+                                          _selectedTransactionIds.add(txId);
+                                        } else {
+                                          _selectedTransactionIds.remove(txId);
+                                        }
                                       });
-                                      _saveFinancialTransactionsToPrefs();
-                                      _showSuccessToast('${tx['usta_ad']} hesabına ${ustaPayout.toStringAsFixed(2)} ₺ aktarıldı.');
                                     },
                                   ),
-                                // Sil
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFEF4444)),
-                                  tooltip: 'İşlem Kaydını Sil',
-                                  onPressed: () => _confirmDeleteTransaction(tx),
                                 ),
-                              ],
-                            ),
-                          ),
 
-                          // 3. Dekont No & İyzico Chip
-                          DataCell(
-                            InkWell(
-                              onTap: () => _showTransactionDetailDialog(tx),
-                              borderRadius: BorderRadius.circular(6),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.receipt_rounded, size: 14, color: Color(0xFF0284C7)),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          receiptNo,
-                                          style: const TextStyle(
-                                            fontFamily: 'monospace',
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 12,
-                                            color: Color(0xFF0284C7),
-                                          ),
+                                // 2. Aksiyon Butonları (İncele, Düzenle, Aşamayı İlerlet, Hakediş Aktar, Sil)
+                                DataCell(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // İncele (Dekont)
+                                      _buildActionIconButton(
+                                        icon: Icons.remove_red_eye_rounded,
+                                        color: const Color(0xFF0284C7),
+                                        tooltip: 'Dekont & Süreç Detayını İncele',
+                                        onPressed: () => _showTransactionDetailDialog(tx),
+                                      ),
+                                      // Düzenle
+                                      _buildActionIconButton(
+                                        icon: Icons.edit_outlined,
+                                        color: const Color(0xFFD97706),
+                                        tooltip: 'İşlemi & Hizmet Akışını Düzenle',
+                                        onPressed: () => _showEditTransactionDialog(tx),
+                                      ),
+                                      // Hızlı Aşama İlerletme (Onay ➔ Kabul ➔ Yolda ➔ Bitti)
+                                      _buildActionIconButton(
+                                        icon: Icons.play_arrow_rounded,
+                                        color: const Color(0xFF7C3AED),
+                                        tooltip: 'Aşamayı İlerlet ($step/4)',
+                                        onPressed: () => _advanceTransactionStep(tx),
+                                      ),
+                                      // Hakediş Transferi
+                                      if (status.contains('Tamamlandı') && !isPayoutDone)
+                                        _buildActionIconButton(
+                                          icon: Icons.send_rounded,
+                                          color: const Color(0xFF16A34A),
+                                          tooltip: 'Usta Hakedişini Bankaya Aktar',
+                                          onPressed: () {
+                                            setState(() {
+                                              tx['is_payout_transferred'] = true;
+                                            });
+                                            _saveFinancialTransactionsToPrefs();
+                                            _showSuccessToast('${tx['usta_ad']} hesabına ${ustaPayout.toStringAsFixed(2)} ₺ aktarıldı.');
+                                          },
                                         ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      (tx['cagri_id'] ?? tx['id'] ?? '').toString(),
-                                      style: TextStyle(fontSize: 11, color: _textMuted),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          // 4. Hizmet & Kategori
-                          DataCell(
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  (tx['hizmet_baslik'] ?? 'Servis Çağrısı').toString(),
-                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _textPrimary),
-                                ),
-                                const SizedBox(height: 2),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                  decoration: BoxDecoration(
-                                    color: _bgSurfaceElevated,
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: _borderPrimary),
-                                  ),
-                                  child: Text(
-                                    (tx['kategori'] ?? 'Genel').toString(),
-                                    style: TextStyle(fontSize: 11, color: _textSecondary, fontWeight: FontWeight.w600),
+                                      // Sil
+                                      _buildActionIconButton(
+                                        icon: Icons.delete_outline_rounded,
+                                        color: const Color(0xFFEF4444),
+                                        tooltip: 'İşlem Kaydını Sil',
+                                        onPressed: () => _confirmDeleteTransaction(tx),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
 
-                          // 5. Müşteri
-                          DataCell(
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  (tx['musteri_ad'] ?? 'Müşteri').toString(),
-                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: _textPrimary),
+                                // 3. Dekont No & İyzico Chip
+                                DataCell(
+                                  InkWell(
+                                    onTap: () => _showTransactionDetailDialog(tx),
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF0284C7).withValues(alpha: _isDarkMode ? 0.18 : 0.08),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.25)),
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.receipt_long_rounded, size: 14, color: Color(0xFF0284C7)),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                receiptNo,
+                                                style: const TextStyle(
+                                                  fontFamily: 'monospace',
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 12,
+                                                  color: Color(0xFF0284C7),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          if ((tx['cagri_id'] ?? '').toString().isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              (tx['cagri_id'] ?? '').toString(),
+                                              style: TextStyle(fontSize: 10.5, color: _textMuted, fontFamily: 'monospace'),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                                Text(
-                                  '${tx['musteri_tel']} • ${(tx['musteri_adres'] ?? '').toString().split(',').first}',
-                                  style: TextStyle(fontSize: 11, color: _textMuted),
-                                ),
-                              ],
-                            ),
-                          ),
 
-                          // 6. Görevli Usta
-                          DataCell(
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.handyman_rounded, size: 13, color: Color(0xFF059669)),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      (tx['usta_ad'] ?? '—').toString(),
+                                // 4. Hizmet & Kategori
+                                DataCell(
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        (tx['hizmet_baslik'] ?? 'Servis Çağrısı').toString(),
+                                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _textPrimary),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: _bgSurfaceElevated,
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: _borderPrimary),
+                                        ),
+                                        child: Text(
+                                          (tx['kategori'] ?? 'Genel').toString(),
+                                          style: TextStyle(fontSize: 11, color: _textSecondary, fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // 5. Müşteri
+                                DataCell(
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        (tx['musteri_ad'] ?? 'Müşteri').toString(),
+                                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: _textPrimary),
+                                      ),
+                                      const SizedBox(height: 1),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.phone_outlined, size: 12, color: _textMuted),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            '${tx['musteri_tel']}',
+                                            style: TextStyle(fontSize: 11, color: _textMuted, fontFamily: 'monospace'),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // 6. Görevli Usta
+                                DataCell(
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(3),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: const Icon(Icons.handyman_rounded, size: 12, color: Color(0xFF059669)),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            (tx['usta_ad'] ?? '—').toString(),
+                                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _textPrimary),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 1),
+                                      Text(
+                                        '${tx['usta_meslek'] ?? ''} • ${tx['usta_tel'] ?? ''}',
+                                        style: TextStyle(fontSize: 11, color: _textMuted),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // 7. Usta Taban Ücreti (Hakediş)
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: _isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: _borderPrimary),
+                                    ),
+                                    child: Text(
+                                      '${ustaPayout.toStringAsFixed(2)} ₺',
                                       style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: _textPrimary),
                                     ),
-                                  ],
+                                  ),
                                 ),
-                                Text(
-                                  '${tx['usta_meslek'] ?? ''} • ${tx['usta_tel'] ?? ''}',
-                                  style: TextStyle(fontSize: 11, color: _textMuted),
+
+                                // 8. Bizim Komisyon Kazancımız (%15)
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: _isDarkMode
+                                          ? const Color(0xFF064E3B).withValues(alpha: 0.6)
+                                          : const Color(0xFFECFDF5),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: _isDarkMode ? const Color(0xFF059669) : const Color(0xFFA7F3D0),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '+${commission.toStringAsFixed(2)} ₺',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 12.5,
+                                        color: _isDarkMode ? const Color(0xFF34D399) : const Color(0xFF047857),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                // 9. Toplam Çekilen Tutar (Müşteri)
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF0284C7).withValues(alpha: _isDarkMode ? 0.2 : 0.08),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.25)),
+                                    ),
+                                    child: Text(
+                                      '${totalAmount.toStringAsFixed(2)} ₺',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 13,
+                                        color: _isDarkMode ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                // 10. Hizmet Akış Aşaması (Stepper Rozeti)
+                                DataCell(_buildServiceFlowBadge(step, status)),
+
+                                // 11. Ödeme Sağlayıcı
+                                DataCell(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.credit_card_rounded, size: 14, color: _textMuted),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        (tx['payment_provider'] ?? 'İyzico POS').toString(),
+                                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: _textSecondary),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // 12. Tarih / Saat
+                                DataCell(
+                                  Text(
+                                    (tx['created_at'] ?? '—').toString(),
+                                    style: TextStyle(fontSize: 12, color: _textMuted),
+                                  ),
                                 ),
                               ],
-                            ),
-                          ),
-
-                          // 7. Usta Taban Ücreti (Hakediş)
-                          DataCell(
-                            Text(
-                              '${ustaPayout.toStringAsFixed(2)} ₺',
-                              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: _textPrimary),
-                            ),
-                          ),
-
-                          // 8. Bizim Komisyon Kazancımız (%15)
-                          DataCell(
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: _isDarkMode
-                                    ? const Color(0xFF064E3B).withValues(alpha: 0.6)
-                                    : const Color(0xFFECFDF5),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: _isDarkMode ? const Color(0xFF059669) : const Color(0xFFA7F3D0),
-                                ),
-                              ),
-                              child: Text(
-                                '+${commission.toStringAsFixed(2)} ₺',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 13,
-                                  color: _isDarkMode ? const Color(0xFF34D399) : const Color(0xFF047857),
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          // 9. Toplam Çekilen Tutar (Müşteri)
-                          DataCell(
-                            Text(
-                              '${totalAmount.toStringAsFixed(2)} ₺',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 14,
-                                color: _isDarkMode ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
-                              ),
-                            ),
-                          ),
-
-                          // 10. Hizmet Akış Aşaması (Stepper Rozeti)
-                          DataCell(_buildServiceFlowBadge(step, status)),
-
-                          // 11. Ödeme Sağlayıcı
-                          DataCell(
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.credit_card_rounded, size: 14, color: _textMuted),
-                                const SizedBox(width: 4),
-                                Text(
-                                  (tx['payment_provider'] ?? 'İyzico POS').toString(),
-                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: _textSecondary),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // 12. Tarih / Saat
-                          DataCell(
-                            Text(
-                              (tx['created_at'] ?? '—').toString(),
-                              style: TextStyle(fontSize: 12, color: _textMuted),
-                            ),
-                          ),
-                        ],
-                      );
-                    }).toList(),
-                  ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    );
+                  },
                 ),
             ],
           ),
