@@ -41,19 +41,20 @@ class _CustomerCompletionDialogState
   }
 
   Future<void> _onConfirmCompleted() async {
-    final router = GoRouter.of(context);
-    final navigator = Navigator.of(context, rootNavigator: true);
-    final messenger = ScaffoldMessenger.of(context);
+    final cagriId = widget.cagri.id;
     final controller =
-        ref.read(activeOrderControllerProvider(widget.cagri.id).notifier);
+        ref.read(activeOrderControllerProvider(cagriId).notifier);
+    final messenger = ScaffoldMessenger.of(context);
 
+    // 1. Diyaloğu hemen kapatarak navigasyon çakışmasını engelle
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop(true);
+    }
+
+    // 2. Tahsilat ve tamamlamayı güvenle yürüt
     final result = await controller.confirmCompletionAndCapturePayment();
-    if (!mounted) return;
 
-    if (result.success) {
-      navigator.pop(true);
-      router.go('/customer/summary/${widget.cagri.id}');
-    } else {
+    if (!result.success) {
       messenger.showSnackBar(
         SnackBar(
           content: Text(result.error ?? 'Ödeme tahsilatı tamamlanamadı.'),
@@ -75,16 +76,18 @@ class _CustomerCompletionDialogState
       return;
     }
 
-    final navigator = Navigator.of(context, rootNavigator: true);
     final messenger = ScaffoldMessenger.of(context);
     final controller =
         ref.read(activeOrderControllerProvider(widget.cagri.id).notifier);
 
+    // 1. Önce diyaloğu kapat
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop(false);
+    }
+
     final ok = await controller.reportCompletionIssue(text);
-    if (!mounted) return;
 
     if (ok) {
-      navigator.pop(false);
       messenger.showSnackBar(
         const SnackBar(
           content: Text(
