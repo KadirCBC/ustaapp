@@ -130,10 +130,27 @@ Future<void> _handleRequest(HttpRequest request) async {
   // 2. REST API Yolları
   response.headers.contentType = ContentType.json;
 
-  if (request.method == 'GET' && path == '/api/data') {
-    response.write(jsonEncode(_data));
-    await response.close();
-    return;
+  if (request.method == 'GET') {
+    if (path == '/api/data') {
+      response.write(jsonEncode(_data));
+      await response.close();
+      return;
+    }
+    if (path == '/api/financial_transactions') {
+      response.write(jsonEncode(_data['financial_transactions'] ?? []));
+      await response.close();
+      return;
+    }
+    if (path == '/api/ustalar') {
+      response.write(jsonEncode(_data['ustalar'] ?? []));
+      await response.close();
+      return;
+    }
+    if (path == '/api/tedarikciler') {
+      response.write(jsonEncode(_data['tedarikciler'] ?? []));
+      await response.close();
+      return;
+    }
   }
 
   if (request.method == 'POST') {

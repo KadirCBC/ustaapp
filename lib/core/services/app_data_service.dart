@@ -43,7 +43,10 @@ class AppDataService {
       final host = Uri.base.host;
       return (host.isNotEmpty && host != '0.0.0.0') ? host : 'localhost';
     }
-    // Android emulator: adb reverse forwards 127.0.0.1:8090 to host
+    // Android emülatöründe host makine 10.0.2.2'dir
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return '10.0.2.2';
+    }
     return '127.0.0.1';
   }
 
