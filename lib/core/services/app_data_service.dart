@@ -309,30 +309,111 @@ class AppDataService {
     double customerLng = 29.0270,
     double maxRadiusMeter = 25000.0,
   }) async {
-    final allUstalar = await getUstalar();
+    final List<NearbyUstaModel> result = [];
+    final Set<String> seenPinIds = {};
     final normalizedCat = category.trim().toLowerCase();
 
-    final filtered = allUstalar.where((u) {
-      // Eğer ustanın hiç aktif ilanı yoksa (veya ilanı silinmişse) haritada gösterilmez
-      if (u.ilanlar.isEmpty) return false;
+    // 1. Canlı ve Aktif Hizmet İlanları (Her ilan haritada kendi konumunda, başlığıyla ve fiyatıyla ayrı bir pin oluşturur)
+    final activeJobs = await getActiveJobs();
+    for (final job in activeJobs) {
+      final status = (job['status'] ?? 'Aktif').toString();
+      // Sadece 'Aktif' durumundaki ilanlar haritada pin olarak yer alır
+      if (status != 'Aktif') continue;
 
-      final ustaCat = u.kategori.trim().toLowerCase();
+      final lat = (job['latitude'] as num?)?.toDouble() ?? 0.0;
+      final lng = (job['longitude'] as num?)?.toDouble() ?? 0.0;
+      if (lat == 0.0 && lng == 0.0) continue;
+
+      final jobCat = (job['kategori'] ?? job['category'] ?? '').toString().trim().toLowerCase();
       final catMatch = (normalizedCat == 'tümü' || normalizedCat == 'all')
           ? true
-          : (ustaCat.contains(normalizedCat) || normalizedCat.contains(ustaCat));
-      return catMatch;
-    }).map((u) {
-      final dist = Geolocator.distanceBetween(
-        customerLat,
-        customerLng,
-        u.latitude,
-        u.longitude,
-      );
-      return u.copyWith(mesafeMetre: dist > 0 ? dist : u.mesafeMetre);
-    }).toList();
+          : (jobCat.contains(normalizedCat) || normalizedCat.contains(jobCat));
+      if (!catMatch) continue;
 
-    filtered.sort((a, b) => a.mesafeMetre.compareTo(b.mesafeMetre));
-    return filtered;
+      final jobId = (job['id'] ?? '').toString();
+      if (seenPinIds.add(jobId)) {
+        final rawPrice = job['price'];
+        double price = 1750.0;
+        if (rawPrice is num) {
+          price = rawPrice.toDouble();
+        } else if (rawPrice is String) {
+          price = double.tryParse(rawPrice.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 1750.0;
+        }
+
+        final ustaName = (job['customer_name'] ?? job['usta_name'] ?? 'Kadir Usta').toString();
+        final ustaPhone = (job['customer_phone'] ?? job['usta_phone'] ?? '05524342069').toString();
+        final district = (job['district'] ?? job['address'] ?? 'Sandıklı').toString();
+        final title = (job['title'] ?? 'Standart Servis & Arıza Tespiti').toString();
+        final desc = (job['description'] ?? '').toString();
+
+        final dist = Geolocator.distanceBetween(customerLat, customerLng, lat, lng);
+
+        result.add(NearbyUstaModel(
+          ustaId: jobId, // Her ilan için benzersiz harita pin ID'si
+          fullName: ustaName,
+          phone: ustaPhone,
+          kategori: _normalizeCatKey(jobCat),
+          puan: 5.0,
+          tamamlananIsSayisi: 48,
+          latitude: lat,
+          longitude: lng,
+          mesafeMetre: dist > 0 ? dist : 100.0,
+          toplamTutar: price,
+          ustaHakedis: price * 0.85,
+          komisyonOrani: 0.15,
+          komisyonTutari: price * 0.15,
+          servisUcreti: 150.0,
+          deneyimYili: 10,
+          uzmanlikBasligi: district,
+          guvenceler: const [
+            '30 Gün İşçilik Garantisi',
+            'Sabit Fiyat Güvencesi',
+            'MYK Belgeli',
+          ],
+          ilanlar: [
+            UstaHizmetIlan(
+              id: jobId,
+              baslik: title,
+              aciklama: desc,
+              fiyat: price,
+              tahminiSure: '30-60 dk',
+              ikon: '⚡',
+              isDefault: true,
+            ),
+          ],
+        ));
+      }
+    }
+
+    // 2. Sistemdeki kayıtlı ustalardan henüz haritada aktif bir ilanı bulunmayanlar (varsa)
+    final allUstalar = await getUstalar();
+    for (final u in allUstalar) {
+      if (u.ilanlar.isEmpty) continue;
+      bool alreadyRepresented = result.any((r) => r.phone == u.phone && r.fullName == u.fullName);
+      if (!alreadyRepresented && seenPinIds.add(u.ustaId)) {
+        final ustaCat = u.kategori.trim().toLowerCase();
+        final catMatch = (normalizedCat == 'tümü' || normalizedCat == 'all')
+            ? true
+            : (ustaCat.contains(normalizedCat) || normalizedCat.contains(ustaCat));
+        if (catMatch) {
+          final dist = Geolocator.distanceBetween(customerLat, customerLng, u.latitude, u.longitude);
+          result.add(u.copyWith(mesafeMetre: dist > 0 ? dist : u.mesafeMetre));
+        }
+      }
+    }
+
+    result.sort((a, b) => a.mesafeMetre.compareTo(b.mesafeMetre));
+    return result;
+  }
+
+  String _normalizeCatKey(String cat) {
+    final lower = cat.toLowerCase();
+    if (lower.contains('elektrik')) return 'elektrik';
+    if (lower.contains('tesisat') || lower.contains('su')) return 'tesisat';
+    if (lower.contains('çilingir') || lower.contains('kilit')) return 'cilingir';
+    if (lower.contains('klima') || lower.contains('kombi')) return 'klima';
+    if (lower.contains('boya') || lower.contains('badana')) return 'boya';
+    return lower;
   }
 
   Future<void> addOrUpdateUsta(NearbyUstaModel usta) async {
