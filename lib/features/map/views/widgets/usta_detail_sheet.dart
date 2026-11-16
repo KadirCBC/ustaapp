@@ -72,7 +72,7 @@ class _UstaDetailSheetState extends ConsumerState<UstaDetailSheet> {
                   children: [
                     CircleAvatar(
                       radius: 30,
-                      backgroundColor: AppTheme.customerPrimary.withOpacity(0.08),
+                      backgroundColor: AppTheme.customerPrimary.withValues(alpha: 0.08),
                       backgroundImage: usta.avatarUrl != null ? NetworkImage(usta.avatarUrl!) : null,
                       child: usta.avatarUrl == null
                           ? const Icon(Icons.person_rounded, size: 34, color: AppTheme.customerPrimary)
@@ -235,7 +235,7 @@ class _UstaDetailSheetState extends ConsumerState<UstaDetailSheet> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9).withOpacity(0.6),
+                color: const Color(0xFFF1F5F9).withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),

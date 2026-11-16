@@ -201,7 +201,7 @@ class CustomerActiveCallScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -224,10 +224,10 @@ class CustomerActiveCallScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: cagri.isCompleted
-                      ? Colors.green.withOpacity(0.12)
+                      ? Colors.green.withValues(alpha: 0.12)
                       : (cagri.isCancelled
-                          ? Colors.red.withOpacity(0.12)
-                          : AppTheme.customerSecondary.withOpacity(0.12)),
+                          ? Colors.red.withValues(alpha: 0.12)
+                          : AppTheme.customerSecondary.withValues(alpha: 0.12)),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -379,7 +379,7 @@ class CustomerActiveCallScreen extends ConsumerWidget {
         children: [
           CircleAvatar(
             radius: 28,
-            backgroundColor: AppTheme.customerPrimary.withOpacity(0.1),
+            backgroundColor: AppTheme.customerPrimary.withValues(alpha: 0.1),
             child: const Icon(Icons.person, size: 32, color: AppTheme.customerPrimary),
           ),
           const SizedBox(width: 16),
@@ -401,7 +401,7 @@ class CustomerActiveCallScreen extends ConsumerWidget {
           ),
           Container(
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.12),
+              color: Colors.green.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: IconButton(

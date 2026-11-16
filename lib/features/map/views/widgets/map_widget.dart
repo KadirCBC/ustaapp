@@ -65,13 +65,11 @@ class UstaRouteMapWidget extends StatefulWidget {
 }
 
 class _UstaRouteMapWidgetState extends State<UstaRouteMapWidget> {
-  mapbox.MapboxMap? _mapboxMap;
   mapbox.PolylineAnnotationManager? _polylineManager;
   mapbox.CircleAnnotationManager? _circleManager;
   bool _isRouteFetching = false;
 
   Future<void> _onMapCreated(mapbox.MapboxMap mapboxMap) async {
-    _mapboxMap = mapboxMap;
     _polylineManager =
         await mapboxMap.annotations.createPolylineAnnotationManager();
     _circleManager =

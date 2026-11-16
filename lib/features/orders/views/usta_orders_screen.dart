@@ -905,7 +905,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
     UstaDashboardController controller,
   ) {
     // Örnek 8 km hesaplama simülasyonu
-    final sampleDistance = 8.0;
+    const sampleDistance = 8.0;
     final sampleTravel = state.calculateTravelFee(sampleDistance);
     final sampleTotal = state.servisUcreti + sampleTravel;
 
@@ -1252,7 +1252,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
             DemoCallRepository.save(demoCall);
 
             final success = await controller.acceptIncomingCall(callId);
-            if (context.mounted && success) {
+            if (mounted && success) {
               context.push('/usta/active-job/$callId');
             }
           },
@@ -1286,7 +1286,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
             DemoCallRepository.save(demoCall);
 
             final success = await controller.acceptIncomingCall(callId);
-            if (context.mounted && success) {
+            if (mounted && success) {
               context.push('/usta/active-job/$callId');
             }
           },

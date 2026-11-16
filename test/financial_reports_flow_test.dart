@@ -6,15 +6,15 @@ void main() {
       const double ustaHakedis = 1750.0;
       const double komisyonOrani = 0.15;
 
-      final double platformKomisyonu = ustaHakedis * komisyonOrani;
-      final double toplamTutar = ustaHakedis + platformKomisyonu;
+      const double platformKomisyonu = ustaHakedis * komisyonOrani;
+      const double toplamTutar = ustaHakedis + platformKomisyonu;
 
       expect(platformKomisyonu, equals(262.50));
       expect(toplamTutar, equals(2012.50));
 
       // KDV dahil tutar (%20)
-      final double kdvTutari = platformKomisyonu * 0.20;
-      final double netPlatformGeliri = platformKomisyonu - kdvTutari;
+      const double kdvTutari = platformKomisyonu * 0.20;
+      const double netPlatformGeliri = platformKomisyonu - kdvTutari;
 
       expect(kdvTutari, equals(52.50));
       expect(netPlatformGeliri, equals(210.00));

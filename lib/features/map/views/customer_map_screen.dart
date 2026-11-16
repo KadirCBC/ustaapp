@@ -400,7 +400,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
 
     // SOL AMBLEM: Gradyanlı Zümrüt Yeşili Daire + Vektörel Icons.handyman_rounded
     const double emblemRadius = 16 * scale;
-    final Offset emblemCenter = Offset(8 * scale + 18 * scale, 4 * scale + badgeHeight / 2);
+    const Offset emblemCenter = Offset(8 * scale + 18 * scale, 4 * scale + badgeHeight / 2);
 
     final emblemGradient = ui.Gradient.linear(
       Offset(emblemCenter.dx - emblemRadius, emblemCenter.dy - emblemRadius),
@@ -437,13 +437,13 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
     );
 
     // SAĞ İÇERİK: Usta Adı (Üst) ve Fiyat Hapı (Alt)
-    final double textLeft = 8 * scale + 38 * scale;
-    topTextPainter.paint(canvas, Offset(textLeft, 4 * scale + 9 * scale));
+    const double textLeft = 8 * scale + 38 * scale;
+    topTextPainter.paint(canvas, const Offset(textLeft, 4 * scale + 9 * scale));
 
     // Nane Yeşili Fiyat Rozet Çipi
     final double chipW = pricePainter.width + 10 * scale;
     final double chipH = pricePainter.height + 4 * scale;
-    final double chipTop = 4 * scale + 27 * scale;
+    const double chipTop = 4 * scale + 27 * scale;
 
     canvas.drawRRect(
       RRect.fromRectAndRadius(
@@ -455,12 +455,12 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
 
     pricePainter.paint(
       canvas,
-      Offset(textLeft + 5 * scale, chipTop + 2 * scale),
+      const Offset(textLeft + 5 * scale, chipTop + 2 * scale),
     );
 
     // ALT ÜÇGEN OK (Mükemmel sivri uç ile haritadaki konuma işaret eder)
     final double pointerCenterX = width / 2;
-    final double pointerTop = 4 * scale + badgeHeight - 1 * scale;
+    const double pointerTop = 4 * scale + badgeHeight - 1 * scale;
     final trianglePath = Path()
       ..moveTo(pointerCenterX - 6 * scale, pointerTop)
       ..lineTo(pointerCenterX, pointerTop + pointerHeight)
@@ -586,7 +586,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
 
     // SOL AMBLEM: Gradyanlı Turuncu / Altın Daire + Vektörel Mağaza Simgesi
     const double emblemRadius = 16 * scale;
-    final Offset emblemCenter = Offset(8 * scale + 18 * scale, 4 * scale + badgeHeight / 2);
+    const Offset emblemCenter = Offset(8 * scale + 18 * scale, 4 * scale + badgeHeight / 2);
 
     final emblemGradient = ui.Gradient.linear(
       Offset(emblemCenter.dx - emblemRadius, emblemCenter.dy - emblemRadius),
@@ -625,14 +625,14 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
     );
 
     // SAĞ İÇERİK: Dükkan Adı (Üst) ve Kategori / Sponsor Rozeti (Alt)
-    final double textLeft = 8 * scale + 38 * scale;
-    namePainter.paint(canvas, Offset(textLeft, 4 * scale + 9 * scale));
+    const double textLeft = 8 * scale + 38 * scale;
+    namePainter.paint(canvas, const Offset(textLeft, 4 * scale + 9 * scale));
 
     if (isSponsored) {
       // Sponsorlu Dükkan için Altın Rozet Çipi
       final double chipW = subPainter.width + 10 * scale;
       final double chipH = subPainter.height + 4 * scale;
-      final double chipTop = 4 * scale + 27 * scale;
+      const double chipTop = 4 * scale + 27 * scale;
 
       canvas.drawRRect(
         RRect.fromRectAndRadius(
@@ -644,16 +644,16 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
 
       subPainter.paint(
         canvas,
-        Offset(textLeft + 5 * scale, chipTop + 2 * scale),
+        const Offset(textLeft + 5 * scale, chipTop + 2 * scale),
       );
     } else {
       // Normal Kategori / Dükkan Alt Başlığı
-      subPainter.paint(canvas, Offset(textLeft, 4 * scale + 28 * scale));
+      subPainter.paint(canvas, const Offset(textLeft, 4 * scale + 28 * scale));
     }
 
     // ALT ÜÇGEN OK (Mükemmel sivri uç ile haritadaki konuma işaret eder)
     final double pointerCenterX = width / 2;
-    final double pointerTop = 4 * scale + badgeHeight - 1 * scale;
+    const double pointerTop = 4 * scale + badgeHeight - 1 * scale;
     final trianglePath = Path()
       ..moveTo(pointerCenterX - 6 * scale, pointerTop)
       ..lineTo(pointerCenterX, pointerTop + pointerHeight)
