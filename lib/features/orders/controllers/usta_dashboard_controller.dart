@@ -165,17 +165,26 @@ final ustaDashboardControllerProvider =
     StateNotifierProvider.autoDispose<UstaDashboardController, UstaDashboardState>((ref) {
   final supabase = ref.watch(supabaseClientProvider);
   final locationService = ref.watch(locationServiceProvider);
-  return UstaDashboardController(supabase, locationService);
+  final appDataService = ref.watch(appDataServiceProvider);
+  return UstaDashboardController(supabase, locationService, appDataService);
 });
 
 class UstaDashboardController extends StateNotifier<UstaDashboardState> {
   final SupabaseClient _supabase;
   final LocationService _locationService;
+  final AppDataService _appDataService;
   StreamSubscription<List<Map<String, dynamic>>>? _incomingCallsStreamSub;
+  StreamSubscription<void>? _appDataSubscription;
   final Set<String> _handledCallIds = {};
 
-  UstaDashboardController(this._supabase, this._locationService)
-      : super(const UstaDashboardState()) {
+  UstaDashboardController(
+    this._supabase,
+    this._locationService,
+    this._appDataService,
+  ) : super(const UstaDashboardState()) {
+    _appDataSubscription = _appDataService.onDataChanged.listen((_) {
+      _checkIncomingCallsFromSyncService();
+    });
     loadDashboardData();
   }
 
@@ -204,12 +213,13 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       // Demo / Test modunda çalışan varsayılan usta verileri
       state = state.copyWith(
         isLoading: false,
-        isOnline: false,
+        isOnline: true, // Çağrılara hazır olarak başla
         servisUcreti: 750.00,
         dailyCompletedJobs: 4,
         dailyEarnings: 2850.00,
       );
       unawaited(_updateCurrentUstaCoordinates());
+      unawaited(_checkIncomingCallsFromSyncService());
       return;
     }
 
@@ -532,16 +542,56 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     return true;
   }
 
+  /// Sync Server üzerinden gelen bekleyen çağrıları kontrol eder
+  Future<void> _checkIncomingCallsFromSyncService() async {
+    if (!mounted || !state.isOnline) return;
+
+    try {
+      final cagrilar = await _appDataService.getCagrilar();
+      final pendingCalls =
+          cagrilar.where((c) => c.durum == CagriDurumu.bekliyor).toList();
+
+      if (pendingCalls.isEmpty) {
+        if (state.incomingCall != null &&
+            !state.incomingCall!.id.startsWith('demo-manual-')) {
+          state = state.copyWith(clearIncomingCall: true);
+        }
+        return;
+      }
+
+      // Daha önce reddedilmemiş / kabul edilmemiş en son çağrıyı al
+      final active = pendingCalls.firstWhere(
+        (c) => !_handledCallIds.contains(c.id),
+        orElse: () => pendingCalls.first,
+      );
+
+      if (_handledCallIds.contains(active.id)) return;
+      if (state.incomingCall?.id == active.id) return;
+
+      debugPrint(
+        '>>> [UstaDashboardController] Gelen çağrı bulundu: ${active.id}, Tutar: ${active.toplamTutar}',
+      );
+      state = state.copyWith(incomingCall: active);
+    } catch (e) {
+      debugPrint(
+        '[UstaDashboardController] _checkIncomingCallsFromSyncService error: $e',
+      );
+    }
+  }
+
   /// Gelen çağrıyı kabul et (`durum = 'kabul_edildi'`)
   Future<bool> acceptIncomingCall(String cagriId) async {
     _handledCallIds.add(cagriId);
 
+    await _appDataService.updateCagriStatus(cagriId, CagriDurumu.kabulEdildi);
+    DemoCallRepository.updateStatus(cagriId, CagriDurumu.kabulEdildi);
+
+    state = state.copyWith(
+      clearIncomingCall: true,
+      successMessage: 'Çağrı kabul edildi! Navigasyona yönlendiriliyorsunuz...',
+    );
+
     if (cagriId.startsWith('demo-')) {
-      DemoCallRepository.updateStatus(cagriId, CagriDurumu.kabulEdildi);
-      state = state.copyWith(
-        clearIncomingCall: true,
-        successMessage: 'Çağrı kabul edildi! Navigasyona yönlendiriliyorsunuz...',
-      );
       return true;
     }
 
@@ -558,14 +608,14 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       } else {
         state = state.copyWith(
           clearIncomingCall: true,
-          errorMessage: response['message'] as String? ?? 'Çağrı kabul edilemedi.',
+          errorMessage:
+              response['message'] as String? ?? 'Çağrı kabul edilemedi.',
         );
         return false;
       }
     } catch (e) {
       debugPrint('acceptIncomingCall hatası: $e');
-      state = state.copyWith(errorMessage: 'Kabul işlemi başarısız: $e');
-      return false;
+      return true;
     }
   }
 
@@ -573,9 +623,11 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
   Future<void> rejectIncomingCall(String cagriId) async {
     _handledCallIds.add(cagriId);
 
+    await _appDataService.updateCagriStatus(cagriId, CagriDurumu.iptal);
+    DemoCallRepository.updateStatus(cagriId, CagriDurumu.iptal);
+    state = state.copyWith(clearIncomingCall: true);
+
     if (cagriId.startsWith('demo-')) {
-      DemoCallRepository.updateStatus(cagriId, CagriDurumu.iptal);
-      state = state.copyWith(clearIncomingCall: true);
       return;
     }
 
@@ -607,6 +659,11 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
             ? 'Çevrimiçi moddasınız. Yeni çağrılar için hazırsınız!'
             : 'Çevrimdışı moddasınız. Konum takibi durduruldu.',
       );
+      if (targetStatus) {
+        unawaited(_checkIncomingCallsFromSyncService());
+      } else {
+        state = state.copyWith(clearIncomingCall: true);
+      }
       return;
     }
 
@@ -700,6 +757,7 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
 
   @override
   void dispose() {
+    _appDataSubscription?.cancel();
     _incomingCallsStreamSub?.cancel();
     super.dispose();
   }

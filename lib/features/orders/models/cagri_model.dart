@@ -99,6 +99,13 @@ class CagriModel {
     double lat = 41.0082;
     double lng = 28.9784;
 
+    if (json['musteri_lat'] != null) {
+      lat = (json['musteri_lat'] as num).toDouble();
+    }
+    if (json['musteri_lng'] != null) {
+      lng = (json['musteri_lng'] as num).toDouble();
+    }
+
     final rawKonum = json['musteri_konum'];
     if (rawKonum is Map && rawKonum['coordinates'] is List) {
       final coords = rawKonum['coordinates'] as List;
@@ -140,6 +147,30 @@ class CagriModel {
       completionPhotoUrl: json['completion_photo_url'] as String?,
       completionNote: json['completion_note'] as String?,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'musteri_id': musteriId,
+      'usta_id': ustaId,
+      'musteri_lat': musteriLat,
+      'musteri_lng': musteriLng,
+      'musteri_konum': 'POINT($musteriLng $musteriLat)',
+      'adres_tarifi': adresTarifi,
+      'durum': durum.toDbValue(),
+      'usta_hakedis': ustaHakedis,
+      'komisyon_tutari': komisyonTutari,
+      'toplam_tutar': toplamTutar,
+      'payment_intent_id': paymentIntentId,
+      'created_at': createdAt.toIso8601String(),
+      'usta_full_name': ustaFullName,
+      'usta_phone': ustaPhone,
+      'musteri_full_name': musteriFullName,
+      'musteri_phone': musteriPhone,
+      'completion_photo_url': completionPhotoUrl,
+      'completion_note': completionNote,
+    };
   }
 
   bool get isPending => durum == CagriDurumu.bekliyor;

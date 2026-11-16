@@ -110,6 +110,7 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
   RealtimeChannel? _workflowChannel;
   Timer? _pendingTimer;
   Timer? _demoAutoAcceptTimer;
+  StreamSubscription<void>? _appDataSubscription;
 
   ActiveOrderController(this._supabase, this._paymentService, this._appDataService, this._cagriId)
       : super(const ActiveOrderState(isLoading: true)) {
@@ -119,8 +120,12 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
   bool get _isDemo => _cagriId.startsWith('demo-');
 
   Future<void> _initAndListen() async {
+    _appDataSubscription = _appDataService.onDataChanged.listen((_) {
+      _checkAppDataStatus();
+    });
+
     if (_isDemo) {
-      _initDemoMode();
+      await _initDemoMode();
       return;
     }
 
@@ -129,12 +134,19 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
     _subscribeToWorkflowBroadcast();
   }
 
-  void _initDemoMode() {
-    final demoCall = DemoCallRepository.get(_cagriId);
+  Future<void> _initDemoMode() async {
+    var demoCall = DemoCallRepository.get(_cagriId);
+    if (demoCall == null) {
+      demoCall = await _appDataService.getCagriById(_cagriId);
+      if (demoCall != null) {
+        DemoCallRepository.save(demoCall);
+      }
+    }
+
     if (demoCall == null) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Demo çağrı bulunamadı.',
+        errorMessage: 'Çağrı bulunamadı.',
       );
       return;
     }
@@ -159,18 +171,36 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
 
     if (demoCall.isPending) {
       _startPendingCountdown();
-      _demoAutoAcceptTimer = Timer(const Duration(seconds: 4), () {
-        if (!mounted) return;
-        final current = state.cagri;
-        if (current != null && current.isPending) {
+    }
+  }
+
+  Future<void> _checkAppDataStatus() async {
+    if (!mounted) return;
+    final synced = await _appDataService.getCagriById(_cagriId);
+    if (synced != null) {
+      final prev = state.cagri;
+      if (prev == null || prev.durum != synced.durum) {
+        debugPrint(
+          '>>> [ActiveOrderController] Çağrı durumu senkronize edildi: id=${synced.id}, durum=${synced.durum}',
+        );
+        if (synced.isAccepted || synced.isOnTheWay) {
           _pendingTimer?.cancel();
-          DemoCallRepository.updateStatus(_cagriId, CagriDurumu.kabulEdildi);
+          _demoAutoAcceptTimer?.cancel();
           state = state.copyWith(
-            cagri: current.copyWith(durum: CagriDurumu.kabulEdildi),
+            cagri: synced,
             successMessage: 'Usta çağrınızı kabul etti!',
           );
+        } else if (synced.isCancelled) {
+          _pendingTimer?.cancel();
+          _demoAutoAcceptTimer?.cancel();
+          state = state.copyWith(
+            cagri: synced,
+            errorMessage: 'Usta çağrıyı kabul etmedi veya süre doldu.',
+          );
+        } else {
+          state = state.copyWith(cagri: synced);
         }
-      });
+      }
     }
   }
 
@@ -418,6 +448,7 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
           arrivedAt: now,
         );
         DemoCallRepository.saveWorkflow(_cagriId, wf);
+        await _appDataService.updateCagriStatus(_cagriId, CagriDurumu.yolda);
       } else {
         await _broadcastWorkflowEvent('usta_arrived', {
           'cagri_id': _cagriId,
@@ -469,10 +500,12 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
         DemoCallRepository.saveWorkflow(_cagriId, wf);
         final existingCall = DemoCallRepository.get(_cagriId);
         if (existingCall != null) {
-          DemoCallRepository.save(existingCall.copyWith(
+          final updated = existingCall.copyWith(
             completionPhotoUrl: photoUrl,
             completionNote: note,
-          ));
+          );
+          DemoCallRepository.save(updated);
+          await _appDataService.saveOrUpdateCagri(updated);
         }
       } else {
         await _broadcastWorkflowEvent('completion_requested', {
@@ -685,6 +718,7 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
 
     if (_isDemo) {
       DemoCallRepository.updateStatus(_cagriId, newStatus);
+      await _appDataService.updateCagriStatus(_cagriId, newStatus);
       state = state.copyWith(
         isActionInProgress: false,
         cagri: state.cagri?.copyWith(durum: newStatus),
@@ -824,6 +858,7 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
 
   @override
   void dispose() {
+    _appDataSubscription?.cancel();
     _cagriStreamSub?.cancel();
     _ustaLocationStreamSub?.cancel();
     if (_workflowChannel != null) {

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
+import 'package:ustaapp/features/orders/models/cagri_model.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 final appDataServiceProvider = Provider<AppDataService>((ref) {
@@ -164,6 +165,10 @@ class AppDataService {
             _cachedFinancialTransactions = List<Map<String, dynamic>>.from(data['financial_transactions']);
             _persistFinancialTransactionsToPrefs(_cachedFinancialTransactions!);
           }
+          if (data['cagrilar'] is List) {
+            _cachedCagrilar = List<Map<String, dynamic>>.from(data['cagrilar']);
+            _syncCallsToDemoRepo(_cachedCagrilar!);
+          }
           _changesStreamController.add(null);
         }
       } else if (event == 'ustalar_updated' && data is List) {
@@ -194,6 +199,25 @@ class AppDataService {
       } else if (event == 'financial_transactions_updated' && data is List) {
         _cachedFinancialTransactions = List<Map<String, dynamic>>.from(data);
         _persistFinancialTransactionsToPrefs(_cachedFinancialTransactions!);
+        _changesStreamController.add(null);
+      } else if (event == 'cagrilar_updated' && data is List) {
+        _cachedCagrilar = List<Map<String, dynamic>>.from(data);
+        _syncCallsToDemoRepo(_cachedCagrilar!);
+        _changesStreamController.add(null);
+      } else if (event == 'cagri_updated' && data is Map) {
+        _cachedCagrilar ??= [];
+        final cagriMap = Map<String, dynamic>.from(data);
+        final id = (cagriMap['id'] ?? '').toString();
+        final idx = _cachedCagrilar!.indexWhere((c) => (c['id'] ?? '').toString() == id);
+        if (idx >= 0) {
+          _cachedCagrilar![idx] = cagriMap;
+        } else {
+          _cachedCagrilar!.insert(0, cagriMap);
+        }
+        try {
+          final model = CagriModel.fromJson(cagriMap);
+          DemoCallRepository.save(model);
+        } catch (_) {}
         _changesStreamController.add(null);
       } else if (event == 'all_cleared') {
         _cachedUstalar = [];
@@ -267,6 +291,7 @@ class AppDataService {
   List<Map<String, dynamic>>? _cachedMembers;
   List<Map<String, dynamic>>? _cachedPending;
   List<Map<String, dynamic>>? _cachedFinancialTransactions;
+  List<Map<String, dynamic>>? _cachedCagrilar;
 
   // ==========================================
   // 1. USTALAR & HARİTA VERİSİ (CRUD)
@@ -1085,6 +1110,82 @@ class AppDataService {
       list.insert(0, tx);
     }
     await saveFinancialTransactions(list);
+  }
+
+  void _syncCallsToDemoRepo(List<Map<String, dynamic>> list) {
+    for (final raw in list) {
+      try {
+        final model = CagriModel.fromJson(raw);
+        DemoCallRepository.save(model);
+      } catch (_) {}
+    }
+  }
+
+  Future<List<CagriModel>> getCagrilar() async {
+    if (_cachedCagrilar == null) {
+      try {
+        final res = await http
+            .get(Uri.parse('$_syncBaseUrl/api/cagrilar'))
+            .timeout(const Duration(seconds: 1));
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          if (data is List) {
+            _cachedCagrilar = List<Map<String, dynamic>>.from(data);
+            _syncCallsToDemoRepo(_cachedCagrilar!);
+          }
+        }
+      } catch (_) {}
+    }
+    return (_cachedCagrilar ?? []).map((json) {
+      try {
+        return CagriModel.fromJson(json);
+      } catch (_) {
+        return null;
+      }
+    }).whereType<CagriModel>().toList();
+  }
+
+  Future<CagriModel?> getCagriById(String cagriId) async {
+    final list = await getCagrilar();
+    try {
+      return list.firstWhere((c) => c.id == cagriId);
+    } catch (_) {
+      return DemoCallRepository.get(cagriId);
+    }
+  }
+
+  Future<void> saveOrUpdateCagri(CagriModel cagri) async {
+    final json = cagri.toJson();
+    _cachedCagrilar ??= [];
+    final idx =
+        _cachedCagrilar!.indexWhere((c) => (c['id'] ?? '').toString() == cagri.id);
+    if (idx >= 0) {
+      _cachedCagrilar![idx] = json;
+    } else {
+      _cachedCagrilar!.insert(0, json);
+    }
+    DemoCallRepository.save(cagri);
+    _changesStreamController.add(null);
+    _postToSyncServer('/api/cagri', json);
+  }
+
+  Future<void> updateCagriStatus(
+    String cagriId,
+    CagriDurumu newStatus, {
+    String? completionPhotoUrl,
+    String? completionNote,
+  }) async {
+    final existing = await getCagriById(cagriId);
+    if (existing != null) {
+      final updated = existing.copyWith(
+        durum: newStatus,
+        completionPhotoUrl: completionPhotoUrl ?? existing.completionPhotoUrl,
+        completionNote: completionNote ?? existing.completionNote,
+      );
+      await saveOrUpdateCagri(updated);
+    } else {
+      DemoCallRepository.updateStatus(cagriId, newStatus);
+    }
   }
 
   Future<void> clearAll() async {

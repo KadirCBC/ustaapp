@@ -26,6 +26,7 @@ Future<void> _loadDataFromFile() async {
       final content = await _dataFile.readAsString();
       _data = jsonDecode(content) as Map<String, dynamic>;
       _data['financial_transactions'] ??= [];
+      _data['cagrilar'] ??= [];
       stdout.writeln('[Sync Server] Mevcut veriler dosyadan yüklendi.');
       return;
     } catch (e) {
@@ -151,6 +152,11 @@ Future<void> _handleRequest(HttpRequest request) async {
       await response.close();
       return;
     }
+    if (path == '/api/cagrilar') {
+      response.write(jsonEncode(_data['cagrilar'] ?? []));
+      await response.close();
+      return;
+    }
   }
 
   if (request.method == 'POST') {
@@ -228,6 +234,35 @@ Future<void> _handleRequest(HttpRequest request) async {
         await _saveDataToFile();
         _broadcast('financial_transactions_updated', body);
         response.write(jsonEncode({'status': 'ok', 'count': (body as List).length}));
+        await response.close();
+        return;
+      }
+
+      if (path == '/api/cagrilar') {
+        _data['cagrilar'] = body;
+        await _saveDataToFile();
+        _broadcast('cagrilar_updated', body);
+        response.write(jsonEncode({'status': 'ok', 'count': (body as List).length}));
+        await response.close();
+        return;
+      }
+
+      if (path == '/api/cagri') {
+        _data['cagrilar'] ??= [];
+        final list = List<Map<String, dynamic>>.from(_data['cagrilar'] as List);
+        final cagriMap = Map<String, dynamic>.from(body as Map);
+        final id = (cagriMap['id'] ?? '').toString();
+        final idx = list.indexWhere((item) => (item['id'] ?? '').toString() == id);
+        if (idx >= 0) {
+          list[idx] = cagriMap;
+        } else {
+          list.insert(0, cagriMap);
+        }
+        _data['cagrilar'] = list;
+        await _saveDataToFile();
+        _broadcast('cagri_updated', cagriMap);
+        _broadcast('cagrilar_updated', list);
+        response.write(jsonEncode({'status': 'ok', 'cagri': cagriMap}));
         await response.close();
         return;
       }

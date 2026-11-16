@@ -1135,6 +1135,7 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
         musteriPhone: '+90 532 999 88 77',
       );
       DemoCallRepository.save(demoCall);
+      await _appDataService.saveOrUpdateCagri(demoCall);
 
       final now = DateTime.now();
       final dateStr =
