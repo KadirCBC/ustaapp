@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// Hem web, hem mobil hem de Base64 data URI formatındaki fotoğrafları
@@ -54,8 +53,9 @@ class CompletionProofPreview extends StatelessWidget {
           width: width,
           height: height,
           fit: fit,
-          errorBuilder: (_, __, ___) => _buildFallback();
-        } catch (_) {}
+          errorBuilder: (_, __, ___) => _buildFallback(),
+        );
+      } catch (_) {}
     }
 
     // 3. Network URL (HTTP / HTTPS)
