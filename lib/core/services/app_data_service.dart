@@ -5,11 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 final appDataServiceProvider = Provider<AppDataService>((ref) {
-  return AppDataService();
+  return AppDataService.instance;
 });
 
 /// Mobil Uygulama ve Admin Paneli Arasındaki Ortak Merkezi Veri Servisi (Single Source of Truth)
@@ -17,6 +18,10 @@ final appDataServiceProvider = Provider<AppDataService>((ref) {
 /// anında bu servis üzerinden yerel kalıcı hafızaya (SharedPreferences) kaydedilir ve
 /// mobil uygulamadaki harita, kategori çubukları ve usta ekranları tarafından canlı kullanılır.
 class AppDataService {
+  static final AppDataService _instance = AppDataService._internal();
+  factory AppDataService() => _instance;
+  static AppDataService get instance => _instance;
+
   static const String _kUstalarKey = 'app_shared_ustalar';
   static const String _kCategoriesKey = 'app_shared_categories';
   static const String _kJobsKey = 'app_shared_jobs';
@@ -51,7 +56,7 @@ class AppDataService {
   String get _syncBaseUrl => 'http://$_syncHost:$_kSyncPort';
   String get _syncWsUrl => 'ws://$_syncHost:$_kSyncPort/ws';
 
-  AppDataService() {
+  AppDataService._internal() {
     initRealtimeSync();
   }
 
@@ -312,13 +317,37 @@ class AppDataService {
 
     // 1. Canlı ve Aktif Hizmet İlanları (Her ilan haritada kendi konumunda, başlığıyla ve fiyatıyla ayrı bir pin oluşturur)
     final activeJobs = await getActiveJobs();
+    final allKnownUstalar = await getUstalar();
+
     for (final job in activeJobs) {
       final status = (job['status'] ?? 'Aktif').toString();
       // Sadece 'Aktif' durumundaki ilanlar haritada pin olarak yer alır
       if (status != 'Aktif') continue;
 
-      final lat = (job['latitude'] as num?)?.toDouble() ?? 0.0;
-      final lng = (job['longitude'] as num?)?.toDouble() ?? 0.0;
+      double lat = (job['latitude'] as num?)?.toDouble() ?? 0.0;
+      double lng = (job['longitude'] as num?)?.toDouble() ?? 0.0;
+
+      final district = (job['district'] ?? job['address'] ?? job['konum'] ?? 'Sandıklı').toString();
+      if (lat == 0.0 && lng == 0.0) {
+        // Fallback 1: Adresi yerel konum sözlüğünden çözümle
+        final match = LocationLookupService.resolveSync(district);
+        if (match != null) {
+          lat = match.lat;
+          lng = match.lng;
+        } else {
+          // Fallback 2: İlanın sahibinin (usta) koordinatlarına bak
+          final ustaId = (job['usta_id'] ?? '').toString();
+          final ustaPhone = (job['customer_phone'] ?? job['usta_phone'] ?? '').toString();
+          final usta = allKnownUstalar.cast<NearbyUstaModel?>().firstWhere(
+            (u) => (u != null && (u.ustaId == ustaId || u.phone == ustaPhone)),
+            orElse: () => null,
+          );
+          if (usta != null && usta.latitude != 0.0) {
+            lat = usta.latitude;
+            lng = usta.longitude;
+          }
+        }
+      }
       if (lat == 0.0 && lng == 0.0) continue;
 
       final jobCat = (job['kategori'] ?? job['category'] ?? '').toString().trim().toLowerCase();
@@ -339,9 +368,18 @@ class AppDataService {
 
         final ustaName = (job['customer_name'] ?? job['usta_name'] ?? 'Kadir Usta').toString();
         final ustaPhone = (job['customer_phone'] ?? job['usta_phone'] ?? '05524342069').toString();
-        final district = (job['district'] ?? job['address'] ?? 'Sandıklı').toString();
         final title = (job['title'] ?? 'Standart Servis & Arıza Tespiti').toString();
         final desc = (job['description'] ?? '').toString();
+
+        // Aynı koordinata denk gelen ilanların üst üste binip tek pin gibi görünmesini engellemek için hafif mikro-kaydırma
+        for (final existing in result) {
+          if ((existing.latitude - lat).abs() < 0.0003 && (existing.longitude - lng).abs() < 0.0003) {
+            final idx = result.length + 1;
+            lat += (idx % 2 == 1 ? 0.0007 : -0.0007) * (1 + (idx ~/ 4) * 0.3);
+            lng += (idx % 4 >= 2 ? 0.0007 : -0.0007) * (1 + (idx ~/ 4) * 0.3);
+            break;
+          }
+        }
 
         final dist = Geolocator.distanceBetween(customerLat, customerLng, lat, lng);
 
@@ -376,6 +414,9 @@ class AppDataService {
               tahminiSure: '30-60 dk',
               ikon: '⚡',
               isDefault: true,
+              konum: district,
+              lat: lat,
+              lng: lng,
             ),
           ],
         ));
@@ -715,6 +756,103 @@ class AppDataService {
     final list = await getActiveJobs();
     list.removeWhere((j) => j['id'] == jobId);
     await saveActiveJobs(list);
+  }
+
+  /// Usta yeni bir hizmet ilanı eklediğinde veya düzenlediğinde haritaya ve admin paneline canlı senkronize eder
+  Future<void> syncUstaHizmetListing({
+    required UstaHizmetIlan hizmet,
+    required String ustaName,
+    required String ustaPhone,
+    required String ustaId,
+    required String ustaCategory,
+    required String location,
+    required double lat,
+    required double lng,
+  }) async {
+    final jobs = await getActiveJobs();
+    final jobId = (hizmet.id.startsWith('ILN-') || hizmet.id.startsWith('hz-'))
+        ? (hizmet.id.startsWith('ILN-') ? hizmet.id : 'ILN-${hizmet.id.hashCode.abs() % 9000 + 1000}')
+        : 'ILN-${(hizmet.id.hashCode.abs() % 9000 + 1000)}';
+
+    final jobMap = <String, dynamic>{
+      'id': jobId,
+      'title': hizmet.baslik,
+      'customer_name': ustaName,
+      'customer_phone': ustaPhone,
+      'assigned_usta': ustaName,
+      'usta_name': ustaName,
+      'usta_phone': ustaPhone,
+      'usta_id': ustaId,
+      'kategori': ustaCategory,
+      'category': ustaCategory,
+      'price': hizmet.fiyat,
+      'district': location,
+      'address': location,
+      'latitude': lat,
+      'longitude': lng,
+      'status': 'Aktif',
+      'created_at': 'Şimdi',
+      'is_urgent': false,
+      'duration': hizmet.tahminiSure,
+      'icon': hizmet.ikon,
+      'description': hizmet.aciklama.isNotEmpty ? hizmet.aciklama : 'Usta hizmet ilanı',
+      'type': 'Usta Hizmet İlanı',
+    };
+
+    final existingIndex = jobs.indexWhere((j) => j['id'] == jobId || j['id'] == hizmet.id);
+    if (existingIndex >= 0) {
+      jobs[existingIndex] = jobMap;
+    } else {
+      jobs.insert(0, jobMap);
+    }
+    await saveActiveJobs(jobs);
+
+    // Aktif usta modelini de güncelle
+    final ustalar = await getUstalar();
+    final ustaIndex = ustalar.indexWhere((u) => u.ustaId == ustaId || u.phone == ustaPhone);
+    if (ustaIndex >= 0) {
+      final u = ustalar[ustaIndex];
+      final ilanlar = List<UstaHizmetIlan>.from(u.ilanlar);
+      final hIdx = ilanlar.indexWhere((h) => h.id == hizmet.id || h.id == jobId);
+      if (hIdx >= 0) {
+        ilanlar[hIdx] = hizmet;
+      } else {
+        ilanlar.add(hizmet);
+      }
+      ustalar[ustaIndex] = u.copyWith(
+        latitude: lat,
+        longitude: lng,
+        uzmanlikBasligi: location,
+        ilanlar: ilanlar,
+      );
+      await saveUstalar(ustalar);
+    }
+  }
+
+  /// Usta bir hizmet ilanını sildiğinde haritadan ve ilanlar masasından kaldırır
+  Future<void> removeUstaHizmetListing(String hizmetId) async {
+    final jobs = await getActiveJobs();
+    jobs.removeWhere((j) => j['id'] == hizmetId || j['id'].toString().contains(hizmetId) || hizmetId.contains(j['id'].toString()));
+    await saveActiveJobs(jobs);
+  }
+
+  /// Ustanın çalışma konumunu ve koordinatlarını günceller
+  Future<void> updateUstaLocation({
+    required String ustaId,
+    required String address,
+    required double lat,
+    required double lng,
+  }) async {
+    final ustalar = await getUstalar();
+    final idx = ustalar.indexWhere((u) => u.ustaId == ustaId);
+    if (idx >= 0) {
+      ustalar[idx] = ustalar[idx].copyWith(
+        uzmanlikBasligi: address,
+        latitude: lat,
+        longitude: lng,
+      );
+      await saveUstalar(ustalar);
+    }
   }
 
   // ==========================================

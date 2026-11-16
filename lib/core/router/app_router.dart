@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -30,7 +29,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(appRouterNotifierProvider);
 
   return GoRouter(
-    initialLocation: kIsWeb ? '/admin' : '/splash',
+    initialLocation: '/splash',
     refreshListenable: notifier,
     debugLogDiagnostics: false,
     redirect: (BuildContext context, GoRouterState state) {

@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
+import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/map/controllers/map_controller.dart';
 import 'package:ustaapp/features/map/models/isletme_model.dart';
@@ -1035,13 +1036,17 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
   ) async {
     final textController = TextEditingController(text: currentAddress);
     const presetDistricts = [
+      'Sandıklı, Afyonkarahisar',
+      'Ece, Sandıklı',
+      'Çakır, Sandıklı',
+      'Bolvadin, Afyonkarahisar',
       'Kadıköy, İstanbul',
       'Beşiktaş, İstanbul',
-      'Bolvadin, Afyonkarahisar',
-      'Sandıklı, Afyonkarahisar',
       'Çankaya, Ankara',
       'Karşıyaka, İzmir',
     ];
+
+    List<LocationSuggestion> liveSuggestions = [];
 
     final updated = await showModalBottomSheet<String>(
       context: context,
@@ -1051,101 +1056,153 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            16,
-            20,
-            MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE2E8F0),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                16,
+                20,
+                MediaQuery.of(ctx).viewInsets.bottom + 24,
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Hizmet Adresini Seçin veya Düzenleyin',
-                style: TextStyle(
-                  fontSize: 16.5,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.customerTextDark,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: textController,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (val) => Navigator.of(ctx).pop(val.trim()),
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.location_on_outlined),
-                  hintText: 'İlçe, Şehir veya Mahalle yazın...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ActionChip(
-                    avatar: const Icon(
-                      Icons.my_location_rounded,
-                      size: 16,
-                      color: AppTheme.customerPrimary,
-                    ),
-                    label: const Text(
-                      'Mevcut GPS Konumum',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.customerPrimary,
-                      ),
-                    ),
-                    backgroundColor: const Color(0xFFEEF2FF),
-                    onPressed: () => Navigator.of(ctx).pop('__USE_GPS__'),
-                  ),
-                  ...presetDistricts.map((district) {
-                    final isCurrent = district == currentAddress;
-                    return ActionChip(
-                      label: Text(
-                        district,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight:
-                              isCurrent ? FontWeight.w700 : FontWeight.w500,
-                          color: isCurrent
-                              ? Colors.white
-                              : AppTheme.customerTextDark,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      backgroundColor: isCurrent
-                          ? AppTheme.customerPrimary
-                          : const Color(0xFFF8FAFC),
-                      onPressed: () => Navigator.of(ctx).pop(district),
-                    );
-                  }),
-                ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Hizmet Adresini Seçin veya Düzenleyin',
+                      style: TextStyle(
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.customerTextDark,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: textController,
+                      textInputAction: TextInputAction.done,
+                      onChanged: (val) async {
+                        if (val.trim().length >= 2) {
+                          final results = await LocationLookupService.searchAddress(val.trim());
+                          if (ctx.mounted) {
+                            setSheetState(() => liveSuggestions = results);
+                          }
+                        } else {
+                          if (liveSuggestions.isNotEmpty && ctx.mounted) {
+                            setSheetState(() => liveSuggestions = []);
+                          }
+                        }
+                      },
+                      onSubmitted: (val) => Navigator.of(ctx).pop(val.trim()),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.location_on_outlined, color: AppTheme.customerPrimary),
+                        hintText: 'İlçe, Şehir veya Mahalle yazın...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                    if (liveSuggestions.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 160),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: liveSuggestions.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final sug = liveSuggestions[index];
+                            return ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.place_rounded, size: 18, color: AppTheme.customerPrimary),
+                              title: Text(
+                                sug.shortLabel,
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                              ),
+                              subtitle: Text(
+                                sug.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                              ),
+                              onTap: () => Navigator.of(ctx).pop(sug.label),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ActionChip(
+                          avatar: const Icon(
+                            Icons.my_location_rounded,
+                            size: 16,
+                            color: AppTheme.customerPrimary,
+                          ),
+                          label: const Text(
+                            'Mevcut GPS Konumum',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.customerPrimary,
+                            ),
+                          ),
+                          backgroundColor: const Color(0xFFEEF2FF),
+                          onPressed: () => Navigator.of(ctx).pop('__USE_GPS__'),
+                        ),
+                        ...presetDistricts.map((district) {
+                          final isCurrent = district == currentAddress;
+                          return ActionChip(
+                            label: Text(
+                              district,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight:
+                                    isCurrent ? FontWeight.w700 : FontWeight.w500,
+                                color: isCurrent
+                                    ? Colors.white
+                                    : AppTheme.customerTextDark,
+                              ),
+                            ),
+                            backgroundColor: isCurrent
+                                ? AppTheme.customerPrimary
+                                : const Color(0xFFF8FAFC),
+                            onPressed: () => Navigator.of(ctx).pop(district),
+                          );
+                        }),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () =>
+                          Navigator.of(ctx).pop(textController.text.trim()),
+                      child: const Text('Konumu Güncelle'),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () =>
-                    Navigator.of(ctx).pop(textController.text.trim()),
-                child: const Text('Konumu Güncelle'),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -1175,6 +1232,26 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
         );
       }
     }
+
+    if (moved && mounted) {
+      final updatedState = ref.read(customerMapControllerProvider);
+      final point = Point(
+        coordinates: Position(updatedState.currentLng, updatedState.currentLat),
+      );
+      await _mapboxMap?.setCamera(
+        CameraOptions(
+          center: point,
+          zoom: _defaultZoom,
+        ),
+      );
+      await _mapboxMap?.flyTo(
+        CameraOptions(
+          center: point,
+          zoom: _defaultZoom,
+        ),
+        MapAnimationOptions(duration: 500),
+      );
+    }
   }
 
   void _showNotificationsSheet() {
@@ -1200,11 +1277,18 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
     ref.listen<CustomerMapState>(customerMapControllerProvider, (previous, next) {
       if (previous?.currentLat != next.currentLat ||
           previous?.currentLng != next.currentLng) {
+        final point = Point(
+          coordinates: Position(next.currentLng, next.currentLat),
+        );
+        _mapboxMap?.setCamera(
+          CameraOptions(
+            center: point,
+            zoom: _defaultZoom,
+          ),
+        );
         _mapboxMap?.flyTo(
           CameraOptions(
-            center: Point(
-              coordinates: Position(next.currentLng, next.currentLat),
-            ),
+            center: point,
             zoom: _defaultZoom,
           ),
           MapAnimationOptions(duration: 600),

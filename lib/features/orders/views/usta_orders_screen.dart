@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/auth/controllers/auth_controller.dart';
@@ -56,10 +57,14 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
 
   void _showHizmetDialog({UstaHizmetIlan? existingHizmet}) {
     final isEditing = existingHizmet != null;
+    final currentUstaState = ref.read(ustaDashboardControllerProvider);
     final titleController =
         TextEditingController(text: existingHizmet?.baslik ?? '');
     final descController =
         TextEditingController(text: existingHizmet?.aciklama ?? '');
+    final locationController = TextEditingController(
+      text: existingHizmet?.konum ?? currentUstaState.ustaLocationAddress,
+    );
     final priceController = TextEditingController(
       text:
           existingHizmet != null ? existingHizmet.fiyat.toStringAsFixed(0) : '',
@@ -291,7 +296,56 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 12),
+
+                    // Hizmet Bölgesi / İlçe / Konum Girişi
+                    TextField(
+                      controller: locationController,
+                      style: const TextStyle(color: Colors.white, fontSize: 13.5),
+                      decoration: InputDecoration(
+                        labelText: 'Hizmet Bölgesi / Şehir, İlçe veya Mahalle',
+                        labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                        hintText: 'Örn: Sandıklı, Afyonkarahisar veya Ece Mah.',
+                        hintStyle: const TextStyle(color: Color(0xFF64748B)),
+                        prefixIcon: const Icon(Icons.location_on_rounded, color: AppTheme.ustaPrimary),
+                        suffixIcon: IconButton(
+                          tooltip: 'Mevcut Çalışma Konumumu Kullan',
+                          icon: const Icon(Icons.my_location_rounded, color: AppTheme.ustaPrimary, size: 20),
+                          onPressed: () {
+                            setModalState(() {
+                              locationController.text = currentUstaState.ustaLocationAddress;
+                            });
+                          },
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFF0F172A),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFF334155)),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        'Sandıklı, Afyonkarahisar',
+                        'Ece, Sandıklı',
+                        'Çakır, Sandıklı',
+                        'Kadıköy, İstanbul',
+                        'Beşiktaş, İstanbul',
+                      ].map((dist) => ActionChip(
+                        label: Text(
+                          dist,
+                          style: const TextStyle(fontSize: 11, color: Colors.white70),
+                        ),
+                        backgroundColor: const Color(0xFF0F172A),
+                        side: const BorderSide(color: Color(0xFF334155)),
+                        onPressed: () => setModalState(() => locationController.text = dist),
+                      )).toList(),
+                    ),
+                    const SizedBox(height: 12),
 
                     // Taban Paket mi? Switch
                     SwitchListTile(
@@ -308,7 +362,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
 
                     // Kaydet Butonu
                     ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         final title = titleController.text.trim();
                         final price =
                             double.tryParse(priceController.text.trim()) ?? 0.0;
@@ -321,12 +375,30 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                           return;
                         }
 
+                        final locationText = locationController.text.trim().isNotEmpty
+                            ? locationController.text.trim()
+                            : currentUstaState.ustaLocationAddress;
+
+                        double resolvedLat = currentUstaState.ustaLat;
+                        double resolvedLng = currentUstaState.ustaLng;
+                        final syncMatch = LocationLookupService.resolveSync(locationText);
+                        if (syncMatch != null) {
+                          resolvedLat = syncMatch.lat;
+                          resolvedLng = syncMatch.lng;
+                        } else {
+                          final match = await LocationLookupService.resolveBestMatch(locationText);
+                          if (match != null) {
+                            resolvedLat = match.lat;
+                            resolvedLng = match.lng;
+                          }
+                        }
+
                         final controller =
                             ref.read(ustaDashboardControllerProvider.notifier);
                         final item = UstaHizmetIlan(
                           id: isEditing
                               ? existingHizmet.id
-                              : 'hizmet-${DateTime.now().millisecondsSinceEpoch}',
+                              : 'ILN-${DateTime.now().millisecondsSinceEpoch % 9000 + 1000}',
                           baslik: title,
                           aciklama: descController.text.trim(),
                           fiyat: price,
@@ -335,14 +407,19 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                               : '30 dk',
                           ikon: selectedIcon,
                           isDefault: isDefault,
+                          konum: locationText,
+                          lat: resolvedLat,
+                          lng: resolvedLng,
                         );
 
                         if (isEditing) {
-                          controller.updateHizmet(item);
+                          await controller.updateHizmet(item);
                         } else {
-                          controller.addHizmet(item);
+                          await controller.addHizmet(item);
                         }
-                        Navigator.of(ctx).pop();
+                        if (ctx.mounted) {
+                          Navigator.of(ctx).pop();
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.ustaPrimary,
@@ -607,6 +684,48 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                         height: 1.3,
                       ),
                     ),
+                    const SizedBox(height: 6),
+                    InkWell(
+                      onTap: () => _showUstaLocationChangeDialog(state, controller),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.location_on_rounded, size: 13, color: AppTheme.ustaPrimary),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                state.ustaLocationAddress,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Text(
+                              'Değiştir',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.ustaPrimary,
+                              ),
+                            ),
+                            const Icon(Icons.keyboard_arrow_right_rounded, size: 14, color: AppTheme.ustaPrimary),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -624,6 +743,120 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _showUstaLocationChangeDialog(
+    UstaDashboardState state,
+    UstaDashboardController controller,
+  ) async {
+    final textController = TextEditingController(text: state.ustaLocationAddress);
+    const presets = [
+      'Sandıklı, Afyonkarahisar',
+      'Ece, Sandıklı',
+      'Çakır, Sandıklı',
+      'Bolvadin, Afyonkarahisar',
+      'Kadıköy, İstanbul',
+      'Beşiktaş, İstanbul',
+      'Çankaya, Ankara',
+      'Karşıyaka, İzmir',
+    ];
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1E293B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            16,
+            20,
+            MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF475569),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Çalışma Bölgenizi / Konumunuzu Belirleyin',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: textController,
+                style: const TextStyle(color: Colors.white, fontSize: 13.5),
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.location_on_rounded, color: AppTheme.ustaPrimary),
+                  hintText: 'Şehir, İlçe veya Semt yazın...',
+                  hintStyle: const TextStyle(color: Color(0xFF64748B)),
+                  filled: true,
+                  fillColor: const Color(0xFF0F172A),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFF334155)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: presets.map((district) {
+                  final isCurrent = district == state.ustaLocationAddress;
+                  return ActionChip(
+                    label: Text(
+                      district,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
+                        color: isCurrent ? Colors.white : const Color(0xFFCBD5E1),
+                      ),
+                    ),
+                    backgroundColor: isCurrent ? AppTheme.ustaPrimary : const Color(0xFF0F172A),
+                    side: BorderSide(
+                      color: isCurrent ? AppTheme.ustaPrimary : const Color(0xFF334155),
+                    ),
+                    onPressed: () => Navigator.of(ctx).pop(district),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(textController.text.trim()),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.ustaPrimary,
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Konumu Güncelle', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selected != null && selected.isNotEmpty) {
+      await controller.setUstaLocation(address: selected);
+    }
   }
 
   /// 2. Performans ve Finansal Gösterge Kartları (2x2 Grid)
@@ -839,6 +1072,27 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                               style: const TextStyle(
                                   fontSize: 11, color: Color(0xFF94A3B8)),
                             ),
+                            if (hizmet.konum != null && hizmet.konum!.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.location_on_rounded, size: 12, color: Color(0xFFF59E0B)),
+                                  const SizedBox(width: 3),
+                                  Flexible(
+                                    child: Text(
+                                      hizmet.konum!,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFFF59E0B),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                             const SizedBox(height: 4),
                             Text(
                               '⏱️ ${hizmet.tahminiSure}',

@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
+import 'package:ustaapp/core/services/app_data_service.dart';
+import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/core/services/location_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
@@ -370,17 +372,73 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     state = state.copyWith(incomingCall: demoCagri);
   }
 
-  /// Yeni iş / hizmet ilanı ekler
-  void addHizmet(UstaHizmetIlan hizmet) {
+  /// Ustanın çalışma bölgesini / ilçesini ve koordinatlarını günceller
+  Future<bool> setUstaLocation({
+    required String address,
+    double? lat,
+    double? lng,
+  }) async {
+    final cleanAddr = address.trim();
+    if (cleanAddr.isEmpty) return false;
+
+    double resolvedLat = lat ?? state.ustaLat;
+    double resolvedLng = lng ?? state.ustaLng;
+    String resolvedAddress = cleanAddr;
+
+    if (lat == null || lng == null) {
+      final match = await LocationLookupService.resolveBestMatch(cleanAddr);
+      if (match != null) {
+        resolvedLat = match.lat;
+        resolvedLng = match.lng;
+        resolvedAddress = match.label;
+      }
+    }
+
+    state = state.copyWith(
+      ustaLocationAddress: resolvedAddress,
+      ustaLat: resolvedLat,
+      ustaLng: resolvedLng,
+      successMessage: 'Çalışma bölgeniz "$resolvedAddress" olarak güncellendi.',
+    );
+
+    await AppDataService.instance.updateUstaLocation(
+      ustaId: currentUserId ?? 'usta-1794603229298',
+      address: resolvedAddress,
+      lat: resolvedLat,
+      lng: resolvedLng,
+    );
+
+    return true;
+  }
+
+  /// Yeni iş / hizmet ilanı ekler ve harita/admin sistemine senkronize eder
+  Future<void> addHizmet(UstaHizmetIlan hizmet) async {
     final updatedList = List<UstaHizmetIlan>.from(state.hizmetler)..add(hizmet);
     state = state.copyWith(
       hizmetler: updatedList,
       successMessage: '"${hizmet.baslik}" hizmet listenize eklendi.',
     );
+
+    final targetLocation = (hizmet.konum != null && hizmet.konum!.isNotEmpty)
+        ? hizmet.konum!
+        : state.ustaLocationAddress;
+    final targetLat = hizmet.lat ?? state.ustaLat;
+    final targetLng = hizmet.lng ?? state.ustaLng;
+
+    await AppDataService.instance.syncUstaHizmetListing(
+      hizmet: hizmet,
+      ustaName: 'Kadir Usta',
+      ustaPhone: '5524342069',
+      ustaId: currentUserId ?? 'usta-1794603229298',
+      ustaCategory: 'Elektrik & Aydınlatma',
+      location: targetLocation,
+      lat: targetLat,
+      lng: targetLng,
+    );
   }
 
-  /// Mevcut iş / hizmet ilanını günceller
-  void updateHizmet(UstaHizmetIlan updatedHizmet) {
+  /// Mevcut iş / hizmet ilanını günceller ve harita/admin sistemine senkronize eder
+  Future<void> updateHizmet(UstaHizmetIlan updatedHizmet) async {
     final index = state.hizmetler.indexWhere((h) => h.id == updatedHizmet.id);
     if (index == -1) return;
 
@@ -391,10 +449,27 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       hizmetler: updatedList,
       successMessage: '"${updatedHizmet.baslik}" başarıyla güncellendi.',
     );
+
+    final targetLocation = (updatedHizmet.konum != null && updatedHizmet.konum!.isNotEmpty)
+        ? updatedHizmet.konum!
+        : state.ustaLocationAddress;
+    final targetLat = updatedHizmet.lat ?? state.ustaLat;
+    final targetLng = updatedHizmet.lng ?? state.ustaLng;
+
+    await AppDataService.instance.syncUstaHizmetListing(
+      hizmet: updatedHizmet,
+      ustaName: 'Kadir Usta',
+      ustaPhone: '5524342069',
+      ustaId: currentUserId ?? 'usta-1794603229298',
+      ustaCategory: 'Elektrik & Aydınlatma',
+      location: targetLocation,
+      lat: targetLat,
+      lng: targetLng,
+    );
   }
 
-  /// İş / hizmet ilanını listeden kaldırır
-  void deleteHizmet(String id) {
+  /// İş / hizmet ilanını listeden kaldırır ve haritadan siler
+  Future<void> deleteHizmet(String id) async {
     final removed = state.hizmetler.firstWhere(
       (h) => h.id == id,
       orElse: () => const UstaHizmetIlan(id: '', baslik: '', aciklama: '', fiyat: 0),
@@ -406,6 +481,8 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
           ? '"${removed.baslik}" hizmetlerden kaldırıldı.'
           : 'Hizmet kaldırıldı.',
     );
+
+    await AppDataService.instance.removeUstaHizmetListing(id);
   }
 
   /// Ayrıntılı tarife ve kilometre başına yakıt/ulaşım ayarlarını topluca kaydeder

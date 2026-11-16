@@ -3314,6 +3314,39 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ),
             ),
 
+            // Mobil Uygulama Geçiş Butonu
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => context.go('/auth'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.4)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.smartphone_rounded, color: Color(0xFF38BDF8), size: 18),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Mobil Uygulama (Usta/Müşteri)',
+                          style: TextStyle(
+                            color: Color(0xFF38BDF8),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
             // Çıkış Butonu
             Container(
               padding: const EdgeInsets.all(16),
@@ -3325,10 +3358,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(12),
                   onTap: _handleLogout,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     child: Row(
-                      children: const [
+                      children: [
                         Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
                         SizedBox(width: 12),
                         Text(

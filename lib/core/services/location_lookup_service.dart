@@ -71,6 +71,13 @@ class LocationLookupService {
 
     // Afyonkarahisar & Kullanıcının Bölgesi
     'sandikli': (lat: 38.4647, lng: 30.2719, label: 'Sandıklı, Afyonkarahisar', shortLabel: 'Sandıklı'),
+    'ece sandikli': (lat: 38.4601, lng: 30.2655, label: 'Ece Mah., Sandıklı, Afyonkarahisar', shortLabel: 'Ece, Sandıklı'),
+    'ece fidan sokak': (lat: 38.4615, lng: 30.2670, label: 'Ece Mah. Fidan Sk., Sandıklı', shortLabel: 'Ece, Fidan Sokak'),
+    'fidan sokak': (lat: 38.4615, lng: 30.2670, label: 'Fidan Sokak, Sandıklı', shortLabel: 'Fidan Sokak'),
+    'cakir sandikli': (lat: 38.4669, lng: 30.2711, label: 'Çakır Mah., Sandıklı, Afyonkarahisar', shortLabel: 'Çakır, Sandıklı'),
+    'cakir': (lat: 38.4669, lng: 30.2711, label: 'Çakır Mah., Sandıklı, Afyonkarahisar', shortLabel: 'Çakır, Sandıklı'),
+    'ece': (lat: 38.4601, lng: 30.2655, label: 'Ece Mah., Sandıklı, Afyonkarahisar', shortLabel: 'Ece, Sandıklı'),
+    'hisar': (lat: 38.4650, lng: 30.2680, label: 'Hisar Mah., Sandıklı, Afyonkarahisar', shortLabel: 'Hisar, Sandıklı'),
     'afyonkarahisar': (lat: 38.7507, lng: 30.5567, label: 'Afyonkarahisar', shortLabel: 'Afyonkarahisar'),
     'afyon': (lat: 38.7507, lng: 30.5567, label: 'Afyonkarahisar', shortLabel: 'Afyonkarahisar'),
     'dinar': (lat: 38.0650, lng: 30.1656, label: 'Dinar, Afyonkarahisar', shortLabel: 'Dinar'),
@@ -185,6 +192,24 @@ class LocationLookupService {
     final normalized = _normalize(query);
     for (final entry in _localLocations.entries) {
       if (normalized.contains(entry.key) || entry.key.contains(normalized)) {
+        final loc = entry.value;
+        return LocationSuggestion(
+          label: loc.label,
+          shortLabel: loc.shortLabel,
+          lat: loc.lat,
+          lng: loc.lng,
+        );
+      }
+    }
+    return null;
+  }
+
+  /// Senkron hızlı çözümleme: Verilen adresi yerel sözlükten anında çözer
+  static LocationSuggestion? resolveSync(String query) {
+    final normalized = _normalize(query);
+    if (normalized.isEmpty) return null;
+    for (final entry in _localLocations.entries) {
+      if (normalized == entry.key || normalized.contains(entry.key) || entry.key.contains(normalized)) {
         final loc = entry.value;
         return LocationSuggestion(
           label: loc.label,

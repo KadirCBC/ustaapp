@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mapbox;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
@@ -67,9 +67,6 @@ class RouteResult {
 }
 
 class RouteService {
-  static final HttpClient _client = HttpClient()
-    ..connectionTimeout = const Duration(seconds: 8);
-
   /// İki nokta arasında Mapbox Directions üzerinden adım adım Türkçe sürüş manevralarını ve rotayı çeker.
   static Future<RouteResult> fetchDrivingRoute({
     required double startLat,
@@ -86,11 +83,9 @@ class RouteService {
         '?geometries=geojson&overview=full&steps=true&language=tr&access_token=$token',
       );
 
-      final req = await _client.getUrl(uri);
-      final res = await req.close();
+      final res = await http.get(uri).timeout(const Duration(seconds: 8));
       if (res.statusCode == 200) {
-        final body = await res.transform(utf8.decoder).join();
-        final json = jsonDecode(body) as Map<String, dynamic>;
+        final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
         final routes = json['routes'] as List<dynamic>?;
         if (routes != null && routes.isNotEmpty) {
           final primaryRoute = routes.first as Map<String, dynamic>;
@@ -156,11 +151,9 @@ class RouteService {
         '?overview=full&geometries=geojson&steps=true',
       );
 
-      final req = await _client.getUrl(osrmUri);
-      final res = await req.close();
+      final res = await http.get(osrmUri).timeout(const Duration(seconds: 8));
       if (res.statusCode == 200) {
-        final body = await res.transform(utf8.decoder).join();
-        final json = jsonDecode(body) as Map<String, dynamic>;
+        final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
         final routes = json['routes'] as List<dynamic>?;
         if (routes != null && routes.isNotEmpty) {
           final primaryRoute = routes.first as Map<String, dynamic>;

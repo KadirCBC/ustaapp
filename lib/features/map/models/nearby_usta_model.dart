@@ -6,6 +6,9 @@ class UstaHizmetIlan {
   final String tahminiSure;
   final String ikon;
   final bool isDefault;
+  final String? konum;
+  final double? lat;
+  final double? lng;
 
   const UstaHizmetIlan({
     required this.id,
@@ -15,6 +18,9 @@ class UstaHizmetIlan {
     this.tahminiSure = '30-45 dk',
     this.ikon = '⚡',
     this.isDefault = false,
+    this.konum,
+    this.lat,
+    this.lng,
   });
 
   factory UstaHizmetIlan.fromJson(Map<String, dynamic> json) {
@@ -26,6 +32,9 @@ class UstaHizmetIlan {
       tahminiSure: json['tahmini_sure'] as String? ?? '30 dk',
       ikon: json['ikon'] as String? ?? '🔧',
       isDefault: json['is_default'] as bool? ?? false,
+      konum: json['konum'] as String?,
+      lat: (json['lat'] as num?)?.toDouble(),
+      lng: (json['lng'] as num?)?.toDouble(),
     );
   }
 
@@ -37,6 +46,9 @@ class UstaHizmetIlan {
     'tahmini_sure': tahminiSure,
     'ikon': ikon,
     'is_default': isDefault,
+    if (konum != null) 'konum': konum,
+    if (lat != null) 'lat': lat,
+    if (lng != null) 'lng': lng,
   };
 }
 

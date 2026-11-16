@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
 import 'package:ustaapp/core/services/app_data_service.dart';
@@ -897,8 +897,6 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     String pathSegment,
     Map<String, String> queryParams,
   ) async {
-    final client = HttpClient();
-    client.connectionTimeout = const Duration(seconds: 5);
     try {
       final uri = Uri.https(
         'api.mapbox.com',
@@ -910,14 +908,10 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
           ...queryParams,
         },
       );
-      final request =
-          await client.getUrl(uri).timeout(const Duration(seconds: 5));
-      final response =
-          await request.close().timeout(const Duration(seconds: 5));
+      final response = await http.get(uri).timeout(const Duration(seconds: 5));
       if (response.statusCode != 200) return null;
 
-      final body = await response.transform(utf8.decoder).join();
-      final decoded = jsonDecode(body) as Map<String, dynamic>;
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final features = decoded['features'] as List<dynamic>?;
       if (features == null || features.isEmpty) return null;
 
@@ -939,8 +933,6 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     } catch (e) {
       debugPrint('Mapbox geocoding hatası: $e');
       return null;
-    } finally {
-      client.close(force: true);
     }
   }
 
@@ -948,7 +940,7 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     String query,
   ) {
     return _queryMapboxGeocoding(
-      Uri.encodeComponent(query),
+      query,
       const {'country': 'tr'},
     );
   }
