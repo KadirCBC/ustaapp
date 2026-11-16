@@ -115,7 +115,7 @@ class LocationLookupService {
 
     // 1. Canlı Mapbox Geocoding API Sorgusu (Gerçek adresler, caddeler, sokaklar için)
     try {
-      final token = AppConstants.mapboxAccessToken;
+      const token = AppConstants.mapboxAccessToken;
       final encoded = Uri.encodeComponent(cleanQuery);
       final url = Uri.parse(
         'https://api.mapbox.com/geocoding/v5/mapbox.places/$encoded.json?access_token=$token&country=tr&language=tr&limit=5',

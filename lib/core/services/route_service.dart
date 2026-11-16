@@ -79,7 +79,7 @@ class RouteService {
   }) async {
     // 1. Mapbox Directions API (steps=true & language=tr)
     try {
-      final token = AppConstants.mapboxAccessToken;
+      const token = AppConstants.mapboxAccessToken;
       final uri = Uri.parse(
         'https://api.mapbox.com/directions/v5/mapbox/driving/'
         '$startLng,$startLat;$endLng,$endLat'
