@@ -1214,16 +1214,32 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   // 0. İlan & Çağrı Yönetimi Metotları
   void _showAddJobDialog() {
-    final titleCtrl = TextEditingController();
-    final nameCtrl = TextEditingController();
-    final phoneCtrl = TextEditingController();
-    final priceCtrl = TextEditingController(text: '800');
-    final descCtrl = TextEditingController();
+    final titleCtrl = TextEditingController(text: 'Standart Servis & Arıza Tespiti');
+    final ustaNameCtrl = TextEditingController();
+    final ustaPhoneCtrl = TextEditingController();
+    final priceCtrl = TextEditingController(text: '1750');
+    final descCtrl = TextEditingController(text: 'Detaylı arıza tespiti, malzeme kontrolü ve hızlı onarım servisi.');
     String selectedLocation = 'Kadıköy / Moda';
     double selectedLat = 40.9850;
     double selectedLng = 29.0285;
-    String category = 'Sıhhi Tesisat & Su Kaçağı';
-    bool isUrgent = true;
+    String category = 'Elektrik & Aydınlatma';
+    bool isUrgent = false;
+    String? selectedUstaId;
+
+    // Eğer kayıtlı aktif usta varsa ilkini varsayılan olarak seçelim
+    if (_activeUstalar.isNotEmpty) {
+      final firstUsta = _activeUstalar.first;
+      selectedUstaId = firstUsta['id']?.toString();
+      ustaNameCtrl.text = (firstUsta['full_name'] ?? 'Kadir Usta').toString();
+      ustaPhoneCtrl.text = (firstUsta['phone'] ?? '05524342069').toString();
+      category = (firstUsta['kategori'] ?? 'Elektrik & Aydınlatma').toString();
+      selectedLocation = (firstUsta['location'] ?? 'Kadıköy / Moda').toString();
+      selectedLat = _asDouble(firstUsta['latitude'], 40.9850);
+      selectedLng = _asDouble(firstUsta['longitude'], 29.0285);
+    } else {
+      ustaNameCtrl.text = 'Kadir Usta';
+      ustaPhoneCtrl.text = '05524342069';
+    }
 
     showDialog(
       context: context,
@@ -1232,49 +1248,140 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Row(
             children: [
-              Icon(Icons.add_task_rounded, color: Color(0xFF0284C7)),
+              Icon(Icons.campaign_rounded, color: Color(0xFF0284C7)),
               SizedBox(width: 8),
-              Text('Yeni Servis Çağrısı / İlan Aç', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('Yeni Usta Hizmet İlanı Yayınla', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
             ],
           ),
           content: SizedBox(
-            width: 500,
+            width: 520,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.2)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 18, color: Color(0xFF0284C7)),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Usta ilanı açtığında ilan "Aktif" olarak yayınlanır ve belirlediğiniz konumda müşterilerin haritasında anlık olarak görünür.',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF0369A1)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Kayıtlı Usta Seçici
+                  if (_activeUstalar.isNotEmpty) ...[
+                    DropdownButtonFormField<String>(
+                      value: selectedUstaId,
+                      decoration: const InputDecoration(
+                        labelText: 'Hizmet Verecek Kayıtlı Usta',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person_pin_rounded),
+                      ),
+                      items: [
+                        ..._activeUstalar.map((u) {
+                          final uId = u['id']?.toString() ?? '';
+                          final uName = u['full_name']?.toString() ?? 'Usta';
+                          final uCat = u['kategori']?.toString() ?? '';
+                          return DropdownMenuItem<String>(
+                            value: uId,
+                            child: Text('$uName ($uCat)', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          );
+                        }),
+                        const DropdownMenuItem<String>(
+                          value: '__new_usta__',
+                          child: Text('➕ Yeni Usta Tanımla', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0284C7))),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        setDlgState(() {
+                          selectedUstaId = val;
+                          if (val != null && val != '__new_usta__') {
+                            final matched = _activeUstalar.firstWhere((u) => u['id']?.toString() == val, orElse: () => {});
+                            if (matched.isNotEmpty) {
+                              ustaNameCtrl.text = (matched['full_name'] ?? '').toString();
+                              ustaPhoneCtrl.text = (matched['phone'] ?? '').toString();
+                              category = (matched['kategori'] ?? category).toString();
+                              if (matched['location'] != null && matched['location'].toString().isNotEmpty) {
+                                selectedLocation = matched['location'].toString();
+                              }
+                              selectedLat = _asDouble(matched['latitude'], selectedLat);
+                              selectedLng = _asDouble(matched['longitude'], selectedLng);
+                            }
+                          } else if (val == '__new_usta__') {
+                            ustaNameCtrl.text = '';
+                            ustaPhoneCtrl.text = '';
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // İlan Başlığı
                   TextField(
                     controller: titleCtrl,
-                    decoration: const InputDecoration(labelText: 'İlan / İş Başlığı', hintText: 'Örn: Mutfak Su Borusu Patladı', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                      labelText: 'Hizmet / İlan Başlığı',
+                      hintText: 'Örn: Arıza Tespiti ve Giderilmesi',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                   const SizedBox(height: 12),
+
+                  // Usta Ad Soyad & Telefon
                   Row(
                     children: [
                       Expanded(
                         child: TextField(
-                          controller: nameCtrl,
-                          decoration: const InputDecoration(labelText: 'Müşteri Ad Soyad', border: OutlineInputBorder()),
+                          controller: ustaNameCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Usta Ad Soyad',
+                            hintText: 'Örn: Kadir Usta',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.person_outline, size: 18),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: TextField(
-                          controller: phoneCtrl,
-                          decoration: const InputDecoration(labelText: 'Müşteri Telefonu', hintText: '+90 5XX...', border: OutlineInputBorder()),
+                          controller: ustaPhoneCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Usta Telefonu',
+                            hintText: '05524342069',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.phone_outlined, size: 18),
+                          ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
+
+                  // Hizmet Kategorisi & Fiyat
                   Row(
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: category,
+                          value: _categories.any((c) => (c['title'] ?? c['ad'] ?? '').toString() == category) ? category : 'Elektrik & Aydınlatma',
                           decoration: const InputDecoration(labelText: 'Hizmet Kategorisi', border: OutlineInputBorder()),
                           items: const [
-                            DropdownMenuItem(value: 'Sıhhi Tesisat & Su Kaçağı', child: Text('Sıhhi Tesisat & Su Kaçağı', style: TextStyle(fontSize: 12.5))),
                             DropdownMenuItem(value: 'Elektrik & Aydınlatma', child: Text('Elektrik & Aydınlatma', style: TextStyle(fontSize: 12.5))),
+                            DropdownMenuItem(value: 'Sıhhi Tesisat & Su Kaçağı', child: Text('Sıhhi Tesisat & Su Kaçağı', style: TextStyle(fontSize: 12.5))),
                             DropdownMenuItem(value: 'Çilingir & Kapı Açma', child: Text('Çilingir & Kapı Açma', style: TextStyle(fontSize: 12.5))),
                             DropdownMenuItem(value: 'Klima & Kombi Servisi', child: Text('Klima & Kombi Servisi', style: TextStyle(fontSize: 12.5))),
                             DropdownMenuItem(value: 'Boya, Alçı & Dekorasyon', child: Text('Boya, Alçı & Dekorasyon', style: TextStyle(fontSize: 12.5))),
@@ -1288,17 +1395,19 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       Expanded(
                         child: TextField(
                           controller: priceCtrl,
-                          decoration: const InputDecoration(labelText: 'Tahmini Ücret (₺)', border: OutlineInputBorder()),
+                          decoration: const InputDecoration(labelText: 'Hizmet Taban Fiyatı (₺)', border: OutlineInputBorder()),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
+
+                  // Ustanın Konumu (Google Haritalar Arama)
                   AddressLocationSearchField(
                     initialAddress: selectedLocation,
                     initialLat: selectedLat,
                     initialLng: selectedLng,
-                    labelText: 'İş / Arıza Adresi (Google Haritalar)',
+                    labelText: 'Ustanın Konumu / Hizmet Bölgesi (Google Haritalar)',
                     onLocationChanged: (addr, lat, lng) {
                       selectedLocation = addr;
                       selectedLat = lat;
@@ -1306,17 +1415,24 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     },
                   ),
                   const SizedBox(height: 12),
+
+                  // Hizmet Açıklaması
                   TextField(
                     controller: descCtrl,
                     maxLines: 2,
-                    decoration: const InputDecoration(labelText: 'Arıza / İş Açıklaması', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                      labelText: 'Hizmet Açıklaması & Kapsamı',
+                      hintText: 'İşin kapsamı, servis garantisi ve malzeme detayları...',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                   const SizedBox(height: 8),
+
                   SwitchListTile(
-                    title: const Text('Acil Servis Çağrısı', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold)),
-                    subtitle: const Text('En yakın ustalara anında push bildirimi ile iletilir.', style: TextStyle(fontSize: 11.5)),
+                    title: const Text('Acil Hizmete / Çağrılara Açık', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold)),
+                    subtitle: const Text('Müşteriler harita üzerinden anlık arama veya çağrı yapabilir.', style: TextStyle(fontSize: 11.5)),
                     value: isUrgent,
-                    activeColor: Colors.redAccent,
+                    activeColor: const Color(0xFF10B981),
                     onChanged: (val) => setDlgState(() => isUrgent = val),
                   ),
                 ],
@@ -1338,29 +1454,93 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               onPressed: () async {
                 try {
                   if (titleCtrl.text.trim().isEmpty) {
-                    _showSuccessToast('Lütfen arıza / iş başlığını giriniz.', isError: true);
+                    _showSuccessToast('Lütfen ilan / hizmet başlığını giriniz.', isError: true);
                     return;
                   }
-                  final cleanPrice = _asDouble(priceCtrl.text.trim(), 800.0);
-                  final customerName = nameCtrl.text.trim().isEmpty ? 'Müşteri Talebi' : nameCtrl.text.trim();
-                  final customerPhone = phoneCtrl.text.trim().isEmpty ? '+90 500 000 00 00' : phoneCtrl.text.trim();
+                  final ustaName = ustaNameCtrl.text.trim().isEmpty ? 'Kadir Usta' : ustaNameCtrl.text.trim();
+                  final ustaPhone = ustaPhoneCtrl.text.trim().isEmpty ? '05524342069' : ustaPhoneCtrl.text.trim();
+                  final cleanPrice = _asDouble(priceCtrl.text.trim(), 1750.0);
 
+                  // Standart ILN-XXXX ID Formatı
+                  final cleanJobId = 'ILN-${1000 + (DateTime.now().millisecondsSinceEpoch % 9000)}';
+
+                  // 1. Aktif Ustayı Güncelle veya Yeni Usta Oluştur
+                  String targetUstaId = selectedUstaId ?? 'usta-kadir';
+                  if (targetUstaId == '__new_usta__') {
+                    targetUstaId = 'usta-${DateTime.now().millisecondsSinceEpoch}';
+                  }
+
+                  int existingUstaIdx = _activeUstalar.indexWhere((u) => u['id']?.toString() == targetUstaId);
+                  final newIlanMap = {
+                    'id': cleanJobId,
+                    'baslik': titleCtrl.text.trim(),
+                    'aciklama': descCtrl.text.trim(),
+                    'fiyat': cleanPrice,
+                    'tahminiSure': '30-60 dk',
+                    'ikon': '⚡',
+                    'isDefault': false,
+                  };
+
+                  if (existingUstaIdx >= 0) {
+                    // Mevcut ustanın konumunu, telefonunu, ilanını güncelle
+                    final usta = _activeUstalar[existingUstaIdx];
+                    usta['full_name'] = ustaName;
+                    usta['phone'] = ustaPhone;
+                    usta['latitude'] = selectedLat;
+                    usta['longitude'] = selectedLng;
+                    usta['location'] = selectedLocation;
+                    usta['kategori'] = _formatCategoryName(category);
+                    usta['raw_kategori'] = _rawCategoryKey(category);
+                    usta['price'] = cleanPrice;
+
+                    final List<dynamic> ustaIlanlar = List<dynamic>.from(usta['ilanlar'] as List<dynamic>? ?? []);
+                    ustaIlanlar.insert(0, newIlanMap);
+                    usta['ilanlar'] = ustaIlanlar;
+                  } else {
+                    // Yeni Usta olarak _activeUstalar'a ekle
+                    final newUsta = {
+                      'id': targetUstaId,
+                      'full_name': ustaName,
+                      'phone': ustaPhone,
+                      'kategori': _formatCategoryName(category),
+                      'raw_kategori': _rawCategoryKey(category),
+                      'rating': 5.0,
+                      'review_count': 12,
+                      'completed_jobs': 12,
+                      'status': 'Çevrimiçi',
+                      'location': selectedLocation,
+                      'price': cleanPrice,
+                      'latitude': selectedLat,
+                      'longitude': selectedLng,
+                      'hakedis': cleanPrice * 0.85,
+                      'servis_ucreti': 150.0,
+                      'deneyim_yili': 8,
+                      'guvenceler': ['30 Gün İşçilik Garantisi', 'Sabit Fiyat Güvencesi', 'MYK Belgeli'],
+                      'ilanlar': [newIlanMap],
+                    };
+                    _activeUstalar.insert(0, newUsta);
+                  }
+
+                  // 2. Aktif İlanlar Masasına Ekle
                   final newJob = {
-                    'id': 'ILN-${4080 + _activeJobs.length + 1}',
+                    'id': cleanJobId,
                     'title': titleCtrl.text.trim(),
-                    'customer_name': customerName,
-                    'customer_phone': customerPhone,
+                    'customer_name': ustaName,
+                    'customer_phone': ustaPhone,
+                    'assigned_usta': ustaName,
+                    'usta_name': ustaName,
+                    'usta_phone': ustaPhone,
+                    'usta_id': targetUstaId,
                     'kategori': category,
                     'price': cleanPrice,
                     'district': selectedLocation,
                     'address': selectedLocation,
                     'latitude': selectedLat,
                     'longitude': selectedLng,
-                    'status': 'Bekliyor',
-                    'assigned_usta': '— (Atama Bekliyor)',
+                    'status': 'Aktif',
                     'created_at': 'Şimdi',
                     'is_urgent': isUrgent,
-                    'description': descCtrl.text.trim().isEmpty ? 'Kullanıcı tarafından servis çağrısı açıldı.' : descCtrl.text.trim(),
+                    'description': descCtrl.text.trim().isEmpty ? 'Usta tarafından hizmet ilanı açıldı.' : descCtrl.text.trim(),
                   };
 
                   setState(() {
@@ -1368,6 +1548,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     _recalculateMetrics();
                   });
 
+                  // 3. Hem Ustaları Hem İlanları Senkronize Kaydet (WebSocket mobil app'e yayınlar)
+                  await _savePersistedData('admin_active_ustalar');
                   await _savePersistedData('admin_jobs');
 
                   if (context.mounted) {
@@ -1377,7 +1559,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       Navigator.of(ctx).pop();
                     }
                   }
-                  _showSuccessToast('✓ Yeni servis ilanı başarıyla açıldı ve ustalara iletildi!');
+                  _showSuccessToast('✓ Usta hizmet ilanı açıldı! Usta $selectedLocation konumunda haritaya yansıtıldı.');
                 } catch (e, stack) {
                   debugPrint('İlan Kaydetme Hatası: $e\n$stack');
                   _showSuccessToast('İlan kaydetme hatası: $e', isError: true);
@@ -1397,7 +1579,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final priceCtrl = TextEditingController(text: (job['price'] ?? '500').toString().replaceAll(' ₺', ''));
     final districtCtrl = TextEditingController(text: (job['district'] ?? '').toString());
     final descCtrl = TextEditingController(text: (job['description'] ?? '').toString());
-    String status = (job['status'] ?? 'Bekliyor').toString();
+    String status = (job['status'] ?? 'Aktif').toString();
+    if (status == 'Bekliyor') status = 'Aktif';
 
     showDialog(
       context: context,
@@ -1423,6 +1606,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         value: status,
                         decoration: const InputDecoration(labelText: 'İlan Durumu', border: OutlineInputBorder()),
                         items: const [
+                          DropdownMenuItem(value: 'Aktif', child: Text('Aktif (Çevrimiçi)')),
                           DropdownMenuItem(value: 'Bekliyor', child: Text('Bekliyor')),
                           DropdownMenuItem(value: 'Usta Yolda', child: Text('Usta Yolda')),
                           DropdownMenuItem(value: 'İşlemde', child: Text('İşlemde')),
@@ -4203,6 +4387,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       borderRadius: BorderRadius.circular(10),
                       items: const [
                         DropdownMenuItem(value: 'Tümü', child: Text('Tüm Durumlar')),
+                        DropdownMenuItem(value: 'Aktif', child: Text('Aktif (Çevrimiçi)')),
                         DropdownMenuItem(value: 'Bekliyor', child: Text('Bekliyor')),
                         DropdownMenuItem(value: 'Usta Yolda', child: Text('Usta Yolda')),
                         DropdownMenuItem(value: 'İşlemde', child: Text('İşlemde')),
@@ -4336,25 +4521,33 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
                             DataColumn(label: Text('İlan No & Başlık', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
                             DataColumn(label: Text('Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
-                            DataColumn(label: Text('Müşteri', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
-                            DataColumn(label: Text('Bölge / İlçe', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
-                            DataColumn(label: Text('Tahmini Ücret', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Usta (İlan Sahibi)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Hizmet Bölgesi / Konum', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Hizmet Fiyatı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
                             DataColumn(label: Text('Durum', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
                             DataColumn(label: Text('Görevli Usta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
                             DataColumn(label: Text('Zaman', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
                           ],
                           rows: filteredJobs.map((job) {
-                            final status = job['status'] ?? 'Bekliyor';
-                            Color sColor = const Color(0xFF0284C7);
-                            if (status == 'Bekliyor') sColor = const Color(0xFFF59E0B);
+                            String status = job['status'] ?? 'Aktif';
+                            // Önceden yanlışlıkla 'Usta Yolda' veya 'Bekliyor' kalmış usta ilanlarını düzelt
+                            if (status == 'Bekliyor') status = 'Aktif';
+                            Color sColor = const Color(0xFF10B981);
+                            if (status == 'Aktif') sColor = const Color(0xFF10B981);
                             if (status == 'Usta Yolda') sColor = const Color(0xFF6366F1);
                             if (status == 'İşlemde') sColor = const Color(0xFF0EA5E9);
                             if (status == 'Tamamlandı') sColor = const Color(0xFF10B981);
                             if (status == 'İptal Edildi') sColor = const Color(0xFFEF4444);
 
                             final isUrgent = job['is_urgent'] == true;
-                            final jobIdStr = (job['id'] ?? '').toString();
-                            final isSelected = _selectedJobIds.contains(jobIdStr);
+                            final rawIdStr = (job['id'] ?? '').toString();
+                            String displayId = rawIdStr;
+                            if (displayId.startsWith('hz-')) {
+                              final digits = displayId.replaceAll(RegExp(r'[^0-9]'), '');
+                              final suffix = digits.length >= 4 ? digits.substring(digits.length - 4) : digits;
+                              displayId = 'ILN-$suffix';
+                            }
+                            final isSelected = _selectedJobIds.contains(rawIdStr);
 
                             return DataRow(
                               selected: isSelected,
@@ -4365,9 +4558,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                     onChanged: (val) {
                                       setState(() {
                                         if (val == true) {
-                                          _selectedJobIds.add(jobIdStr);
+                                          _selectedJobIds.add(rawIdStr);
                                         } else {
-                                          _selectedJobIds.remove(jobIdStr);
+                                          _selectedJobIds.remove(rawIdStr);
                                         }
                                       });
                                     },
@@ -4410,7 +4603,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                           border: Border.all(color: _borderPrimary),
                                         ),
                                         child: Text(
-                                          job['id'] ?? '-',
+                                          displayId.isNotEmpty ? displayId : '-',
                                           style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
                                         ),
                                       ),
@@ -4464,8 +4657,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Text(job['customer_name'] ?? '-', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: _textPrimary)),
-                                      Text(job['customer_phone'] ?? '-', style: TextStyle(fontSize: 11, color: _textMuted)),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.handyman_rounded, size: 13, color: Color(0xFF0284C7)),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            job['customer_name'] ?? job['usta_name'] ?? 'Kadir Usta',
+                                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: _textPrimary),
+                                          ),
+                                        ],
+                                      ),
+                                      Text(
+                                        job['customer_phone'] ?? job['usta_phone'] ?? '05524342069',
+                                        style: TextStyle(fontSize: 11, color: _textMuted),
+                                      ),
                                     ],
                                   ),
                                 ),

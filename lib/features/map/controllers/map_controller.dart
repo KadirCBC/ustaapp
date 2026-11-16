@@ -155,20 +155,18 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
   }
 
   List<NearbyUstaModel> _filterAndSortUstalar(List<NearbyUstaModel> list) {
-    final filtered = list
-        .map((u) {
-          final dist = Geolocator.distanceBetween(
-            state.currentLat,
-            state.currentLng,
-            u.latitude,
-            u.longitude,
-          );
-          return u.copyWith(mesafeMetre: dist > 0 ? dist : u.mesafeMetre);
-        })
-        .where((u) => u.mesafeMetre <= state.searchRadiusMeter)
-        .toList();
-    filtered.sort((a, b) => a.mesafeMetre.compareTo(b.mesafeMetre));
-    return filtered;
+    final mapped = list.map((u) {
+      final dist = Geolocator.distanceBetween(
+        state.currentLat,
+        state.currentLng,
+        u.latitude,
+        u.longitude,
+      );
+      return u.copyWith(mesafeMetre: dist > 0 ? dist : u.mesafeMetre);
+    }).toList();
+    // Türkiye genelindeki tüm aktif ustaları haritada göster, mesafeye göre sırala
+    mapped.sort((a, b) => a.mesafeMetre.compareTo(b.mesafeMetre));
+    return mapped;
   }
 
   /// PostGIS RPC fonksiyonu `yakin_ustalari_getir` veya Admin Panelinin yönettiği canlı usta verisini çeker
@@ -239,7 +237,7 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
   }
 
   List<IsletmeModel> _processAndFilterIsletmeler(List<IsletmeModel> rawList) {
-    final filtered = rawList.map((item) {
+    final mapped = rawList.map((item) {
       final dist = Geolocator.distanceBetween(
         state.currentLat,
         state.currentLng,
@@ -247,11 +245,11 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
         item.longitude,
       );
       return item.copyWith(mesafeMetre: dist > 0 ? dist : item.mesafeMetre);
-    }).where((item) => item.mesafeMetre <= state.searchRadiusMeter).toList();
+    }).toList();
 
     final result = (state.selectedCategory == 'tedarikciler')
-        ? filtered
-        : filtered.where((b) {
+        ? mapped
+        : mapped.where((b) {
             final cat = b.kategori.toLowerCase();
             final sel = state.selectedCategory.toLowerCase();
             return cat.contains(sel) || sel.contains(cat) || b.isSponsored;

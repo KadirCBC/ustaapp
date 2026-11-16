@@ -317,15 +317,7 @@ class AppDataService {
       final catMatch = (normalizedCat == 'tümü' || normalizedCat == 'all')
           ? true
           : (ustaCat.contains(normalizedCat) || normalizedCat.contains(ustaCat));
-      if (!catMatch) return false;
-
-      final dist = Geolocator.distanceBetween(
-        customerLat,
-        customerLng,
-        u.latitude,
-        u.longitude,
-      );
-      return dist <= maxRadiusMeter;
+      return catMatch;
     }).map((u) {
       final dist = Geolocator.distanceBetween(
         customerLat,
@@ -369,8 +361,14 @@ class AppDataService {
     // 1. Ustalara bağlı hizmet ilanları
     for (final usta in ustalar) {
       for (final ilan in usta.ilanlar) {
+        String cleanId = ilan.id;
+        if (cleanId.startsWith('hz-')) {
+          final digits = cleanId.replaceAll(RegExp(r'[^0-9]'), '');
+          final suffix = digits.length >= 4 ? digits.substring(digits.length - 4) : digits;
+          cleanId = 'ILN-$suffix';
+        }
         result.add({
-          'id': ilan.id,
+          'id': cleanId,
           'title': ilan.baslik,
           'description': ilan.aciklama,
           'price': ilan.fiyat,
@@ -403,8 +401,15 @@ class AppDataService {
         parsedPrice = double.tryParse(rawPrice.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 500.0;
       }
 
+      String rawJobId = (job['id'] ?? 'ILN-${DateTime.now().millisecondsSinceEpoch % 10000}').toString();
+      if (rawJobId.startsWith('hz-')) {
+        final digits = rawJobId.replaceAll(RegExp(r'[^0-9]'), '');
+        final suffix = digits.length >= 4 ? digits.substring(digits.length - 4) : digits;
+        rawJobId = 'ILN-$suffix';
+      }
+
       result.add({
-        'id': job['id'] ?? 'job-${DateTime.now().millisecondsSinceEpoch}',
+        'id': rawJobId,
         'title': job['title'] ?? 'Servis Talebi',
         'description': job['description'] ?? '${job['customer_name'] ?? 'Müşteri'} - ${job['category'] ?? 'Genel'} (${job['district'] ?? 'Kadıköy'})',
         'price': parsedPrice,
@@ -657,8 +662,7 @@ class AppDataService {
           (item['boylam'] as num?)?.toDouble() ??
           0.0;
       if (lat == 0.0 && lng == 0.0) return false;
-      final dist = Geolocator.distanceBetween(customerLat, customerLng, lat, lng);
-      return dist <= maxRadiusMeter;
+      return true; // Harita üzerinde tüm tedarikçi dükkanları gösterilir
     }).toList();
     return filtered;
   }
