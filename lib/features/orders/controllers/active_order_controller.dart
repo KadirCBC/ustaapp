@@ -19,6 +19,8 @@ class ActiveOrderState {
   final bool ustaArrived;
   final DateTime? arrivedAt;
   final bool completionRequested;
+  final String? completionPhotoUrl;
+  final String? completionNote;
   final String? reportedIssue;
   final String? receiptId;
   final SplitPaymentResult? paymentResult;
@@ -36,6 +38,8 @@ class ActiveOrderState {
     this.ustaArrived = false,
     this.arrivedAt,
     this.completionRequested = false,
+    this.completionPhotoUrl,
+    this.completionNote,
     this.reportedIssue,
     this.receiptId,
     this.paymentResult,
@@ -54,6 +58,8 @@ class ActiveOrderState {
     bool? ustaArrived,
     DateTime? arrivedAt,
     bool? completionRequested,
+    String? completionPhotoUrl,
+    String? completionNote,
     String? reportedIssue,
     bool clearReportedIssue = false,
     String? receiptId,
@@ -73,6 +79,8 @@ class ActiveOrderState {
       ustaArrived: ustaArrived ?? this.ustaArrived,
       arrivedAt: arrivedAt ?? this.arrivedAt,
       completionRequested: completionRequested ?? this.completionRequested,
+      completionPhotoUrl: completionPhotoUrl ?? this.completionPhotoUrl,
+      completionNote: completionNote ?? this.completionNote,
       reportedIssue:
           clearReportedIssue ? null : (reportedIssue ?? this.reportedIssue),
       receiptId: receiptId ?? this.receiptId,
@@ -134,12 +142,17 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
     final wf = DemoCallRepository.getWorkflow(_cagriId);
     state = state.copyWith(
       isLoading: false,
-      cagri: demoCall,
+      cagri: demoCall.copyWith(
+        completionPhotoUrl: wf.completionPhotoUrl,
+        completionNote: wf.completionNote,
+      ),
       ustaLat: demoCall.musteriLat + 0.0045,
       ustaLng: demoCall.musteriLng + 0.0035,
       ustaArrived: wf.ustaArrived,
       arrivedAt: wf.arrivedAt,
       completionRequested: wf.completionRequested,
+      completionPhotoUrl: wf.completionPhotoUrl,
+      completionNote: wf.completionNote,
       reportedIssue: wf.reportedIssue,
       receiptId: wf.receiptId,
     );
@@ -272,11 +285,19 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
         )
         .onBroadcast(
           event: 'completion_requested',
-          callback: (_) {
+          callback: (payload) {
             if (!mounted) return;
+            final photoUrl = payload['completion_photo_url'] as String?;
+            final note = payload['completion_note'] as String?;
             state = state.copyWith(
               ustaArrived: true,
               completionRequested: true,
+              completionPhotoUrl: photoUrl,
+              completionNote: note,
+              cagri: state.cagri?.copyWith(
+                completionPhotoUrl: photoUrl,
+                completionNote: note,
+              ),
               clearReportedIssue: true,
             );
           },
@@ -425,7 +446,11 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
   }
 
   /// USTA AŞAMA 2: 'İşi Tamamladım ve Müşteriden Onay İste'
-  Future<bool> requestCompletionConfirmation() async {
+  /// Usta yapılan işe dair fotoğraf çekmeden onay isteyemez (güvence kuralı)
+  Future<bool> requestCompletionConfirmation({
+    required String photoUrl,
+    String? note,
+  }) async {
     state = state.copyWith(
       isActionInProgress: true,
       clearReportedIssue: true,
@@ -437,22 +462,49 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
         final wf = DemoCallRepository.getWorkflow(_cagriId).copyWith(
           ustaArrived: true,
           completionRequested: true,
+          completionPhotoUrl: photoUrl,
+          completionNote: note,
           clearIssue: true,
         );
         DemoCallRepository.saveWorkflow(_cagriId, wf);
+        final existingCall = DemoCallRepository.get(_cagriId);
+        if (existingCall != null) {
+          DemoCallRepository.save(existingCall.copyWith(
+            completionPhotoUrl: photoUrl,
+            completionNote: note,
+          ));
+        }
       } else {
         await _broadcastWorkflowEvent('completion_requested', {
           'cagri_id': _cagriId,
           'requested_at': DateTime.now().toIso8601String(),
+          'completion_photo_url': photoUrl,
+          'completion_note': note,
         });
+
+        // Supabase cagrilar tablosuna da fotoğrafı ve notu kaydet
+        try {
+          await _supabase.from(AppConstants.cagrilarTable).update({
+            'completion_photo_url': photoUrl,
+            'completion_note': note,
+          }).eq('id', _cagriId);
+        } catch (dbErr) {
+          debugPrint('DB photo update opsiyonel hata: $dbErr');
+        }
       }
 
       state = state.copyWith(
         isActionInProgress: false,
         ustaArrived: true,
         completionRequested: true,
+        completionPhotoUrl: photoUrl,
+        completionNote: note,
+        cagri: state.cagri?.copyWith(
+          completionPhotoUrl: photoUrl,
+          completionNote: note,
+        ),
         clearReportedIssue: true,
-        successMessage: 'Müşteriye iş tamamlama onay penceresi gönderildi.',
+        successMessage: 'Fotoğraflı iş teslim kanıtı müşteriye iletildi. Onay bekleniyor.',
       );
       return true;
     } catch (e) {
@@ -759,6 +811,8 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
         'puan': rating ?? 5.0,
         'musteri_yorum': comment ?? '',
         'created_at': dateStr,
+        'completion_photo_url': state.completionPhotoUrl ?? c?.completionPhotoUrl,
+        'completion_note': state.completionNote ?? c?.completionNote,
         'is_payout_transferred': status == CagriDurumu.tamamlandi,
       };
 

@@ -6,6 +6,7 @@ import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/orders/controllers/active_order_controller.dart';
 import 'package:ustaapp/features/orders/controllers/rating_controller.dart';
 import 'package:ustaapp/features/orders/models/cagri_model.dart';
+import 'package:ustaapp/features/orders/views/widgets/completion_proof_preview.dart';
 
 /// İş tamamlandıktan sonraki Değerlendirme ve Ödeme Özeti (Dijital Dekont) Ekranı
 class CustomerSummaryRatingScreen extends ConsumerStatefulWidget {
@@ -193,6 +194,96 @@ class _CustomerSummaryRatingScreenState
             ),
 
             const SizedBox(height: 20),
+
+            // 1.5. TAMAMLANAN İŞİN RESMİ FOTOĞRAFI & KANITI (GÜVENCE)
+            () {
+              final photoData = orderState.completionPhotoUrl ?? cagri.completionPhotoUrl;
+              final noteData = orderState.completionNote ?? cagri.completionNote;
+
+              if (photoData == null || photoData.isEmpty) {
+                return const SizedBox.shrink();
+              }
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.verified_user_rounded, color: Color(0xFF16A34A), size: 19),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Ustanın Teslim Ettiği İş Fotoğrafı',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.customerTextDark,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDCFCE7),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'Resmi Kayıt',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF15803D),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    CompletionProofPreview(
+                      photoData: photoData,
+                      height: 175,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                    if (noteData != null && noteData.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Text(
+                          'Usta Notu: "$noteData"',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: Color(0xFF334155),
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }(),
 
             // 2. NET ÖDEME ÖZETİ & DİJİTAL DEKONT KARTI
             Container(

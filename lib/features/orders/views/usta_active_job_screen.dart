@@ -6,6 +6,8 @@ import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/map/views/widgets/map_widget.dart';
 import 'package:ustaapp/features/orders/controllers/active_order_controller.dart';
 import 'package:ustaapp/features/orders/controllers/usta_dashboard_controller.dart';
+import 'package:ustaapp/features/orders/views/widgets/completion_proof_preview.dart';
+import 'package:ustaapp/features/orders/views/widgets/job_completion_proof_dialog.dart';
 
 class UstaActiveJobScreen extends ConsumerStatefulWidget {
   final String cagriId;
@@ -440,12 +442,22 @@ class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
                         onPressed: state.isActionInProgress
                             ? null
                             : () async {
+                                final proof = await JobCompletionProofDialog.show(
+                                  context,
+                                  cagriBaslik: cagri.adresTarifi ?? 'Servis & Arıza Hizmeti',
+                                  musteriAd: cagri.musteriFullName ?? 'Müşteri',
+                                );
+                                if (proof == null || !context.mounted) return;
+
                                 final messenger = ScaffoldMessenger.of(context);
-                                final ok = await controller.requestCompletionConfirmation();
+                                final ok = await controller.requestCompletionConfirmation(
+                                  photoUrl: proof['photoUrl']!,
+                                  note: proof['note'],
+                                );
                                 if (ok) {
                                   messenger.showSnackBar(
                                     const SnackBar(
-                                      content: Text('Müşteriden iş tamamlama onayı istendi.'),
+                                      content: Text('Fotoğraflı iş teslim kanıtı müşteriye iletildi. Onay bekleniyor.'),
                                       backgroundColor: Color(0xFF16A34A),
                                     ),
                                   );
@@ -483,9 +495,9 @@ class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(color: AppTheme.ustaSecondary),
                         ),
-                        child: const Column(
+                        child: Column(
                           children: [
-                            SizedBox(
+                            const SizedBox(
                               width: 28,
                               height: 28,
                               child: CircularProgressIndicator(
@@ -493,8 +505,8 @@ class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
                                 color: AppTheme.ustaSecondary,
                               ),
                             ),
-                            SizedBox(height: 12),
-                            Text(
+                            const SizedBox(height: 12),
+                            const Text(
                               'Müşteri Onayı Bekleniyor...',
                               style: TextStyle(
                                 fontSize: 16,
@@ -502,15 +514,96 @@ class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
                                 color: AppTheme.ustaTextLight,
                               ),
                             ),
-                            SizedBox(height: 6),
-                            Text(
-                              'Müşterinizin ekranında onay penceresi açıldı. Onaylandığında hakedişiniz hesabınıza aktarılacaktır.',
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Çektiğiniz iş teslim kanıtı müşterinize iletildi. Müşteri fotoğrafı inceleyip onayladığında hakedişiniz hesabınıza aktarılacaktır.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 12.5,
                                 color: AppTheme.ustaTextMuted,
                               ),
                             ),
+                            if (state.completionPhotoUrl != null &&
+                                state.completionPhotoUrl!.isNotEmpty) ...[
+                              const SizedBox(height: 14),
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: Colors.greenAccent.withValues(alpha: 0.5),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Stack(
+                                  children: [
+                                    CompletionProofPreview(
+                                      photoData: state.completionPhotoUrl!,
+                                      height: 130,
+                                      width: double.infinity,
+                                    ),
+                                    Positioned(
+                                      top: 8,
+                                      left: 8,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.75),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.camera_alt_rounded,
+                                              size: 13,
+                                              color: Colors.greenAccent,
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'İletilen İş Fotoğrafı',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (state.completionNote != null &&
+                                  state.completionNote!.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0F172A),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.notes_rounded, size: 14, color: Color(0xFF94A3B8)),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          state.completionNote!,
+                                          style: const TextStyle(
+                                            color: Color(0xFFCBD5E1),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
                           ],
                         ),
                       ),

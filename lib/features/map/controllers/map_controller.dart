@@ -19,7 +19,8 @@ class CustomerMapState {
   final double currentLat;
   final double currentLng;
   final String currentAddressLabel;
-  final String selectedCategory; // 'elektrik', 'cilingir', 'tesisat', 'tedarikciler'
+  final String
+      selectedCategory; // 'elektrik', 'cilingir', 'tesisat', 'tedarikciler'
   final int searchRadiusMeter; // varsayılan 25000 metre (25km)
   final List<NearbyUstaModel> nearbyUstalar;
   final NearbyUstaModel? selectedUsta;
@@ -76,9 +77,12 @@ class CustomerMapState {
       selectedCategory: selectedCategory ?? this.selectedCategory,
       searchRadiusMeter: searchRadiusMeter ?? this.searchRadiusMeter,
       nearbyUstalar: nearbyUstalar ?? this.nearbyUstalar,
-      selectedUsta: clearSelectedUsta ? null : (selectedUsta ?? this.selectedUsta),
+      selectedUsta:
+          clearSelectedUsta ? null : (selectedUsta ?? this.selectedUsta),
       isletmeler: isletmeler ?? this.isletmeler,
-      selectedIsletme: clearSelectedIsletme ? null : (selectedIsletme ?? this.selectedIsletme),
+      selectedIsletme: clearSelectedIsletme
+          ? null
+          : (selectedIsletme ?? this.selectedIsletme),
       isLoadingLocation: isLoadingLocation ?? this.isLoadingLocation,
       isLoadingUstalar: isLoadingUstalar ?? this.isLoadingUstalar,
       isLoadingIsletmeler: isLoadingIsletmeler ?? this.isLoadingIsletmeler,
@@ -90,7 +94,8 @@ class CustomerMapState {
 }
 
 final customerMapControllerProvider =
-    StateNotifierProvider.autoDispose<CustomerMapController, CustomerMapState>((ref) {
+    StateNotifierProvider.autoDispose<CustomerMapController, CustomerMapState>(
+        (ref) {
   final supabase = ref.watch(supabaseClientProvider);
   final locationService = ref.watch(locationServiceProvider);
   final appDataService = ref.watch(appDataServiceProvider);
@@ -103,7 +108,8 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
   final AppDataService _appDataService;
   StreamSubscription<void>? _dataSubscription;
 
-  CustomerMapController(this._supabase, this._locationService, this._appDataService)
+  CustomerMapController(
+      this._supabase, this._locationService, this._appDataService)
       : super(const CustomerMapState()) {
     _dataSubscription = _appDataService.onDataChanged.listen((_) {
       if (mounted) {
@@ -274,7 +280,8 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
         maxRadiusMeter: state.searchRadiusMeter.toDouble(),
       );
       if (local.isNotEmpty && mounted) {
-        final localList = local.map((item) => IsletmeModel.fromJson(item)).toList();
+        final localList =
+            local.map((item) => IsletmeModel.fromJson(item)).toList();
         final processed = _processAndFilterIsletmeler(localList);
         state = state.copyWith(
           isletmeler: processed,
@@ -312,13 +319,536 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     }
   }
 
+  List<NearbyUstaModel> _getDemoUstalar() {
+    final lat = state.currentLat;
+    final lng = state.currentLng;
+    final cat = state.selectedCategory;
+
+    if (cat == 'cilingir') {
+      return [
+        NearbyUstaModel(
+          ustaId: 'demo-cilingir-1',
+          fullName: 'Kemal Demir',
+          phone: '+90 532 111 22 33',
+          kategori: 'cilingir',
+          puan: 4.9,
+          tamamlananIsSayisi: 174,
+          latitude: lat + 0.0042,
+          longitude: lng + 0.0034,
+          mesafeMetre: 850,
+          ustaHakedis: 800.0,
+          komisyonOrani: 0.15,
+          komisyonTutari: 120.0,
+          toplamTutar: 920.0,
+          servisUcreti: 200.0,
+          deneyimYili: 15,
+          uzmanlikBasligi: 'Yetkili Çilingir & Kilit Güvenlik Uzmanı',
+          guvenceler: const [
+            'Hasarsız Açım Garantisi',
+            '30 Gün İşçilik Garantisi',
+            'Orijinal Kale / Yale Kilit',
+            'MYK Yetki Belgeli',
+          ],
+          ilanlar: const [
+            UstaHizmetIlan(
+              id: 'c1-1',
+              baslik: 'Çelik Kapı / Kilit Açımı (Hasarsız)',
+              aciklama:
+                  'Özel aparatlarla kapı ve kasaya hasar vermeden kilit açımı.',
+              fiyat: 800.0,
+              tahminiSure: '15-20 dk',
+              ikon: '🔑',
+              isDefault: true,
+            ),
+            UstaHizmetIlan(
+              id: 'c1-2',
+              baslik: 'Barel (Göbek) Değişimi & 3 Anahtar',
+              aciklama:
+                  'Yüksek güvenlikli bilyalı barel montajı ve yeni anahtar teslimi.',
+              fiyat: 650.0,
+              tahminiSure: '20 dk',
+              ikon: '🔒',
+            ),
+            UstaHizmetIlan(
+              id: 'c1-3',
+              baslik: 'Tuzaklı Zırhlı Barel & Rozet Montajı',
+              aciklama:
+                  'Hırsızlığa ve delinmeye karşı zırhlı çelik koruma kiti.',
+              fiyat: 950.0,
+              tahminiSure: '35 dk',
+              ikon: '🛡️',
+            ),
+            UstaHizmetIlan(
+              id: 'c1-4',
+              baslik: 'Oto Kapı Açımı (Hasarsız Acil)',
+              aciklama: 'Otomobil cam fitili veya kapısına sıfır hasarla açım.',
+              fiyat: 1100.0,
+              tahminiSure: '20 dk',
+              ikon: '🚗',
+            ),
+          ],
+        ),
+        NearbyUstaModel(
+          ustaId: 'demo-cilingir-2',
+          fullName: 'Oğuz Şahin',
+          phone: '+90 544 222 33 44',
+          kategori: 'cilingir',
+          puan: 4.8,
+          tamamlananIsSayisi: 112,
+          latitude: lat - 0.0052,
+          longitude: lng - 0.0041,
+          mesafeMetre: 1400,
+          ustaHakedis: 650.0,
+          komisyonOrani: 0.15,
+          komisyonTutari: 97.5,
+          toplamTutar: 747.5,
+          servisUcreti: 150.0,
+          deneyimYili: 10,
+          uzmanlikBasligi: 'Acil Çilingir & Kapı Mekanizma Ustası',
+          guvenceler: const [
+            'Hızlı Varış (~12 dk)',
+            'Sabit Fiyat Güvencesi',
+            'Faturalı Hizmet',
+          ],
+          ilanlar: const [
+            UstaHizmetIlan(
+              id: 'c2-1',
+              baslik: 'Acil Kapı Açma Hizmeti',
+              aciklama: 'Çekili kapılar için kilidi bozmadan hızlı açım.',
+              fiyat: 650.0,
+              tahminiSure: '15 dk',
+              ikon: '🔑',
+              isDefault: true,
+            ),
+            UstaHizmetIlan(
+              id: 'c2-2',
+              baslik: 'Barel Değişimi ve Bakımı',
+              aciklama: 'Standart kapı bareli değişimi ve mekanizma yağlama.',
+              fiyat: 450.0,
+              tahminiSure: '20 dk',
+              ikon: '🔒',
+            ),
+            UstaHizmetIlan(
+              id: 'c2-3',
+              baslik: 'Asma Kilit / Kepenk Kilidi Açımı',
+              aciklama: 'Garaj, dükkan kepengi veya depo kilit açımı.',
+              fiyat: 400.0,
+              tahminiSure: '20 dk',
+              ikon: '⛓️',
+            ),
+          ],
+        ),
+        NearbyUstaModel(
+          ustaId: 'demo-cilingir-3',
+          fullName: 'İsmail Koç',
+          phone: '+90 555 333 44 55',
+          kategori: 'cilingir',
+          puan: 5.0,
+          tamamlananIsSayisi: 228,
+          latitude: lat + 0.0068,
+          longitude: lng - 0.0058,
+          mesafeMetre: 2400,
+          ustaHakedis: 550.0,
+          komisyonOrani: 0.15,
+          komisyonTutari: 82.5,
+          toplamTutar: 632.5,
+          servisUcreti: 120.0,
+          deneyimYili: 8,
+          uzmanlikBasligi: 'Pratik Çilingir & Kilit Bakım Ustası',
+          guvenceler: const [
+            'Uygun Fiyat Garantisi',
+            'İşçilik Garantisi',
+            'Temiz İşçilik',
+          ],
+          ilanlar: const [
+            UstaHizmetIlan(
+              id: 'c3-1',
+              baslik: 'Hızlı Kilit Açımı & Ayar',
+              aciklama: 'Sürtünen kapı ayarı ve kilit açımı.',
+              fiyat: 550.0,
+              tahminiSure: '15 dk',
+              ikon: '🔑',
+              isDefault: true,
+            ),
+            UstaHizmetIlan(
+              id: 'c3-2',
+              baslik: 'Oda / Ahşap Kapı Kilit Tamiri',
+              aciklama: 'İç kapı mekanizması onarımı ve kol değişimi.',
+              fiyat: 320.0,
+              tahminiSure: '20 dk',
+              ikon: '🚪',
+            ),
+          ],
+        ),
+      ];
+    }
+
+    if (cat == 'tesisat') {
+      return [
+        NearbyUstaModel(
+          ustaId: 'demo-tesisat-1',
+          fullName: 'Murat Kaya',
+          phone: '+90 532 111 22 33',
+          kategori: 'tesisat',
+          puan: 4.9,
+          tamamlananIsSayisi: 189,
+          latitude: lat + 0.0042,
+          longitude: lng + 0.0034,
+          mesafeMetre: 850,
+          ustaHakedis: 800.0,
+          komisyonOrani: 0.15,
+          komisyonTutari: 120.0,
+          toplamTutar: 920.0,
+          servisUcreti: 200.0,
+          deneyimYili: 16,
+          uzmanlikBasligi: 'Sıhhi Tesisat & Termal Kaçak Tespiti Uzmanı',
+          guvenceler: const [
+            'Kırmadan Cihazlı Tespit',
+            '30 Gün İşçilik Garantisi',
+            'TSE Belgeli Malzeme',
+            'Garantili Onarım',
+          ],
+          ilanlar: const [
+            UstaHizmetIlan(
+              id: 't1-1',
+              baslik: 'Cihazla Kırmadan Su Kaçağı Tespiti',
+              aciklama:
+                  'Termal kamera ve akustik frekans dinleme ile noktasal tespit.',
+              fiyat: 800.0,
+              tahminiSure: '30-45 dk',
+              ikon: '🔍',
+              isDefault: true,
+            ),
+            UstaHizmetIlan(
+              id: 't1-2',
+              baslik: 'Robot Makineyle Tıkanıklık Açma',
+              aciklama:
+                  'Spiral çelik robotla banyo, mutfak pimaş gideri açımı.',
+              fiyat: 850.0,
+              tahminiSure: '40 dk',
+              ikon: '🚿',
+            ),
+            UstaHizmetIlan(
+              id: 't1-3',
+              baslik: 'Batarya / Musluk Değişimi & Montajı',
+              aciklama:
+                  'Aç-kapa lavabo veya eviye bataryası montajı ve sızdırmazlık.',
+              fiyat: 400.0,
+              tahminiSure: '25 dk',
+              ikon: '🚰',
+            ),
+            UstaHizmetIlan(
+              id: 't1-4',
+              baslik: 'Gömme Rezervuar / Sifon Tamiri',
+              aciklama:
+                  'Klozet su akıtma arızası, şamandıra ve conta yenileme.',
+              fiyat: 550.0,
+              tahminiSure: '35 dk',
+              ikon: '🚽',
+            ),
+          ],
+        ),
+        NearbyUstaModel(
+          ustaId: 'demo-tesisat-2',
+          fullName: 'Selim Arslan',
+          phone: '+90 544 222 33 44',
+          kategori: 'tesisat',
+          puan: 4.8,
+          tamamlananIsSayisi: 130,
+          latitude: lat - 0.0052,
+          longitude: lng - 0.0041,
+          mesafeMetre: 1400,
+          ustaHakedis: 650.0,
+          komisyonOrani: 0.15,
+          komisyonTutari: 97.5,
+          toplamTutar: 747.5,
+          servisUcreti: 150.0,
+          deneyimYili: 11,
+          uzmanlikBasligi: 'Acil Tesisatçı & Musluk / Gider Ustası',
+          guvenceler: const [
+            'Hızlı Müdahale',
+            'İşçilik Garantisi',
+            'Orijinal Parça Garantisi',
+          ],
+          ilanlar: const [
+            UstaHizmetIlan(
+              id: 't2-1',
+              baslik: 'Acil Tesisat Onarımı & Keşif',
+              aciklama: 'Patlayan boru, damlatan vana tespiti ve acil tamir.',
+              fiyat: 650.0,
+              tahminiSure: '30 dk',
+              ikon: '🔧',
+              isDefault: true,
+            ),
+            UstaHizmetIlan(
+              id: 't2-2',
+              baslik: 'Musluk Tamiri & Salmastra Değişimi',
+              aciklama: 'Su damlatan muslukların conta ve salmastra onarımı.',
+              fiyat: 320.0,
+              tahminiSure: '20 dk',
+              ikon: '💧',
+            ),
+            UstaHizmetIlan(
+              id: 't2-3',
+              baslik: 'Çamaşır / Bulaşık Makinesi Tesisat Bağlantısı',
+              aciklama: 'Temiz su ve atık su hortum bağlantılarının yapılması.',
+              fiyat: 350.0,
+              tahminiSure: '25 dk',
+              ikon: '🧼',
+            ),
+          ],
+        ),
+        NearbyUstaModel(
+          ustaId: 'demo-tesisat-3',
+          fullName: 'Burak Aydın',
+          phone: '+90 555 333 44 55',
+          kategori: 'tesisat',
+          puan: 5.0,
+          tamamlananIsSayisi: 245,
+          latitude: lat + 0.0068,
+          longitude: lng - 0.0058,
+          mesafeMetre: 2400,
+          ustaHakedis: 550.0,
+          komisyonOrani: 0.15,
+          komisyonTutari: 82.5,
+          toplamTutar: 632.5,
+          servisUcreti: 120.0,
+          deneyimYili: 9,
+          uzmanlikBasligi: 'Pratik Tesisat & Gider Temizleme Ustası',
+          guvenceler: const [
+            'Ekonomik Fiyat',
+            'Hızlı Servis',
+            'Müşteri Memnuniyeti',
+          ],
+          ilanlar: const [
+            UstaHizmetIlan(
+              id: 't3-1',
+              baslik: 'Lavabo / Eviye Gider Temizliği',
+              aciklama:
+                  'Tıkanan eviye sifonunun temizlenmesi ve conta yenileme.',
+              fiyat: 550.0,
+              tahminiSure: '20 dk',
+              ikon: '🚿',
+              isDefault: true,
+            ),
+            UstaHizmetIlan(
+              id: 't3-2',
+              baslik: 'Ara Musluk & Filtreli Vana Değişimi',
+              aciklama: 'Kireçlenmiş ara muslukların yenisiyle değiştirilmesi.',
+              fiyat: 280.0,
+              tahminiSure: '15 dk',
+              ikon: '🚰',
+            ),
+          ],
+        ),
+      ];
+    }
+
+    // Varsayılan 'elektrik' kategorisi
+    return [
+      NearbyUstaModel(
+        ustaId: 'demo-usta-1',
+        fullName: 'Ahmet Yılmaz',
+        phone: '+90 532 111 22 33',
+        kategori: 'elektrik',
+        puan: 4.9,
+        tamamlananIsSayisi: 142,
+        latitude: lat + 0.0042,
+        longitude: lng + 0.0034,
+        mesafeMetre: 850,
+        ustaHakedis: 800.0,
+        komisyonOrani: 0.15,
+        komisyonTutari: 120.0,
+        toplamTutar: 920.0,
+        servisUcreti: 200.0,
+        deneyimYili: 14,
+        uzmanlikBasligi: 'Yetkili Elektrik & Akıllı Ev Teknisyeni',
+        guvenceler: const [
+          '30 Gün İşçilik Garantisi',
+          'Sabit Fiyat Güvencesi',
+          'MYK Belgeli',
+          'Hızlı Varış',
+        ],
+        ilanlar: const [
+          UstaHizmetIlan(
+            id: 'e1-1',
+            baslik: 'Temel Arıza Tespiti & Sigorta Kontrolü',
+            aciklama:
+                'Yerinde voltaj ölçümü, arızalı hat izolasyonu ve güvenli onarım.',
+            fiyat: 800.0,
+            tahminiSure: '30 dk',
+            ikon: '⚡',
+            isDefault: true,
+          ),
+          UstaHizmetIlan(
+            id: 'e1-2',
+            baslik: 'Sigorta Panosu & Kaçak Akım Rölesi Montajı',
+            aciklama:
+                'Eski sigortaların yenilenmesi, yangın ve kaçak koruma rölesi.',
+            fiyat: 950.0,
+            tahminiSure: '45 dk',
+            ikon: '🛡️',
+          ),
+          UstaHizmetIlan(
+            id: 'e1-3',
+            baslik: 'Priz / Anahtar Hat Çekimi & Değişimi',
+            aciklama:
+                'Yanmış/kırık prizlerin değişimi veya sıva üstü yeni hat çekimi.',
+            fiyat: 400.0,
+            tahminiSure: '25 dk',
+            ikon: '🔌',
+          ),
+          UstaHizmetIlan(
+            id: 'e1-4',
+            baslik: 'Avize & LED Aydınlatma Montajı',
+            aciklama:
+                'Tavana sağlam dübelleme, dimmer ve modern aydınlatma montajı.',
+            fiyat: 500.0,
+            tahminiSure: '35 dk',
+            ikon: '💡',
+          ),
+          UstaHizmetIlan(
+            id: 'e1-5',
+            baslik: 'Termosifon / Şofben Elektrik Hattı',
+            aciklama: 'Yüksek akım korumalı bağımsız sigortalı kablolama.',
+            fiyat: 650.0,
+            tahminiSure: '40 dk',
+            ikon: '🔥',
+          ),
+        ],
+      ),
+      NearbyUstaModel(
+        ustaId: 'demo-usta-2',
+        fullName: 'Hasan Çelik',
+        phone: '+90 544 222 33 44',
+        kategori: 'elektrik',
+        puan: 4.8,
+        tamamlananIsSayisi: 96,
+        latitude: lat - 0.0052,
+        longitude: lng - 0.0041,
+        mesafeMetre: 1400,
+        ustaHakedis: 650.0,
+        komisyonOrani: 0.15,
+        komisyonTutari: 97.5,
+        toplamTutar: 747.5,
+        servisUcreti: 150.0,
+        deneyimYili: 9,
+        uzmanlikBasligi: 'Acil Elektrik & Tesisat Tamir Uzmanı',
+        guvenceler: const [
+          'Aynı Gün Hızlı Servis',
+          '30 Gün İşçilik Garantisi',
+          'Güvenli Ödeme',
+        ],
+        ilanlar: const [
+          UstaHizmetIlan(
+            id: 'e2-1',
+            baslik: 'Arıza Tespiti ve Acil Müdahale',
+            aciklama:
+                'Priz, sigorta veya buat arızasının tespiti ve hızlı onarımı.',
+            fiyat: 650.0,
+            tahminiSure: '25 dk',
+            ikon: '⚡',
+            isDefault: true,
+          ),
+          UstaHizmetIlan(
+            id: 'e2-2',
+            baslik: 'Priz / Buat Tamiri & Değişimi',
+            aciklama: 'Kısa devre temizliği ve yeni topraklı priz montajı.',
+            fiyat: 350.0,
+            tahminiSure: '20 dk',
+            ikon: '🔌',
+          ),
+          UstaHizmetIlan(
+            id: 'e2-3',
+            baslik: 'LED Şerit & Spot Aydınlatma Kurulumu',
+            aciklama: 'Mutfak tezgah üstü veya salon LED trafo bağlantısı.',
+            fiyat: 550.0,
+            tahminiSure: '40 dk',
+            ikon: '💡',
+          ),
+          UstaHizmetIlan(
+            id: 'e2-4',
+            baslik: 'Zil & Diafon Arıza Onarımı',
+            aciklama: 'Kapı zili trafosu ve diafon ses hattı onarımı.',
+            fiyat: 400.0,
+            tahminiSure: '30 dk',
+            ikon: '🔔',
+          ),
+        ],
+      ),
+      NearbyUstaModel(
+        ustaId: 'demo-usta-3',
+        fullName: 'Serkan Yıldız',
+        phone: '+90 555 333 44 55',
+        kategori: 'elektrik',
+        puan: 5.0,
+        tamamlananIsSayisi: 215,
+        latitude: lat + 0.0068,
+        longitude: lng - 0.0058,
+        mesafeMetre: 2400,
+        ustaHakedis: 550.0,
+        komisyonOrani: 0.15,
+        komisyonTutari: 82.5,
+        toplamTutar: 632.5,
+        servisUcreti: 120.0,
+        deneyimYili: 7,
+        uzmanlikBasligi: 'Pratik Elektrikçi & Montaj Ustası',
+        guvenceler: const [
+          'Ekonomik Tarife',
+          'Hızlı Servis',
+          'Temiz İşçilik',
+        ],
+        ilanlar: const [
+          UstaHizmetIlan(
+            id: 'e3-1',
+            baslik: 'Hızlı Kontrol & Priz Onarımı',
+            aciklama: 'Genel kontrol ve tekli priz/anahtar değişimi.',
+            fiyat: 550.0,
+            tahminiSure: '20 dk',
+            ikon: '🔌',
+            isDefault: true,
+          ),
+          UstaHizmetIlan(
+            id: 'e3-2',
+            baslik: 'Anahtar & Düğme Yenileme',
+            aciklama:
+                'İkili veya tekli aydınlatma anahtarlarının değiştirilmesi.',
+            fiyat: 280.0,
+            tahminiSure: '15 dk',
+            ikon: '💡',
+          ),
+          UstaHizmetIlan(
+            id: 'e3-3',
+            baslik: 'Kablo Kanalı & Hat Düzenleme',
+            aciklama: 'Açıkta duran kabloların estetik kanala alınması.',
+            fiyat: 420.0,
+            tahminiSure: '30 dk',
+            ikon: '📏',
+          ),
+        ],
+      ),
+    ];
+  }
+
   static const Map<String, ({double lat, double lng, String label})>
       _knownLocations = {
-    'kadikoy, istanbul': (lat: 40.9905, lng: 29.0270, label: 'Kadıköy, İstanbul'),
+    'kadikoy, istanbul': (
+      lat: 40.9905,
+      lng: 29.0270,
+      label: 'Kadıköy, İstanbul'
+    ),
     'kadikoy': (lat: 40.9905, lng: 29.0270, label: 'Kadıköy, İstanbul'),
-    'besiktas, istanbul': (lat: 41.0430, lng: 29.0072, label: 'Beşiktaş, İstanbul'),
+    'besiktas, istanbul': (
+      lat: 41.0430,
+      lng: 29.0072,
+      label: 'Beşiktaş, İstanbul'
+    ),
     'besiktas': (lat: 41.0430, lng: 29.0072, label: 'Beşiktaş, İstanbul'),
-    'uskudar, istanbul': (lat: 41.0233, lng: 29.0153, label: 'Üsküdar, İstanbul'),
+    'uskudar, istanbul': (
+      lat: 41.0233,
+      lng: 29.0153,
+      label: 'Üsküdar, İstanbul'
+    ),
     'sisli, istanbul': (lat: 41.0602, lng: 28.9877, label: 'Şişli, İstanbul'),
     'bolvadin, afyonkarahisar': (
       lat: 38.7106,
@@ -380,8 +910,10 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
           ...queryParams,
         },
       );
-      final request = await client.getUrl(uri).timeout(const Duration(seconds: 5));
-      final response = await request.close().timeout(const Duration(seconds: 5));
+      final request =
+          await client.getUrl(uri).timeout(const Duration(seconds: 5));
+      final response =
+          await request.close().timeout(const Duration(seconds: 5));
       if (response.statusCode != 200) return null;
 
       final body = await response.transform(utf8.decoder).join();
@@ -619,13 +1151,19 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
         'id': 'TRX-${demoId.replaceAll(RegExp(r'[^0-9]'), '')}',
         'receipt_no': 'demo_pay_${now.millisecondsSinceEpoch}',
         'cagri_id': demoId,
-        'hizmet_baslik': usta.ilanlar.isNotEmpty ? usta.ilanlar.first.baslik : 'Standart Servis & Arıza Tespiti',
+        'hizmet_baslik': usta.ilanlar.isNotEmpty
+            ? usta.ilanlar.first.baslik
+            : 'Standart Servis & Arıza Tespiti',
         'kategori': usta.kategori == 'elektrik'
             ? 'Elektrik & Aydınlatma'
-            : (usta.kategori == 'tesisat' ? 'Sıhhi Tesisat & Su Kaçağı' : 'Çilingir & Kapı Açma'),
+            : (usta.kategori == 'tesisat'
+                ? 'Sıhhi Tesisat & Su Kaçağı'
+                : 'Çilingir & Kapı Açma'),
         'musteri_ad': 'Zeynep Kaya',
         'musteri_tel': '+90 532 111 22 33',
-        'musteri_adres': adresTarifi.trim().isNotEmpty ? adresTarifi.trim() : state.currentAddressLabel,
+        'musteri_adres': adresTarifi.trim().isNotEmpty
+            ? adresTarifi.trim()
+            : state.currentAddressLabel,
         'usta_ad': usta.fullName,
         'usta_tel': usta.phone,
         'usta_meslek': usta.uzmanlikBasligi,

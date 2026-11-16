@@ -71,6 +71,8 @@ class CagriModel {
   final String? ustaPhone;
   final String? musteriFullName;
   final String? musteriPhone;
+  final String? completionPhotoUrl;
+  final String? completionNote;
 
   CagriModel({
     required this.id,
@@ -89,6 +91,8 @@ class CagriModel {
     this.ustaPhone,
     this.musteriFullName,
     this.musteriPhone,
+    this.completionPhotoUrl,
+    this.completionNote,
   });
 
   factory CagriModel.fromJson(Map<String, dynamic> json) {
@@ -133,6 +137,8 @@ class CagriModel {
       ustaPhone: json['usta_phone'] as String?,
       musteriFullName: json['musteri_full_name'] as String?,
       musteriPhone: json['musteri_phone'] as String?,
+      completionPhotoUrl: json['completion_photo_url'] as String?,
+      completionNote: json['completion_note'] as String?,
     );
   }
 
@@ -159,6 +165,8 @@ class CagriModel {
     String? ustaPhone,
     String? musteriFullName,
     String? musteriPhone,
+    String? completionPhotoUrl,
+    String? completionNote,
   }) {
     return CagriModel(
       id: id ?? this.id,
@@ -177,6 +185,8 @@ class CagriModel {
       ustaPhone: ustaPhone ?? this.ustaPhone,
       musteriFullName: musteriFullName ?? this.musteriFullName,
       musteriPhone: musteriPhone ?? this.musteriPhone,
+      completionPhotoUrl: completionPhotoUrl ?? this.completionPhotoUrl,
+      completionNote: completionNote ?? this.completionNote,
     );
   }
 
@@ -202,6 +212,8 @@ class DemoWorkflowState {
   final String? reportedIssue;
   final String? receiptId;
   final double? ustaAverageRating;
+  final String? completionPhotoUrl;
+  final String? completionNote;
 
   const DemoWorkflowState({
     this.ustaArrived = false,
@@ -210,6 +222,8 @@ class DemoWorkflowState {
     this.reportedIssue,
     this.receiptId,
     this.ustaAverageRating,
+    this.completionPhotoUrl,
+    this.completionNote,
   });
 
   DemoWorkflowState copyWith({
@@ -219,6 +233,8 @@ class DemoWorkflowState {
     String? reportedIssue,
     String? receiptId,
     double? ustaAverageRating,
+    String? completionPhotoUrl,
+    String? completionNote,
     bool clearIssue = false,
   }) {
     return DemoWorkflowState(
@@ -228,6 +244,8 @@ class DemoWorkflowState {
       reportedIssue: clearIssue ? null : (reportedIssue ?? this.reportedIssue),
       receiptId: receiptId ?? this.receiptId,
       ustaAverageRating: ustaAverageRating ?? this.ustaAverageRating,
+      completionPhotoUrl: completionPhotoUrl ?? this.completionPhotoUrl,
+      completionNote: completionNote ?? this.completionNote,
     );
   }
 }

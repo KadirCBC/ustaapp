@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/orders/controllers/active_order_controller.dart';
 import 'package:ustaapp/features/orders/models/cagri_model.dart';
+import 'package:ustaapp/features/orders/views/widgets/completion_proof_preview.dart';
 
 /// Usta işi tamamladığında müşterinin ekranını kilitleyen onay diyaloğu:
 /// 'Usta işi tamamladı mı?' -> [Evet, Tamamlandı] / [Sorun Var, Bildir]
@@ -164,9 +165,124 @@ class _CustomerCompletionDialogState
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               if (!_showIssueForm) ...[
+                // Ustanın İş Teslim Kanıtı Fotoğrafı (Zorunlu Güvence)
+                () {
+                  final photoData = state.completionPhotoUrl ?? cagri.completionPhotoUrl;
+                  final noteData = state.completionNote ?? cagri.completionNote;
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.verified_rounded,
+                              size: 17,
+                              color: Color(0xFF16A34A),
+                            ),
+                            const SizedBox(width: 6),
+                            const Expanded(
+                              child: Text(
+                                'Ustanın Çektiği İş Teslim Fotoğrafı',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.customerTextDark,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFDCFCE7),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'Resmi Kanıt',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF15803D),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        if (photoData != null && photoData.isNotEmpty) ...[
+                          CompletionProofPreview(
+                            photoData: photoData,
+                            height: 160,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                          const SizedBox(height: 6),
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.zoom_in_rounded, size: 14, color: AppTheme.customerTextMuted),
+                              SizedBox(width: 4),
+                              Text(
+                                'Fotoğrafı büyütmek için üzerine dokunun',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.customerTextMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          Container(
+                            height: 100,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'Fotoğraf bilgisi aktarılıyor...',
+                                style: TextStyle(fontSize: 12, color: Colors.black45),
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (noteData != null && noteData.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Text(
+                              'Usta Notu: "$noteData"',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF334155),
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                }(),
+
                 // Ödeme Güvence Özeti Kutusu
                 Container(
                   padding: const EdgeInsets.all(14),

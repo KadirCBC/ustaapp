@@ -11,6 +11,7 @@ import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/admin/views/widgets/address_location_search_field.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
+import 'package:ustaapp/features/orders/views/widgets/completion_proof_preview.dart';
 
 /// Web tarayıcısında (Flutter Web) bağımsız çalışabilen
 /// Modern, Güvenli ve Tam Kapsamlı UstamBurada Yönetim Paneli
@@ -7541,6 +7542,50 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ],
                 ),
               ),
+
+              // Varsa Usta İş Teslim Kanıtı Fotoğrafı (Sistem Güvencesi)
+              if (tx['completion_photo_url'] != null && tx['completion_photo_url'].toString().isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: _inputFill,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _borderPrimary),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.verified_user_rounded, color: Color(0xFF16A34A), size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Usta İş Teslim Kanıtı Fotoğrafı (Sistem Güvencesi)',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: _textPrimary),
+                          ),
+                          const Spacer(),
+                          if (tx['completion_note'] != null && tx['completion_note'].toString().isNotEmpty)
+                            Text(
+                              'Not: ${tx['completion_note']}',
+                              style: TextStyle(fontSize: 11.5, color: _textSecondary, fontStyle: FontStyle.italic),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: CompletionProofPreview(
+                          photoData: tx['completion_photo_url'].toString(),
+                          height: 140,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               // Varsa Müşteri Değerlendirmesi
               if (rating > 0 && comment.isNotEmpty) ...[
