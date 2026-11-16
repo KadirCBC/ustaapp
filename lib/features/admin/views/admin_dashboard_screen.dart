@@ -3762,20 +3762,22 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     required Color color,
     required String tooltip,
     required VoidCallback onPressed,
-    double size = 16,
+    double size = 15,
+    EdgeInsetsGeometry? padding,
+    EdgeInsetsGeometry? margin,
   }) {
     return Tooltip(
       message: tooltip,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         hoverColor: color.withValues(alpha: 0.15),
         child: Container(
-          padding: const EdgeInsets.all(7),
-          margin: const EdgeInsets.symmetric(horizontal: 2.5),
+          padding: padding ?? const EdgeInsets.all(5.5),
+          margin: margin ?? const EdgeInsets.symmetric(horizontal: 1.5),
           decoration: BoxDecoration(
             color: color.withValues(alpha: _isDarkMode ? 0.20 : 0.08),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(
               color: color.withValues(alpha: _isDarkMode ? 0.35 : 0.22),
               width: 1,
@@ -4311,9 +4313,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         constraints: BoxConstraints(minWidth: constraints.maxWidth),
                         child: DataTable(
                           headingRowColor: WidgetStateProperty.all(_tableHeader),
-                          dataRowMinHeight: 64,
-                          dataRowMaxHeight: 72,
-                          columnSpacing: 18,
+                          dataRowMinHeight: 56,
+                          dataRowMaxHeight: 64,
+                          columnSpacing: 12,
+                          horizontalMargin: 10,
                           columns: [
                             DataColumn(
                               label: Checkbox(
@@ -4643,9 +4646,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     constraints: BoxConstraints(minWidth: constraints.maxWidth),
                     child: DataTable(
                       headingRowColor: WidgetStateProperty.all(_tableHeader),
-                      dataRowMinHeight: 64,
-                      dataRowMaxHeight: 72,
-                      columnSpacing: 18,
+                      dataRowMinHeight: 56,
+                      dataRowMaxHeight: 64,
+                      columnSpacing: 12,
+                      horizontalMargin: 10,
                       columns: [
                         DataColumn(label: Text('Usta Adı Soyadı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
                         DataColumn(label: Text('Telefon Numarası', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
@@ -4940,9 +4944,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     constraints: BoxConstraints(minWidth: constraints.maxWidth),
                     child: DataTable(
                       headingRowColor: WidgetStateProperty.all(_tableHeader),
-                      dataRowMinHeight: 64,
-                      dataRowMaxHeight: 72,
-                      columnSpacing: 18,
+                      dataRowMinHeight: 56,
+                      dataRowMaxHeight: 64,
+                      columnSpacing: 12,
+                      horizontalMargin: 10,
                       columns: [
                         DataColumn(
                           label: Checkbox(
@@ -6591,9 +6596,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         constraints: BoxConstraints(minWidth: constraints.maxWidth),
                         child: DataTable(
                           headingRowColor: WidgetStateProperty.all(_tableHeader),
-                          dataRowMinHeight: 70,
-                          dataRowMaxHeight: 78,
-                          columnSpacing: 18,
+                          dataRowMinHeight: 56,
+                          dataRowMaxHeight: 64,
+                          columnSpacing: 8,
+                          horizontalMargin: 8,
                           columns: [
                             // 1. Checkbox Tümünü Seç
                             DataColumn(
@@ -6611,28 +6617,28 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 },
                               ),
                             ),
-                            // 2. Aksiyonlar (Hemen başta - Asla kaybolmaz, doğrudan erişilebilir!)
-                            DataColumn(label: Text('İşlemler / Aksiyon', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
+                            // 2. Aksiyonlar
+                            DataColumn(label: Text('Aksiyonlar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
                             // 3. Dekont / İşlem No
-                            DataColumn(label: Text('Dekont / İşlem No', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Dekont No', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: _textPrimary))),
                             // 4. Hizmet & Kategori
-                            DataColumn(label: Text('Hizmet & Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Hizmet & Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: _textPrimary))),
                             // 5. Müşteri
-                            DataColumn(label: Text('Müşteri', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Müşteri', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: _textPrimary))),
                             // 6. Görevli Usta
-                            DataColumn(label: Text('Görevli Usta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Usta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: _textPrimary))),
                             // 7. Usta Tabanı
-                            DataColumn(label: Text('Hizmet Bedeli\n(Usta Taban)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
+                            DataColumn(label: Text('Taban', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: _textPrimary))),
                             // 8. Komisyon (%15)
-                            const DataColumn(label: Text('Bizim Komisyon\nKazancımız (%15)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF16A34A)))),
+                            const DataColumn(label: Text('Komisyon (%15)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: Color(0xFF16A34A)))),
                             // 9. Toplam Çekilen
-                            const DataColumn(label: Text('Toplam Çekilen\nTutar (Müşteri)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0284C7)))),
+                            const DataColumn(label: Text('Toplam', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: Color(0xFF0284C7)))),
                             // 10. Hizmet Akış Aşaması
-                            DataColumn(label: Text('Hizmet Akış Aşaması', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Aşama', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: _textPrimary))),
                             // 11. Ödeme Sağlayıcı
-                            DataColumn(label: Text('Ödeme Sağlayıcı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Ödeme', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: _textPrimary))),
                             // 12. Tarih / Saat
-                            DataColumn(label: Text('Tarih / Saat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                            DataColumn(label: Text('Tarih', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: _textPrimary))),
                           ],
                           rows: filteredTransactions.map((tx) {
                             final status = (tx['durum'] ?? '').toString();
@@ -6675,13 +6681,19 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                         color: const Color(0xFF0284C7),
                                         tooltip: 'Dekont & Süreç Detayını İncele',
                                         onPressed: () => _showTransactionDetailDialog(tx),
+                                        size: 13.5,
+                                        padding: const EdgeInsets.all(4),
+                                        margin: const EdgeInsets.symmetric(horizontal: 1),
                                       ),
                                       // Düzenle
                                       _buildActionIconButton(
                                         icon: Icons.edit_outlined,
                                         color: const Color(0xFFD97706),
-                                        tooltip: 'İşlemi & Hizmet Akışını Düzenle',
+                                        tooltip: 'İşlemi Düzenle',
                                         onPressed: () => _showEditTransactionDialog(tx),
+                                        size: 13.5,
+                                        padding: const EdgeInsets.all(4),
+                                        margin: const EdgeInsets.symmetric(horizontal: 1),
                                       ),
                                       // Hızlı Aşama İlerletme (Onay ➔ Kabul ➔ Yolda ➔ Bitti)
                                       _buildActionIconButton(
@@ -6689,6 +6701,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                         color: const Color(0xFF7C3AED),
                                         tooltip: 'Aşamayı İlerlet ($step/4)',
                                         onPressed: () => _advanceTransactionStep(tx),
+                                        size: 13.5,
+                                        padding: const EdgeInsets.all(4),
+                                        margin: const EdgeInsets.symmetric(horizontal: 1),
                                       ),
                                       // Hakediş Transferi
                                       if (status.contains('Tamamlandı') && !isPayoutDone)
@@ -6703,6 +6718,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                             _saveFinancialTransactionsToPrefs();
                                             _showSuccessToast('${tx['usta_ad']} hesabına ${ustaPayout.toStringAsFixed(2)} ₺ aktarıldı.');
                                           },
+                                          size: 13.5,
+                                          padding: const EdgeInsets.all(4),
+                                          margin: const EdgeInsets.symmetric(horizontal: 1),
                                         ),
                                       // Sil
                                       _buildActionIconButton(
@@ -6710,6 +6728,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                         color: const Color(0xFFEF4444),
                                         tooltip: 'İşlem Kaydını Sil',
                                         onPressed: () => _confirmDeleteTransaction(tx),
+                                        size: 13.5,
+                                        padding: const EdgeInsets.all(4),
+                                        margin: const EdgeInsets.symmetric(horizontal: 1),
                                       ),
                                     ],
                                   ),
@@ -6719,42 +6740,48 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 DataCell(
                                   InkWell(
                                     onTap: () => _showTransactionDetailDialog(tx),
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF0284C7).withValues(alpha: _isDarkMode ? 0.18 : 0.08),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.25)),
-                                      ),
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(Icons.receipt_long_rounded, size: 14, color: Color(0xFF0284C7)),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                receiptNo,
-                                                style: const TextStyle(
-                                                  fontFamily: 'monospace',
-                                                  fontWeight: FontWeight.w800,
-                                                  fontSize: 12,
-                                                  color: Color(0xFF0284C7),
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Tooltip(
+                                      message: 'Dekont: $receiptNo\nÇağrı ID: ${tx['cagri_id'] ?? tx['id'] ?? ''}',
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF0284C7).withValues(alpha: _isDarkMode ? 0.18 : 0.08),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.25)),
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.receipt_long_rounded, size: 12, color: Color(0xFF0284C7)),
+                                                const SizedBox(width: 3),
+                                                Text(
+                                                  receiptNo.length > 14
+                                                      ? '..${receiptNo.substring(receiptNo.length - 8)}'
+                                                      : receiptNo,
+                                                  style: const TextStyle(
+                                                    fontFamily: 'monospace',
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 11,
+                                                    color: Color(0xFF0284C7),
+                                                  ),
                                                 ),
+                                              ],
+                                            ),
+                                            if ((tx['cagri_id'] ?? '').toString().isNotEmpty) ...[
+                                              const SizedBox(height: 1),
+                                              Text(
+                                                (tx['cagri_id'] ?? '').toString().split('-').last,
+                                                style: TextStyle(fontSize: 9.5, color: _textMuted, fontFamily: 'monospace'),
                                               ),
                                             ],
-                                          ),
-                                          if ((tx['cagri_id'] ?? '').toString().isNotEmpty) ...[
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              (tx['cagri_id'] ?? '').toString(),
-                                              style: TextStyle(fontSize: 10.5, color: _textMuted, fontFamily: 'monospace'),
-                                            ),
                                           ],
-                                        ],
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -6762,102 +6789,121 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
                                 // 4. Hizmet & Kategori
                                 DataCell(
-                                  Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        (tx['hizmet_baslik'] ?? 'Servis Çağrısı').toString(),
-                                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _textPrimary),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: _bgSurfaceElevated,
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: _borderPrimary),
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 130),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          (tx['hizmet_baslik'] ?? 'Servis Çağrısı').toString(),
+                                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5, color: _textPrimary),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        child: Text(
-                                          (tx['kategori'] ?? 'Genel').toString(),
-                                          style: TextStyle(fontSize: 11, color: _textSecondary, fontWeight: FontWeight.w600),
+                                        const SizedBox(height: 2),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                          decoration: BoxDecoration(
+                                            color: _bgSurfaceElevated,
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: Border.all(color: _borderPrimary),
+                                          ),
+                                          child: Text(
+                                            (tx['kategori'] ?? 'Genel').toString(),
+                                            style: TextStyle(fontSize: 10, color: _textSecondary, fontWeight: FontWeight.w600),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
 
                                 // 5. Müşteri
                                 DataCell(
-                                  Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        (tx['musteri_ad'] ?? 'Müşteri').toString(),
-                                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: _textPrimary),
-                                      ),
-                                      const SizedBox(height: 1),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(Icons.phone_outlined, size: 12, color: _textMuted),
-                                          const SizedBox(width: 3),
-                                          Text(
-                                            '${tx['musteri_tel']}',
-                                            style: TextStyle(fontSize: 11, color: _textMuted, fontFamily: 'monospace'),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 95),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          (tx['musteri_ad'] ?? 'Müşteri').toString(),
+                                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5, color: _textPrimary),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 1),
+                                        Text(
+                                          '${tx['musteri_tel']}'.replaceAll('+90 ', ''),
+                                          style: TextStyle(fontSize: 10, color: _textMuted, fontFamily: 'monospace'),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
 
                                 // 6. Görevli Usta
                                 DataCell(
-                                  Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(3),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                                              borderRadius: BorderRadius.circular(4),
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 105),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(2.5),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: const Icon(Icons.handyman_rounded, size: 10, color: Color(0xFF059669)),
                                             ),
-                                            child: const Icon(Icons.handyman_rounded, size: 12, color: Color(0xFF059669)),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            (tx['usta_ad'] ?? '—').toString(),
-                                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _textPrimary),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 1),
-                                      Text(
-                                        '${tx['usta_meslek'] ?? ''} • ${tx['usta_tel'] ?? ''}',
-                                        style: TextStyle(fontSize: 11, color: _textMuted),
-                                      ),
-                                    ],
+                                            const SizedBox(width: 4),
+                                            Flexible(
+                                              child: Text(
+                                                (tx['usta_ad'] ?? '—').toString(),
+                                                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5, color: _textPrimary),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 1),
+                                        Text(
+                                          '${(tx['usta_meslek'] ?? '').toString().split('&').first.trim()} • ${tx['usta_tel'] ?? ''}',
+                                          style: TextStyle(fontSize: 9.5, color: _textMuted),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
 
                                 // 7. Usta Taban Ücreti (Hakediş)
                                 DataCell(
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                     decoration: BoxDecoration(
                                       color: _isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                                       borderRadius: BorderRadius.circular(6),
                                       border: Border.all(color: _borderPrimary),
                                     ),
                                     child: Text(
-                                      '${ustaPayout.toStringAsFixed(2)} ₺',
-                                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: _textPrimary),
+                                      '${ustaPayout.toStringAsFixed(0)} ₺',
+                                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11.5, color: _textPrimary),
                                     ),
                                   ),
                                 ),
@@ -6865,7 +6911,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 // 8. Bizim Komisyon Kazancımız (%15)
                                 DataCell(
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                     decoration: BoxDecoration(
                                       color: _isDarkMode
                                           ? const Color(0xFF064E3B).withValues(alpha: 0.6)
@@ -6876,10 +6922,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                       ),
                                     ),
                                     child: Text(
-                                      '+${commission.toStringAsFixed(2)} ₺',
+                                      '+${commission.toStringAsFixed(0)} ₺',
                                       style: TextStyle(
                                         fontWeight: FontWeight.w900,
-                                        fontSize: 12.5,
+                                        fontSize: 11.5,
                                         color: _isDarkMode ? const Color(0xFF34D399) : const Color(0xFF047857),
                                       ),
                                     ),
@@ -6889,17 +6935,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 // 9. Toplam Çekilen Tutar (Müşteri)
                                 DataCell(
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFF0284C7).withValues(alpha: _isDarkMode ? 0.2 : 0.08),
                                       borderRadius: BorderRadius.circular(6),
                                       border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.25)),
                                     ),
                                     child: Text(
-                                      '${totalAmount.toStringAsFixed(2)} ₺',
+                                      '${totalAmount.toStringAsFixed(0)} ₺',
                                       style: TextStyle(
                                         fontWeight: FontWeight.w900,
-                                        fontSize: 13,
+                                        fontSize: 12,
                                         color: _isDarkMode ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
                                       ),
                                     ),
@@ -6911,24 +6957,35 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
                                 // 11. Ödeme Sağlayıcı
                                 DataCell(
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.credit_card_rounded, size: 14, color: _textMuted),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        (tx['payment_provider'] ?? 'İyzico POS').toString(),
-                                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: _textSecondary),
+                                  Tooltip(
+                                    message: (tx['payment_provider'] ?? 'İyzico Sanal POS').toString(),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
+                                      decoration: BoxDecoration(
+                                        color: _bgSurfaceElevated,
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: _borderPrimary),
                                       ),
-                                    ],
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.credit_card_rounded, size: 11, color: _textMuted),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            'İyzico',
+                                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: _textSecondary),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 ),
 
                                 // 12. Tarih / Saat
                                 DataCell(
                                   Text(
-                                    (tx['created_at'] ?? '—').toString(),
-                                    style: TextStyle(fontSize: 12, color: _textMuted),
+                                    (tx['created_at'] ?? '—').toString().replaceAll(' ', '\n'),
+                                    style: TextStyle(fontSize: 10, color: _textMuted, height: 1.2),
                                   ),
                                 ),
                               ],
@@ -6951,53 +7008,61 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     Color bg;
     Color fg;
     IconData icon;
-    String label;
+    String shortLabel;
+    String fullTooltip;
 
     switch (step) {
       case 1:
         bg = _isDarkMode ? const Color(0xFF451A03) : const Color(0xFFFEF3C7);
         fg = _isDarkMode ? const Color(0xFFFCD34D) : const Color(0xFF92400E);
         icon = Icons.hourglass_top_rounded;
-        label = '1. Usta Onayı Bekleniyor';
+        shortLabel = '1/4 Bekliyor';
+        fullTooltip = '1. Aşama: Usta Onayı Bekleniyor';
         break;
       case 2:
         bg = _isDarkMode ? const Color(0xFF3B0764) : const Color(0xFFF3E8FF);
         fg = _isDarkMode ? const Color(0xFFD8B4FE) : const Color(0xFF6B21A8);
         icon = Icons.check_circle_outline_rounded;
-        label = '2. Çağrı Kabul Edildi';
+        shortLabel = '2/4 Kabul';
+        fullTooltip = '2. Aşama: Çağrı Kabul Edildi';
         break;
       case 3:
         bg = _isDarkMode ? const Color(0xFF0C4A6E) : const Color(0xFFE0F2FE);
         fg = _isDarkMode ? const Color(0xFF7DD3FC) : const Color(0xFF0369A1);
         icon = Icons.directions_car_filled_rounded;
-        label = '3. Usta Yolda';
+        shortLabel = '3/4 Yolda';
+        fullTooltip = '3. Aşama: Usta Adrese Yolda';
         break;
       case 4:
       default:
         bg = _isDarkMode ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7);
         fg = _isDarkMode ? const Color(0xFF6EE7B7) : const Color(0xFF15803D);
         icon = Icons.verified_rounded;
-        label = '4. Tamamlandı & Tahsil Edildi';
+        shortLabel = '4/4 Bitti';
+        fullTooltip = '4. Aşama: Tamamlandı & Tahsil Edildi';
         break;
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: fg.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: fg),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: fg),
-          ),
-        ],
+    return Tooltip(
+      message: fullTooltip,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: fg.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: fg),
+            const SizedBox(width: 4),
+            Text(
+              shortLabel,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: fg),
+            ),
+          ],
+        ),
       ),
     );
   }
