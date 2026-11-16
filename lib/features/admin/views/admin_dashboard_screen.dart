@@ -4233,14 +4233,26 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   // ==========================================
 
   Widget _buildActiveJobsTab() {
+    final Set<String> seenJobIds = {};
     final filteredJobs = _activeJobs.where((j) {
+      final rawId = (j['id'] ?? '').toString();
+      String cleanId = rawId;
+      if (cleanId.startsWith('hz-')) {
+        final digits = cleanId.replaceAll(RegExp(r'[^0-9]'), '');
+        final suffix = digits.length >= 4 ? digits.substring(digits.length - 4) : digits;
+        cleanId = 'ILN-$suffix';
+      }
+      // Aynı ID'ye sahip mükerrer satırları engelle
+      if (!seenJobIds.add(cleanId)) return false;
+
       final query = _jobSearchQuery.trim().toLowerCase();
       final matchesSearch = query.isEmpty ||
           (j['title'] ?? '').toString().toLowerCase().contains(query) ||
           (j['customer_name'] ?? '').toString().toLowerCase().contains(query) ||
           (j['district'] ?? '').toString().toLowerCase().contains(query) ||
           (j['kategori'] ?? '').toString().toLowerCase().contains(query) ||
-          (j['id'] ?? '').toString().toLowerCase().contains(query);
+          cleanId.toLowerCase().contains(query) ||
+          rawId.toLowerCase().contains(query);
       final matchesStatus = _jobFilterStatus == 'Tümü' || (j['status'] ?? '') == _jobFilterStatus;
       return matchesSearch && matchesStatus;
     }).toList();

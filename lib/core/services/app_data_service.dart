@@ -357,40 +357,9 @@ class AppDataService {
   Future<List<Map<String, dynamic>>> getAllHizmetIlanlari() async {
     final ustalar = await getUstalar();
     final List<Map<String, dynamic>> result = [];
+    final Set<String> seenIds = {};
 
-    // 1. Ustalara bağlı hizmet ilanları
-    for (final usta in ustalar) {
-      for (final ilan in usta.ilanlar) {
-        String cleanId = ilan.id;
-        if (cleanId.startsWith('hz-')) {
-          final digits = cleanId.replaceAll(RegExp(r'[^0-9]'), '');
-          final suffix = digits.length >= 4 ? digits.substring(digits.length - 4) : digits;
-          cleanId = 'ILN-$suffix';
-        }
-        result.add({
-          'id': cleanId,
-          'title': ilan.baslik,
-          'description': ilan.aciklama,
-          'price': ilan.fiyat,
-          'duration': ilan.tahminiSure,
-          'icon': ilan.ikon,
-          'kategori': usta.kategori,
-          'category': usta.kategori,
-          'district': usta.uzmanlikBasligi,
-          'customer_name': usta.fullName,
-          'customer_phone': usta.phone,
-          'status': 'Aktif',
-          'assigned_usta': usta.fullName,
-          'created_at': 'Bugün',
-          'usta_id': usta.ustaId,
-          'usta_name': usta.fullName,
-          'type': 'Usta Hizmet İlanı',
-          'is_default': ilan.isDefault,
-        });
-      }
-    }
-
-    // 2. Müşteri servis çağrıları ve genel aktif işler
+    // 1. Önce aktif işler / çağrılar tablosundaki kayıtları al (Burada tam kategori ve usta detayları yer alır)
     final jobs = await getActiveJobs();
     for (final job in jobs) {
       final rawPrice = job['price'];
@@ -408,25 +377,64 @@ class AppDataService {
         rawJobId = 'ILN-$suffix';
       }
 
-      result.add({
-        'id': rawJobId,
-        'title': job['title'] ?? 'Servis Talebi',
-        'description': job['description'] ?? '${job['customer_name'] ?? 'Müşteri'} - ${job['category'] ?? 'Genel'} (${job['district'] ?? 'Kadıköy'})',
-        'price': parsedPrice,
-        'duration': '30 dk',
-        'icon': '📋',
-        'kategori': job['category'] ?? job['kategori'] ?? 'Genel',
-        'category': job['category'] ?? job['kategori'] ?? 'elektrik',
-        'district': job['district'] ?? 'Kadıköy',
-        'customer_name': job['customer_name'] ?? 'Müşteri Talebi',
-        'customer_phone': job['customer_phone'] ?? '+90 5XX XXX XX XX',
-        'status': job['status'] ?? 'Bekliyor',
-        'assigned_usta': job['assigned_usta'] ?? '— (Atama Bekliyor)',
-        'created_at': job['time'] ?? 'Yeni',
-        'usta_id': job['usta_id'] ?? '',
-        'usta_name': job['customer_name'] ?? 'Müşteri Talebi',
-        'type': 'Müşteri İş Çağrısı',
-      });
+      // Aynı ID veya başlık+usta varsa tekilleştir
+      if (seenIds.add(rawJobId)) {
+        result.add({
+          'id': rawJobId,
+          'title': job['title'] ?? 'Servis Talebi',
+          'description': job['description'] ?? '${job['customer_name'] ?? 'Müşteri'} - ${job['category'] ?? 'Genel'} (${job['district'] ?? 'Kadıköy'})',
+          'price': parsedPrice,
+          'duration': '30 dk',
+          'icon': '📋',
+          'kategori': job['category'] ?? job['kategori'] ?? 'Genel',
+          'category': job['category'] ?? job['kategori'] ?? 'elektrik',
+          'district': job['district'] ?? 'Kadıköy',
+          'customer_name': job['customer_name'] ?? job['usta_name'] ?? 'Kadir Usta',
+          'customer_phone': job['customer_phone'] ?? job['usta_phone'] ?? '+90 5XX XXX XX XX',
+          'status': job['status'] ?? 'Aktif',
+          'assigned_usta': job['assigned_usta'] ?? '—',
+          'created_at': job['time'] ?? 'Yeni',
+          'usta_id': job['usta_id'] ?? '',
+          'usta_name': job['usta_name'] ?? job['customer_name'] ?? 'Kadir Usta',
+          'type': job['type'] ?? 'Usta Hizmet İlanı',
+        });
+      }
+    }
+
+    // 2. Ustalara bağlı hizmet ilanları (Eğer jobs tablosunda henüz yoksa ekle - ASLA mükerrer ekleme yapmaz)
+    for (final usta in ustalar) {
+      for (final ilan in usta.ilanlar) {
+        String cleanId = ilan.id;
+        if (cleanId.startsWith('hz-')) {
+          final digits = cleanId.replaceAll(RegExp(r'[^0-9]'), '');
+          final suffix = digits.length >= 4 ? digits.substring(digits.length - 4) : digits;
+          cleanId = 'ILN-$suffix';
+        }
+
+        // Eğer bu ilan jobs tablosunda zaten eklenmişse tekrar ekleme!
+        if (seenIds.add(cleanId)) {
+          result.add({
+            'id': cleanId,
+            'title': ilan.baslik,
+            'description': ilan.aciklama,
+            'price': ilan.fiyat,
+            'duration': ilan.tahminiSure,
+            'icon': ilan.ikon,
+            'kategori': usta.kategori,
+            'category': usta.kategori,
+            'district': usta.uzmanlikBasligi,
+            'customer_name': usta.fullName,
+            'customer_phone': usta.phone,
+            'status': 'Aktif',
+            'assigned_usta': usta.fullName,
+            'created_at': 'Bugün',
+            'usta_id': usta.ustaId,
+            'usta_name': usta.fullName,
+            'type': 'Usta Hizmet İlanı',
+            'is_default': ilan.isDefault,
+          });
+        }
+      }
     }
 
     return result;
