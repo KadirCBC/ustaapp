@@ -15,6 +15,7 @@ import 'package:ustaapp/features/map/controllers/map_controller.dart';
 import 'package:ustaapp/features/map/models/isletme_model.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:ustaapp/features/map/views/widgets/category_filter_bar.dart';
+import 'package:ustaapp/features/map/views/widgets/custom_marker.dart';
 import 'package:ustaapp/features/map/views/widgets/mechanic_bottom_card.dart';
 
 class CustomerMapScreen extends ConsumerStatefulWidget {
@@ -40,6 +41,13 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
   MapboxMap? _mapboxMap;
   PointAnnotationManager? _pointAnnotationManager;
   Cancelable? _annotationTapCancelable;
+
+  // Web ortamı için etkileşimli Flutter rozet pozisyonları
+  Offset? _customerScreenPos;
+  Map<String, Offset> _ustaScreenPos = {};
+  Map<String, Offset> _isletmeScreenPos = {};
+  bool _isUpdatingWebPositions = false;
+  bool _hasPendingWebUpdate = false;
 
   final Map<String, Uint8List> _markerBytesCache = {};
   final Map<String, NearbyUstaModel> _annotationIdToUsta = {};
@@ -73,72 +81,166 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
   }
 
   Future<void> _onMapCreated(MapboxMap mapboxMap) async {
+    debugPrint('>>> [_onMapCreated] START');
     _mapboxMap = mapboxMap;
 
-    // Üst durum çubuğuyla çakışmaması için varsayılan ölçek çubuğu ve pusulayı gizle
-    await mapboxMap.scaleBar.updateSettings(ScaleBarSettings(enabled: false));
-    await mapboxMap.compass.updateSettings(CompassSettings(enabled: false));
+    try {
+      await mapboxMap.scaleBar.updateSettings(ScaleBarSettings(enabled: false));
+    } catch (e) {
+      debugPrint('>>> [_onMapCreated] scaleBar error: $e');
+    }
+    try {
+      await mapboxMap.compass.updateSettings(CompassSettings(enabled: false));
+    } catch (e) {
+      debugPrint('>>> [_onMapCreated] compass error: $e');
+    }
 
-    // Yakınlaştırma / kaydırma / çift dokunma jestlerini açıkça etkinleştir
-    await mapboxMap.gestures.updateSettings(
-      GesturesSettings(
-        scrollEnabled: true,
-        pinchToZoomEnabled: true,
-        doubleTapToZoomInEnabled: true,
-        doubleTouchToZoomOutEnabled: true,
-        quickZoomEnabled: true,
-        rotateEnabled: true,
-      ),
-    );
+    try {
+      await mapboxMap.gestures.updateSettings(
+        GesturesSettings(
+          scrollEnabled: true,
+          pinchToZoomEnabled: true,
+          doubleTapToZoomInEnabled: true,
+          doubleTouchToZoomOutEnabled: true,
+          quickZoomEnabled: true,
+          rotateEnabled: true,
+        ),
+      );
+    } catch (e) {
+      debugPrint('>>> [_onMapCreated] gestures error: $e');
+    }
 
     // Arka plan haritaya dokunulduğunda seçili usta veya dükkanı temizle
-    mapboxMap.addInteraction(
-      TapInteraction.onMap((_) {
-        if (mounted) {
-          final notifier = ref.read(customerMapControllerProvider.notifier);
-          notifier.clearSelectedUsta();
-          notifier.clearSelectedIsletme();
+    try {
+      mapboxMap.addInteraction(
+        TapInteraction.onMap((_) {
+          if (mounted) {
+            final notifier = ref.read(customerMapControllerProvider.notifier);
+            notifier.clearSelectedUsta();
+            notifier.clearSelectedIsletme();
+          }
+        }),
+      );
+    } catch (e) {
+      debugPrint('>>> [_onMapCreated] tap interaction error: $e');
+    }
+
+    if (!kIsWeb) {
+      try {
+        final manager = await mapboxMap.annotations.createPointAnnotationManager();
+        _pointAnnotationManager = manager;
+        debugPrint('>>> [_onMapCreated] PointAnnotationManager created: $manager');
+
+        try {
+          await manager.setIconAllowOverlap(true);
+          await manager.setIconIgnorePlacement(true);
+        } catch (e) {
+          debugPrint('>>> [_onMapCreated] overlap settings error: $e');
         }
-      }),
-    );
 
-    final manager = await mapboxMap.annotations.createPointAnnotationManager();
-    await manager.setIconAllowOverlap(true);
-    await manager.setIconIgnorePlacement(true);
+        _annotationTapCancelable = manager.tapEvents(
+          onTap: (PointAnnotation annotation) {
+            final usta = _annotationIdToUsta[annotation.id];
+            if (usta != null && mounted) {
+              final notifier = ref.read(customerMapControllerProvider.notifier);
+              _selectAndFocusUsta(usta, notifier);
+              return;
+            }
 
-    _annotationTapCancelable = manager.tapEvents(
-      onTap: (PointAnnotation annotation) {
-        final usta = _annotationIdToUsta[annotation.id];
-        if (usta != null && mounted) {
-          final notifier = ref.read(customerMapControllerProvider.notifier);
-          _selectAndFocusUsta(usta, notifier);
-          return;
-        }
-
-        final isletme = _annotationIdToIsletme[annotation.id];
-        if (isletme != null && mounted) {
-          final notifier = ref.read(customerMapControllerProvider.notifier);
-          _selectAndFocusIsletme(isletme, notifier);
-        }
-      },
-    );
-
-    _pointAnnotationManager = manager;
+            final isletme = _annotationIdToIsletme[annotation.id];
+            if (isletme != null && mounted) {
+              final notifier = ref.read(customerMapControllerProvider.notifier);
+              _selectAndFocusIsletme(isletme, notifier);
+            }
+          },
+        );
+      } catch (e, st) {
+        debugPrint('>>> [_onMapCreated] CRITICAL annotation manager error: $e\n$st');
+      }
+    }
 
     final state = _latestMapState;
     if (mounted && state != null) {
       if (state.currentLat != _defaultKadikoyLat ||
           state.currentLng != _defaultKadikoyLng) {
-        await mapboxMap.setCamera(
-          CameraOptions(
-            center: Point(
-              coordinates: Position(state.currentLng, state.currentLat),
+        try {
+          await mapboxMap.setCamera(
+            CameraOptions(
+              center: Point(
+                coordinates: Position(state.currentLng, state.currentLat),
+              ),
+              zoom: _defaultZoom,
             ),
-            zoom: _defaultZoom,
-          ),
-        );
+          );
+        } catch (e) {
+          debugPrint('>>> [_onMapCreated] setCamera error: $e');
+        }
       }
-      await _syncAnnotations(state, force: true);
+      debugPrint('>>> [_onMapCreated] triggering initial _syncAnnotations');
+      if (kIsWeb) {
+        await _updateWebMarkerPositions(state);
+      } else {
+        await _syncAnnotations(state, force: true);
+      }
+    }
+  }
+
+  Future<void> _updateWebMarkerPositions([CustomerMapState? state]) async {
+    if (!kIsWeb) return;
+    final map = _mapboxMap;
+    if (map == null || !mounted) return;
+
+    if (_isUpdatingWebPositions) {
+      _hasPendingWebUpdate = true;
+      return;
+    }
+    _isUpdatingWebPositions = true;
+
+    try {
+      final s = state ?? _latestMapState;
+      if (s == null) return;
+
+      // 1. Müşteri konumu
+      final custCoord = await map.pixelForCoordinate(
+        Point(coordinates: Position(s.currentLng, s.currentLat)),
+      );
+      final customerPos = Offset(custCoord.x.toDouble(), custCoord.y.toDouble());
+
+      // 2. Yakındaki Ustalar
+      final Map<String, Offset> ustaPositions = {};
+      if (s.selectedCategory != 'tedarikciler') {
+        for (final usta in s.nearbyUstalar) {
+          final coord = await map.pixelForCoordinate(
+            Point(coordinates: Position(usta.longitude, usta.latitude)),
+          );
+          ustaPositions[usta.ustaId] = Offset(coord.x.toDouble(), coord.y.toDouble());
+        }
+      }
+
+      // 3. Yakındaki İşletmeler / Tedarikçiler
+      final Map<String, Offset> isletmePositions = {};
+      for (final isletme in s.isletmeler) {
+        final coord = await map.pixelForCoordinate(
+          Point(coordinates: Position(isletme.longitude, isletme.latitude)),
+        );
+        isletmePositions[isletme.id] = Offset(coord.x.toDouble(), coord.y.toDouble());
+      }
+
+      if (mounted) {
+        setState(() {
+          _customerScreenPos = customerPos;
+          _ustaScreenPos = ustaPositions;
+          _isletmeScreenPos = isletmePositions;
+        });
+      }
+    } catch (e) {
+      debugPrint('>>> [_updateWebMarkerPositions] error: $e');
+    } finally {
+      _isUpdatingWebPositions = false;
+      if (_hasPendingWebUpdate && mounted) {
+        _hasPendingWebUpdate = false;
+        _updateWebMarkerPositions();
+      }
     }
   }
 
@@ -165,6 +267,10 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
     CustomerMapState mapState, {
     bool force = false,
   }) async {
+    if (kIsWeb) {
+      await _updateWebMarkerPositions(mapState);
+      return;
+    }
     final manager = _pointAnnotationManager;
     if (manager == null) return;
 
@@ -178,82 +284,89 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
 
     _isSyncingAnnotations = true;
     try {
+      debugPrint('>>> [_syncAnnotations] START signature: $signature, ustalar: ${mapState.nearbyUstalar.length}, isletmeler: ${mapState.isletmeler.length}');
       _lastSyncedSignature = signature;
       await manager.deleteAll();
       _annotationIdToUsta.clear();
       _annotationIdToIsletme.clear();
 
       // 1. Müşteri konum pini
-      _customerPinBytes ??= await _createCustomerLocationBytes();
-      await manager.create(
-        PointAnnotationOptions(
-          geometry: Point(
-            coordinates: Position(mapState.currentLng, mapState.currentLat),
+      try {
+        _customerPinBytes ??= await _createCustomerLocationBytes();
+        await manager.create(
+          PointAnnotationOptions(
+            geometry: Point(
+              coordinates: Position(mapState.currentLng, mapState.currentLat),
+            ),
+            image: _customerPinBytes,
+            iconAnchor: IconAnchor.CENTER,
+            iconSize: 0.85,
           ),
-          image: _customerPinBytes,
-          iconAnchor: IconAnchor.CENTER,
-          iconSize: 0.85,
-        ),
-      );
+        );
+        debugPrint('>>> [_syncAnnotations] customer pin created at ${mapState.currentLat}, ${mapState.currentLng}');
+      } catch (e) {
+        debugPrint('>>> [_syncAnnotations] customer pin error: $e');
+      }
 
       // 2. Yakındaki ustaların standart yeşil rozet pinleri
       // (Eğer 'tedarikciler' filtresi seçili değilse)
       if (mapState.selectedCategory != 'tedarikciler') {
-        final ustaPayloads = await Future.wait(
-          mapState.nearbyUstalar.map((usta) async {
+        debugPrint('>>> [_syncAnnotations] rendering ${mapState.nearbyUstalar.length} ustalar');
+        for (final usta in mapState.nearbyUstalar) {
+          try {
             final isSelected = mapState.selectedUsta?.ustaId == usta.ustaId;
             final cacheKey =
                 'usta_${usta.ustaId}_${usta.formattedPrice}_${usta.puan}_$isSelected';
             final bytes = _markerBytesCache[cacheKey] ??
                 await _createUstaBadgeBytes(usta: usta, isSelected: isSelected);
             _markerBytesCache[cacheKey] = bytes;
-            return (usta: usta, bytes: bytes, isSelected: isSelected);
-          }),
-        );
 
-        for (final item in ustaPayloads) {
-          final annotation = await manager.create(
-            PointAnnotationOptions(
-              geometry: Point(
-                coordinates: Position(item.usta.longitude, item.usta.latitude),
+            final annotation = await manager.create(
+              PointAnnotationOptions(
+                geometry: Point(
+                  coordinates: Position(usta.longitude, usta.latitude),
+                ),
+                image: bytes,
+                iconAnchor: IconAnchor.BOTTOM,
+                iconSize: isSelected ? 1.12 : 1.00,
               ),
-              image: item.bytes,
-              iconAnchor: IconAnchor.BOTTOM,
-              iconSize: item.isSelected ? 1.12 : 1.00,
-              symbolSortKey: item.isSelected ? 10.0 : 5.0,
-            ),
-          );
-          _annotationIdToUsta[annotation.id] = item.usta;
+            );
+            _annotationIdToUsta[annotation.id] = usta;
+            debugPrint('>>> [_syncAnnotations] usta pin created for ${usta.fullName} at (${usta.latitude}, ${usta.longitude})');
+          } catch (e) {
+            debugPrint('>>> [_syncAnnotations] usta pin error for ${usta.fullName}: $e');
+          }
         }
       }
 
       // 3. Yakındaki işletmeler / tedarikçilerin özel altın sarısı / turuncu rozet pinleri
-      final isletmePayloads = await Future.wait(
-        mapState.isletmeler.map((isletme) async {
+      for (final isletme in mapState.isletmeler) {
+        try {
           final isSelected = mapState.selectedIsletme?.id == isletme.id;
           final cacheKey =
               'isletme_${isletme.id}_${isletme.ad}_${isletme.isSponsored}_$isSelected';
           final bytes = _markerBytesCache[cacheKey] ??
               await _createIsletmeBadgeBytes(isletme: isletme, isSelected: isSelected);
           _markerBytesCache[cacheKey] = bytes;
-          return (isletme: isletme, bytes: bytes, isSelected: isSelected);
-        }),
-      );
 
-      for (final item in isletmePayloads) {
-        final annotation = await manager.create(
-          PointAnnotationOptions(
-            geometry: Point(
-              coordinates: Position(item.isletme.longitude, item.isletme.latitude),
+          final annotation = await manager.create(
+            PointAnnotationOptions(
+              geometry: Point(
+                coordinates: Position(isletme.longitude, isletme.latitude),
+              ),
+              image: bytes,
+              iconAnchor: IconAnchor.BOTTOM,
+              iconSize: isSelected ? 1.12 : 1.00,
             ),
-            image: item.bytes,
-            iconAnchor: IconAnchor.BOTTOM,
-            iconSize: item.isSelected ? 1.12 : 1.00,
-            symbolSortKey: item.isletme.isSponsored ? 12.0 : 6.0,
-          ),
-        );
-        _annotationIdToIsletme[annotation.id] = item.isletme;
+          );
+          _annotationIdToIsletme[annotation.id] = isletme;
+          debugPrint('>>> [_syncAnnotations] isletme pin created for ${isletme.ad} at (${isletme.latitude}, ${isletme.longitude})');
+        } catch (e) {
+          debugPrint('>>> [_syncAnnotations] isletme pin error for ${isletme.ad}: $e');
+        }
       }
+    } catch (e, st) {
+      debugPrint('>>> [_syncAnnotations] OUTER ERROR: $e\n$st');
     } finally {
       _isSyncingAnnotations = false;
       if (_needsResync && mounted && _latestMapState != null) {
@@ -1321,8 +1434,71 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
                 ),
               },
               onMapCreated: _onMapCreated,
+              onCameraChangeListener: (_) {
+                if (kIsWeb) {
+                  _updateWebMarkerPositions();
+                }
+              },
+              onMapIdleListener: (_) {
+                if (kIsWeb) {
+                  _updateWebMarkerPositions();
+                }
+              },
             ),
           ),
+
+          // 1.1 WEB HARİTA ROZET PİNLERİ (Web ortamında Mapbox PointAnnotation kısıtlamasını çözen etkileşimli katman)
+          if (kIsWeb) ...[
+            // Müşteri Konumu (Mavi Radarlı Nokta)
+            if (_customerScreenPos != null)
+              Positioned(
+                left: _customerScreenPos!.dx - 22,
+                top: _customerScreenPos!.dy - 22,
+                child: CustomerLocationMarker(
+                  onTap: () => _animateToCustomerLocation(mapState, mapNotifier),
+                ),
+              ),
+
+            // Yakındaki İşletmeler / Tedarikçiler (Altın/Amber Rozetler)
+            if (_isletmeScreenPos.isNotEmpty)
+              ...mapState.isletmeler.map((isletme) {
+                final pos = _isletmeScreenPos[isletme.id];
+                if (pos == null) return const SizedBox.shrink();
+                final isSelected = mapState.selectedIsletme?.id == isletme.id;
+                return Positioned(
+                  left: pos.dx,
+                  top: pos.dy,
+                  child: FractionalTranslation(
+                    translation: const Offset(-0.5, -1.0),
+                    child: CustomIsletmeMarker(
+                      isletme: isletme,
+                      isSelected: isSelected,
+                      onTap: () => _selectAndFocusIsletme(isletme, mapNotifier),
+                    ),
+                  ),
+                );
+              }),
+
+            // Yakındaki Ustalar (Zümrüt Yeşili Fiyatlı Usta Rozetleri)
+            if (mapState.selectedCategory != 'tedarikciler' && _ustaScreenPos.isNotEmpty)
+              ...mapState.nearbyUstalar.map((usta) {
+                final pos = _ustaScreenPos[usta.ustaId];
+                if (pos == null) return const SizedBox.shrink();
+                final isSelected = mapState.selectedUsta?.ustaId == usta.ustaId;
+                return Positioned(
+                  left: pos.dx,
+                  top: pos.dy,
+                  child: FractionalTranslation(
+                    translation: const Offset(-0.5, -1.0),
+                    child: CustomMarker(
+                      usta: usta,
+                      isSelected: isSelected,
+                      onTap: () => _selectAndFocusUsta(usta, mapNotifier),
+                    ),
+                  ),
+                );
+              }),
+          ],
 
           // 2. ÜST YÜZEN GLASSMORPHISM NAVİGASYON & KATEGORİ FİLTRELEME
           Positioned(
