@@ -189,10 +189,11 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
         customerLng: state.currentLng,
         maxRadiusMeter: state.searchRadiusMeter.toDouble(),
       );
-      if (managedUstalar.isNotEmpty && mounted) {
+      if (mounted) {
         state = state.copyWith(
           nearbyUstalar: _filterAndSortUstalar(managedUstalar),
           isLoadingUstalar: false,
+          clearSelectedUsta: managedUstalar.isEmpty,
         );
       }
     } catch (_) {}

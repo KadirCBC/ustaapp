@@ -1826,21 +1826,45 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   void _deleteJob(String id) {
+    final deletedJob = _activeJobs.firstWhere(
+      (j) => (j['id'] ?? '').toString() == id,
+      orElse: () => {},
+    );
+    final String cleanDeletedId = id.replaceAll('ILN-', '').replaceAll('hz-', '');
+    final String deletedTitle = (deletedJob['title'] ?? '').toString().trim().toLowerCase();
+
     setState(() {
-      _activeJobs.removeWhere((j) => j['id'] == id);
+      _activeJobs.removeWhere((j) {
+        final jId = (j['id'] ?? '').toString();
+        return jId == id || (cleanDeletedId.isNotEmpty && jId.replaceAll('ILN-', '').replaceAll('hz-', '') == cleanDeletedId);
+      });
 
       // Ustanın ilan listesinden de çıkar
       for (final u in _activeUstalar) {
         final rawIlanlar = u['ilanlar'] as List<dynamic>?;
         if (rawIlanlar != null) {
-          rawIlanlar.removeWhere((il) => il['id'] == id);
+          rawIlanlar.removeWhere((il) {
+            String ilId = '';
+            String ilTitle = '';
+            if (il is Map) {
+              ilId = (il['id'] ?? '').toString();
+              ilTitle = (il['baslik'] ?? '').toString().trim().toLowerCase();
+            } else if (il is UstaHizmetIlan) {
+              ilId = il.id;
+              ilTitle = il.baslik.trim().toLowerCase();
+            }
+            final String cleanIlId = ilId.replaceAll('ILN-', '').replaceAll('hz-', '');
+            return ilId == id ||
+                (cleanDeletedId.isNotEmpty && cleanIlId == cleanDeletedId) ||
+                (deletedTitle.isNotEmpty && ilTitle == deletedTitle);
+          });
         }
       }
     });
     _recalculateMetrics();
     _savePersistedData('admin_jobs');
     _savePersistedData('admin_active_ustalar');
-    _showSuccessToast('İlan / servis kaydı sistemden silindi.');
+    _showSuccessToast('İlan sistemden ve mobil haritadan anında kaldırıldı.');
   }
 
   void _deleteSelectedJobs() {
@@ -1856,17 +1880,29 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             Text('Seçilen İlanları Sil', style: TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
-        content: Text('Seçtiğiniz ${_selectedJobIds.length} adet ilan/servis çağrısı sistemden kalıcı olarak silinecektir. Onaylıyor musunuz?'),
+        content: Text('Seçtiğiniz ${_selectedJobIds.length} adet ilan/servis çağrısı sistemden ve mobil uygulamadan kalıcı olarak silinecektir. Onaylıyor musunuz?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
           ElevatedButton(
             onPressed: () {
+              final targets = Set<String>.from(_selectedJobIds);
               setState(() {
-                _activeJobs.removeWhere((j) => _selectedJobIds.contains(j['id']));
+                _activeJobs.removeWhere((j) {
+                  final jId = (j['id'] ?? '').toString();
+                  return targets.contains(jId);
+                });
                 for (final u in _activeUstalar) {
                   final rawIlanlar = u['ilanlar'] as List<dynamic>?;
                   if (rawIlanlar != null) {
-                    rawIlanlar.removeWhere((il) => _selectedJobIds.contains(il['id']));
+                    rawIlanlar.removeWhere((il) {
+                      String ilId = '';
+                      if (il is Map) {
+                        ilId = (il['id'] ?? '').toString();
+                      } else if (il is UstaHizmetIlan) {
+                        ilId = il.id;
+                      }
+                      return targets.contains(ilId);
+                    });
                   }
                 }
                 _selectedJobIds.clear();
@@ -1875,7 +1911,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               _savePersistedData('admin_jobs');
               _savePersistedData('admin_active_ustalar');
               Navigator.pop(ctx);
-              _showSuccessToast('Seçilen ilanlar başarıyla silindi.');
+              _showSuccessToast('Seçilen ilanlar mobil haritadan ve sistemden silindi.');
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
             child: const Text('Tüm Seçilenleri Sil'),

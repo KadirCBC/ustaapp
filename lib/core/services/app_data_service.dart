@@ -313,6 +313,9 @@ class AppDataService {
     final normalizedCat = category.trim().toLowerCase();
 
     final filtered = allUstalar.where((u) {
+      // Eğer ustanın hiç aktif ilanı yoksa (veya ilanı silinmişse) haritada gösterilmez
+      if (u.ilanlar.isEmpty) return false;
+
       final ustaCat = u.kategori.trim().toLowerCase();
       final catMatch = (normalizedCat == 'tümü' || normalizedCat == 'all')
           ? true
