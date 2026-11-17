@@ -132,17 +132,18 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
           ),
 
           SafeArea(
+            top: !kIsWeb,
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 480),
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // ===============================================================
-                      // 1. ÜST BAR (Mavi Çizginin Olduğu Tepe Noktaya Taşındı)
+                      // 1. ÜST BAR (En Tepe Noktaya Taşındı)
                       // ===============================================================
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
@@ -162,7 +163,7 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                             onTap: _showHelpModal,
                             borderRadius: BorderRadius.circular(10),
                             child: const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 0),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -185,7 +186,7 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                         ],
                       ),
 
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 2),
 
                       // ===============================================================
                       // 2. KAYIT MODUNDA İSE GERİ DÖNÜŞ BAŞLIĞI
@@ -224,23 +225,23 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                         ),
                       ] else ...[
                         // =============================================================
-                        // KIRMIZI ALANDA ORTALANMIŞ VE BÜYÜTÜLMÜŞ LOGO
+                        // ORTALANMIŞ VE BÜYÜTÜLMÜŞ LOGO (Kırmızı Alandaki Boşluk Azaltıldı)
                         // =============================================================
                         Center(
                           child: Image.asset(
                             'assets/images/app_logo.png',
-                            height: 48,
+                            height: 60,
                             fit: BoxFit.contain,
                           ),
                         ),
 
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 2),
 
                         // =============================================================
-                        // HERO ALANI (Sol: Animasyonlu Başlık + Sağ: 3D Baret ve Harita)
+                        // HERO ALANI (Mavi Alandaki Boşluk Azaltıldı & Hizalandı)
                         // =============================================================
                         Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Sol: Animasyonlu Başlık ve Açıklama
                             const Expanded(
@@ -271,10 +272,10 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                               flex: 6,
                               child: Transform.scale(
                                 scale: 1.15,
-                                alignment: Alignment.centerRight,
+                                alignment: Alignment.topRight,
                                 child: Image.asset(
                                   'assets/images/hero_worker_hd.png',
-                                  height: 165,
+                                  height: 160,
                                   fit: BoxFit.contain,
                                 ),
                               ),
@@ -282,7 +283,7 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                           ],
                         ),
 
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 8),
 
                         // =============================================================
                         // 1. GÖRSELDEKİ MÜŞTERİ KAYDI BUTONU
