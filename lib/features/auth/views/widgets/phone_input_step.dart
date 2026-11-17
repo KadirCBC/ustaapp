@@ -245,25 +245,25 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                             children: [
                               // Sol: Başlık ve Açıklama
                               const Expanded(
-                                flex: 5,
+                                flex: 4,
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       'En Yakın Usta\nKapında!',
                                       style: TextStyle(
-                                        fontSize: 25,
+                                        fontSize: 23,
                                         fontWeight: FontWeight.w900,
                                         height: 1.15,
-                                        letterSpacing: -0.6,
+                                        letterSpacing: -0.5,
                                         color: Color(0xFF0F172A),
                                       ),
                                     ),
-                                    SizedBox(height: 10),
+                                    SizedBox(height: 8),
                                     Text(
                                       'Profesyonel ustalarla\nhızlı ve güvenli hizmet.',
                                       style: TextStyle(
-                                        fontSize: 13,
+                                        fontSize: 12.5,
                                         height: 1.35,
                                         fontWeight: FontWeight.w500,
                                         color: Color(0xFF64748B),
@@ -273,15 +273,19 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                                 ),
                               ),
 
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 4),
 
-                              // Sağ: 3D Baret, Pin ve Plan Görseli (Hareketsiz / Statik 2. Görsel)
+                              // Sağ: 3D Baret, Pin ve Plan Görseli (Büyütülmüş Hareketsiz Görsel)
                               Expanded(
-                                flex: 6,
-                                child: Image.asset(
-                                  'assets/images/hero_worker_hd.png',
-                                  height: 140,
-                                  fit: BoxFit.contain,
+                                flex: 7,
+                                child: Transform.scale(
+                                  scale: 1.15,
+                                  alignment: Alignment.centerRight,
+                                  child: Image.asset(
+                                    'assets/images/hero_worker_hd.png',
+                                    height: 175,
+                                    fit: BoxFit.contain,
+                                  ),
                                 ),
                               ),
                             ],
