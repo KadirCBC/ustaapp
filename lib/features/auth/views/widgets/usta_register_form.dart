@@ -31,22 +31,13 @@ class _UstaRegisterFormState extends ConsumerState<UstaRegisterForm> {
   late final TextEditingController _ibanController;
   late final TextEditingController _baseFeeController;
 
-  String _selectedCategory = 'Elektrik & Aydınlatma';
+  final String _selectedCategory = 'Genel Usta';
   int _experienceYears = 5;
   bool _hasMyk = true;
   final double _workRadiusKm = 15.0;
   bool _contractAccepted = true;
 
-  static const List<Map<String, String>> _categories = [
-    {'name': 'Elektrik & Aydınlatma', 'icon': '⚡'},
-    {'name': 'Sıhhi Tesisat & Su', 'icon': '🔧'},
-    {'name': 'Çilingir & Kilit', 'icon': '🔑'},
-    {'name': 'Boya & Badana', 'icon': '🎨'},
-    {'name': 'Kombi & Isıtma', 'icon': '❄️'},
-    {'name': 'Mobilya & Marangoz', 'icon': '🪑'},
-  ];
-
-  static const List<int> _experienceOptions = [2, 5, 8, 12, 15];
+  static const List<int> _experienceOptions = [2, 5, 8];
 
   @override
   void initState() {
@@ -277,53 +268,25 @@ class _UstaRegisterFormState extends ConsumerState<UstaRegisterForm> {
             ),
             const SizedBox(height: 16),
 
-            // 3. UZMANLIK & KATEGORİ SEÇİMİ
-            _buildFieldLabel('Ana Uzmanlık / Hizmet Alanınız *'),
+            // Deneyim Yılı (Kompakt ve taşmasız Wrap yapısı)
+            _buildFieldLabel('Mesleki Deneyiminiz'),
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _categories.map((cat) {
-                final isSelected = _selectedCategory == cat['name'];
-                return ChoiceChip(
-                  label: Text('${cat['icon']} ${cat['name']}'),
-                  selected: isSelected,
-                  selectedColor: const Color(0xFFFFEDD5),
-                  backgroundColor: const Color(0xFFF8FAFC),
-                  labelStyle: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                    color: isSelected ? const Color(0xFFC2410C) : const Color(0xFF475569),
-                  ),
-                  side: BorderSide(
-                    color: isSelected ? const Color(0xFFEA580C) : const Color(0xFFE2E8F0),
-                    width: isSelected ? 1.5 : 1,
-                  ),
-                  onSelected: (_) => setState(() => _selectedCategory = cat['name']!),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 14),
-
-            // Deneyim Yılı
-            _buildFieldLabel('Mesleki Deneyiminiz'),
-            Row(
               children: _experienceOptions.map((yrs) {
                 final isSelected = _experienceYears == yrs;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text('$yrs+ Yıl'),
-                    selected: isSelected,
-                    selectedColor: const Color(0xFFFFEDD5),
-                    backgroundColor: const Color(0xFFF1F5F9),
-                    checkmarkColor: const Color(0xFFEA580C),
-                    labelStyle: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                      color: isSelected ? const Color(0xFFEA580C) : const Color(0xFF475569),
-                    ),
-                    onSelected: (_) => setState(() => _experienceYears = yrs),
+                return FilterChip(
+                  label: Text('$yrs+ Yıl'),
+                  selected: isSelected,
+                  selectedColor: const Color(0xFFFFEDD5),
+                  backgroundColor: const Color(0xFFF1F5F9),
+                  checkmarkColor: const Color(0xFFEA580C),
+                  labelStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                    color: isSelected ? const Color(0xFFEA580C) : const Color(0xFF475569),
                   ),
+                  onSelected: (_) => setState(() => _experienceYears = yrs),
                 );
               }).toList(),
             ),
