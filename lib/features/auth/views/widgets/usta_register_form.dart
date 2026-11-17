@@ -609,14 +609,17 @@ class _UstaRegisterFormState extends ConsumerState<UstaRegisterForm> {
                         children: [
                           Icon(hasVergiNo ? Icons.verified_rounded : Icons.check_circle_outline_rounded, size: 20),
                           const SizedBox(width: 8),
-                          Text(
-                            hasVergiNo
-                                ? 'Onaylı Usta Olarak Kaydol & Başla'
-                                : 'Usta Olarak Kayıt Ol ve Paneli Aç',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.2,
+                          Flexible(
+                            child: Text(
+                              hasVergiNo
+                                  ? 'Onaylı Usta Olarak Kaydol'
+                                  : 'Usta Olarak Kayıt Ol',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.2,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 6),

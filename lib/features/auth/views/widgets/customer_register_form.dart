@@ -448,12 +448,15 @@ class _CustomerRegisterFormState extends ConsumerState<CustomerRegisterForm> {
                         children: [
                           Icon(Icons.check_circle_outline_rounded, size: 20),
                           SizedBox(width: 8),
-                          Text(
-                            'Müşteri Hesabı Oluştur ve Devam Et',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.2,
+                          Flexible(
+                            child: Text(
+                              'Müşteri Hesabı Oluştur',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.2,
+                              ),
                             ),
                           ),
                           SizedBox(width: 6),
