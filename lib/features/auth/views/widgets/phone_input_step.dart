@@ -137,12 +137,12 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                 constraints: const BoxConstraints(maxWidth: 480),
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // ===============================================================
-                      // 1. ÜST BAR (Sağ: Yönetici Paneli + Nasıl Giriş Yapılır?)
+                      // 1. ÜST BAR (Mavi Çizginin Olduğu Tepe Noktaya Taşındı)
                       // ===============================================================
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
@@ -162,7 +162,7 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                             onTap: _showHelpModal,
                             borderRadius: BorderRadius.circular(10),
                             child: const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -185,7 +185,7 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                         ],
                       ),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 6),
 
                       // ===============================================================
                       // 2. KAYIT MODUNDA İSE GERİ DÖNÜŞ BAŞLIĞI
@@ -206,7 +206,7 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 8),
                       ],
 
                       // ===============================================================
@@ -224,62 +224,65 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                         ),
                       ] else ...[
                         // =============================================================
-                        // 1. GÖRSELDEKİ HERO ALANI (Logo + Başlık + 3D Baret ve Harita Grafiği)
+                        // KIRMIZI ALANDA ORTALANMIŞ VE BÜYÜTÜLMÜŞ LOGO
                         // =============================================================
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4, bottom: 8),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              // Sol: Kırmızı işaretli alana indirilen Logo + Animasyonlu Başlık ve Açıklama
-                              Expanded(
-                                flex: 5,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // İndirilen Logo
-                                    Image.asset(
-                                      'assets/images/app_logo.png',
-                                      height: 38,
-                                      fit: BoxFit.contain,
-                                    ),
-                                    const SizedBox(height: 12),
-                                    // Animasyonlu Başlık (Işık geçişi ve yumuşak nabız efekti)
-                                    const _AnimatedHeroTitle(),
-                                    const SizedBox(height: 8),
-                                    const Text(
-                                      'Profesyonel ustalarla\nhızlı ve güvenli hizmet.',
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        height: 1.35,
-                                        fontWeight: FontWeight.w500,
-                                        color: Color(0xFF64748B),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              const SizedBox(width: 6),
-
-                              // Sağ: 3D Baret, Pin ve Plan Görseli (Büyütülmüş Hareketsiz Görsel)
-                              Expanded(
-                                flex: 6,
-                                child: Transform.scale(
-                                  scale: 1.15,
-                                  alignment: Alignment.centerRight,
-                                  child: Image.asset(
-                                    'assets/images/hero_worker_hd.png',
-                                    height: 175,
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
-                              ),
-                            ],
+                        Center(
+                          child: Image.asset(
+                            'assets/images/app_logo.png',
+                            height: 48,
+                            fit: BoxFit.contain,
                           ),
                         ),
 
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 8),
+
+                        // =============================================================
+                        // HERO ALANI (Sol: Animasyonlu Başlık + Sağ: 3D Baret ve Harita)
+                        // =============================================================
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Sol: Animasyonlu Başlık ve Açıklama
+                            const Expanded(
+                              flex: 5,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Animasyonlu Başlık (Işık geçişi ve yumuşak nabız efekti)
+                                  _AnimatedHeroTitle(),
+                                  SizedBox(height: 6),
+                                  Text(
+                                    'Profesyonel ustalarla\nhızlı ve güvenli hizmet.',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      height: 1.35,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(width: 6),
+
+                            // Sağ: 3D Baret, Pin ve Plan Görseli (Büyütülmüş Hareketsiz Görsel)
+                            Expanded(
+                              flex: 6,
+                              child: Transform.scale(
+                                scale: 1.15,
+                                alignment: Alignment.centerRight,
+                                child: Image.asset(
+                                  'assets/images/hero_worker_hd.png',
+                                  height: 165,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 10),
 
                         // =============================================================
                         // 1. GÖRSELDEKİ MÜŞTERİ KAYDI BUTONU
