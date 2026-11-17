@@ -407,54 +407,6 @@ class _UstaRegisterFormState extends ConsumerState<UstaRegisterForm> {
             ),
             const SizedBox(height: 14),
 
-            // 6. FİNANSAL BİLGİLER (Taban Ücret + IBAN)
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildFieldLabel('Taban Servis Ücreti (₺) *'),
-                      TextFormField(
-                        controller: _baseFeeController,
-                        keyboardType: TextInputType.number,
-                        textInputAction: TextInputAction.next,
-                        decoration: _buildInputDecoration(
-                          hint: '750',
-                          prefixIcon: Icons.payments_outlined,
-                        ),
-                        validator: (v) {
-                          final fee = double.tryParse(v ?? '');
-                          if (fee == null || fee <= 0) return 'Geçerli ücret girin';
-                          return null;
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildFieldLabel('Hakediş IBAN (TR...)'),
-                      TextFormField(
-                        controller: _ibanController,
-                        textInputAction: TextInputAction.done,
-                        decoration: _buildInputDecoration(
-                          hint: 'TR00 0000 0000...',
-                          prefixIcon: Icons.credit_card_rounded,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
             // MYK Sertifikası Checkbox
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
