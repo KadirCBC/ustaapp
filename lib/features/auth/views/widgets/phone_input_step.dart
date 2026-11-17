@@ -226,65 +226,77 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                         ),
                       ] else ...[
                         // =============================================================
-                        // HERO ALANI (Sol: Logo + Başlık | Sağ: Kırmızı Alana Taşınan 3D Görsel)
+                        // HERO ALANI (Katmanlı Yapı: 3D Görsel Altta, Logo ve Başlık Üstte)
                         // =============================================================
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Stack(
+                          clipBehavior: Clip.none,
                           children: [
-                            // Sol: Logo + Animasyonlu Başlık ve Açıklama
-                            Expanded(
-                              flex: 4,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Sola dayalı belirgin büyük logo
-                                  SizedBox(
-                                    height: 72,
-                                    child: OverflowBox(
-                                      alignment: Alignment.centerLeft,
-                                      maxWidth: 340,
-                                      maxHeight: 72,
+                            // 1. KATMAN (Alt Katman): 3D Baret ve Konum Grafiği
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Expanded(flex: 4, child: SizedBox()),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  flex: 7,
+                                  child: Transform.translate(
+                                    offset: const Offset(20, -18),
+                                    child: Transform.scale(
+                                      scale: 1.30,
+                                      alignment: Alignment.centerRight,
                                       child: Image.asset(
-                                        'assets/images/app_logo.png',
-                                        height: 72,
+                                        'assets/images/hero_worker_hd.png',
+                                        height: 185,
                                         fit: BoxFit.contain,
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 10),
-                                  // Animasyonlu Başlık (Işık geçişi ve yumuşak nabız efekti)
-                                  const _AnimatedHeroTitle(),
-                                  const SizedBox(height: 6),
-                                  const Text(
-                                    'Profesyonel ustalarla\nhızlı ve güvenli hizmet.',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      height: 1.35,
-                                      fontWeight: FontWeight.w500,
-                                      color: Color(0xFF64748B),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
 
-                            const SizedBox(width: 4),
-
-                            // Sağ: 3D Baret, Pin ve Plan Görseli (Sağa ve Üste Doğru Kaydırıldı)
-                            Expanded(
-                              flex: 7,
-                              child: Transform.translate(
-                                offset: const Offset(20, -18),
-                                child: Transform.scale(
-                                  scale: 1.30,
-                                  alignment: Alignment.centerRight,
-                                  child: Image.asset(
-                                    'assets/images/hero_worker_hd.png',
-                                    height: 185,
-                                    fit: BoxFit.contain,
+                            // 2. KATMAN (Üst Katman): Logo + Başlık + Açıklama
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  flex: 4,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // Sola dayalı büyük logo (Görselin ÜSTÜNDE yer alır)
+                                      SizedBox(
+                                        height: 72,
+                                        child: OverflowBox(
+                                          alignment: Alignment.centerLeft,
+                                          maxWidth: 340,
+                                          maxHeight: 72,
+                                          child: Image.asset(
+                                            'assets/images/app_logo.png',
+                                            height: 72,
+                                            fit: BoxFit.contain,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      // Animasyonlu Başlık (Işık geçişi ve yumuşak nabız efekti)
+                                      const _AnimatedHeroTitle(),
+                                      const SizedBox(height: 6),
+                                      const Text(
+                                        'Profesyonel ustalarla\nhızlı ve güvenli hizmet.',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          height: 1.35,
+                                          fontWeight: FontWeight.w500,
+                                          color: Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
+                                const SizedBox(width: 4),
+                                const Expanded(flex: 7, child: SizedBox()),
+                              ],
                             ),
                           ],
                         ),
