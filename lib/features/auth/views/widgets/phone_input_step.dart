@@ -174,9 +174,9 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
                         ),
                         const SizedBox(height: 7),
 
-                        // 3. Sırayla Değişen Canlı Hizmet Kategorisi ve Varış Rozeti
+                        // 3. Sırayla Değişen Canlı Hizmet Kategorisi Rozeti
                         SizedBox(
-                          height: 32,
+                          height: 36,
                           child: AnimatedSwitcher(
                             duration: const Duration(milliseconds: 350),
                             transitionBuilder: (Widget child, Animation<double> animation) {
@@ -190,64 +190,54 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
                                 child: SlideTransition(position: offsetAnim, child: child),
                               );
                             },
-                            child: Row(
+                            child: Container(
                               key: ValueKey<int>(_currentCategoryIndex),
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: _serviceCategories[_currentCategoryIndex]['bgColor'] as Color,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: (_serviceCategories[_currentCategoryIndex]['color'] as Color).withValues(alpha: 0.35),
-                                      width: 1,
+                              padding: const EdgeInsets.fromLTRB(6, 4, 14, 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(
+                                  color: (_serviceCategories[_currentCategoryIndex]['color'] as Color).withValues(alpha: 0.28),
+                                  width: 1.2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: (_serviceCategories[_currentCategoryIndex]['color'] as Color).withValues(alpha: 0.10),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Yuvarlak İkon Baloncuğu
+                                  Container(
+                                    width: 26,
+                                    height: 26,
+                                    decoration: BoxDecoration(
+                                      color: _serviceCategories[_currentCategoryIndex]['bgColor'] as Color,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      _serviceCategories[_currentCategoryIndex]['icon'] as String,
+                                      style: const TextStyle(fontSize: 13),
                                     ),
                                   ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        _serviceCategories[_currentCategoryIndex]['icon'] as String,
-                                        style: const TextStyle(fontSize: 13),
-                                      ),
-                                      const SizedBox(width: 5),
-                                      Text(
-                                        _serviceCategories[_currentCategoryIndex]['title'] as String,
-                                        style: TextStyle(
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: _serviceCategories[_currentCategoryIndex]['color'] as Color,
-                                          letterSpacing: 0.2,
-                                        ),
-                                      ),
-                                    ],
+                                  const SizedBox(width: 8),
+                                  // Kategori Başlığı
+                                  Text(
+                                    _serviceCategories[_currentCategoryIndex]['title'] as String,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: _serviceCategories[_currentCategoryIndex]['color'] as Color,
+                                      letterSpacing: 0.2,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF1F5F9),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.timer_outlined, size: 12.5, color: Color(0xFF059669)),
-                                      SizedBox(width: 4),
-                                      Text(
-                                        '15 Dk Varış',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF059669),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
