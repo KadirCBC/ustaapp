@@ -142,57 +142,45 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // ===============================================================
-                      // 1. ÜST BAR (Logo + Nasıl Giriş Yapılır?)
+                      // 1. ÜST BAR (Sağ: Yönetici Paneli + Nasıl Giriş Yapılır?)
                       // ===============================================================
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          Flexible(
-                            child: Image.asset(
-                              'assets/images/app_logo.png',
-                              height: 38,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (kIsWeb)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 6),
-                                  child: IconButton(
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    onPressed: () => context.go('/admin'),
-                                    icon: const Icon(Icons.admin_panel_settings_outlined, size: 18, color: Color(0xFF94A3B8)),
-                                    tooltip: 'Yönetici Paneli',
-                                  ),
-                                ),
-                              InkWell(
-                                onTap: _showHelpModal,
-                                borderRadius: BorderRadius.circular(10),
-                                child: const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.headset_mic_outlined, size: 15, color: Color(0xFF64748B)),
-                                      SizedBox(width: 4),
-                                      Text(
-                                        'Nasıl Giriş Yapılır?',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF64748B),
-                                        ),
-                                      ),
-                                      SizedBox(width: 2),
-                                      Icon(Icons.chevron_right_rounded, size: 15, color: Color(0xFF64748B)),
-                                    ],
-                                  ),
-                                ),
+                          if (kIsWeb)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () => context.go('/admin'),
+                                icon: const Icon(Icons.admin_panel_settings_outlined, size: 18, color: Color(0xFF94A3B8)),
+                                tooltip: 'Yönetici Paneli',
                               ),
-                            ],
+                            ),
+                          InkWell(
+                            onTap: _showHelpModal,
+                            borderRadius: BorderRadius.circular(10),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.headset_mic_outlined, size: 15, color: Color(0xFF64748B)),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Nasıl Giriş Yapılır?',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                  SizedBox(width: 2),
+                                  Icon(Icons.chevron_right_rounded, size: 15, color: Color(0xFF64748B)),
+                                ],
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -236,31 +224,30 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                         ),
                       ] else ...[
                         // =============================================================
-                        // 1. GÖRSELDEKİ HERO ALANI (Başlık + 3D Baret ve Harita Grafiği)
+                        // 1. GÖRSELDEKİ HERO ALANI (Logo + Başlık + 3D Baret ve Harita Grafiği)
                         // =============================================================
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          padding: const EdgeInsets.only(top: 4, bottom: 8),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              // Sol: Başlık ve Açıklama
-                              const Expanded(
-                                flex: 4,
+                              // Sol: Kırmızı işaretli alana indirilen Logo + Animasyonlu Başlık ve Açıklama
+                              Expanded(
+                                flex: 5,
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      'En Yakın Usta\nKapında!',
-                                      style: TextStyle(
-                                        fontSize: 23,
-                                        fontWeight: FontWeight.w900,
-                                        height: 1.15,
-                                        letterSpacing: -0.5,
-                                        color: Color(0xFF0F172A),
-                                      ),
+                                    // İndirilen Logo
+                                    Image.asset(
+                                      'assets/images/app_logo.png',
+                                      height: 38,
+                                      fit: BoxFit.contain,
                                     ),
-                                    SizedBox(height: 8),
-                                    Text(
+                                    const SizedBox(height: 12),
+                                    // Animasyonlu Başlık (Işık geçişi ve yumuşak nabız efekti)
+                                    const _AnimatedHeroTitle(),
+                                    const SizedBox(height: 8),
+                                    const Text(
                                       'Profesyonel ustalarla\nhızlı ve güvenli hizmet.',
                                       style: TextStyle(
                                         fontSize: 12.5,
@@ -273,11 +260,11 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                                 ),
                               ),
 
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 6),
 
                               // Sağ: 3D Baret, Pin ve Plan Görseli (Büyütülmüş Hareketsiz Görsel)
                               Expanded(
-                                flex: 7,
+                                flex: 6,
                                 child: Transform.scale(
                                   scale: 1.15,
                                   alignment: Alignment.centerRight,
@@ -826,3 +813,87 @@ class _BackgroundWavesPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+/// Canlı ve modern parıltı & yumuşak nabız animasyonuna sahip hero başlığı
+class _AnimatedHeroTitle extends StatefulWidget {
+  const _AnimatedHeroTitle();
+
+  @override
+  State<_AnimatedHeroTitle> createState() => _AnimatedHeroTitleState();
+}
+
+class _AnimatedHeroTitleState extends State<_AnimatedHeroTitle>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2800),
+    )..repeat();
+
+    _scaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 1.03)
+            .chain(CurveTween(curve: Curves.easeInOutSine)),
+        weight: 50,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.03, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeInOutSine)),
+        weight: 50,
+      ),
+    ]).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final progress = _controller.value;
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          alignment: Alignment.centerLeft,
+          child: ShaderMask(
+            blendMode: BlendMode.srcIn,
+            shaderCallback: (bounds) {
+              return LinearGradient(
+                begin: Alignment(-2.2 + progress * 4.4, -0.6),
+                end: Alignment(-0.6 + progress * 4.4, 0.6),
+                colors: const [
+                  Color(0xFF0F172A), // Lacivert ana renk
+                  Color(0xFFEA580C), // Canlı turuncu ışıltı
+                  Color(0xFFF97316), // Parlak amber vurgu
+                  Color(0xFF0F172A), // Lacivert ana renk
+                ],
+                stops: const [0.0, 0.45, 0.55, 1.0],
+              ).createShader(bounds);
+            },
+            child: child,
+          ),
+        );
+      },
+      child: const Text(
+        'En Yakın Usta\nKapında!',
+        style: TextStyle(
+          fontSize: 23,
+          fontWeight: FontWeight.w900,
+          height: 1.15,
+          letterSpacing: -0.5,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
