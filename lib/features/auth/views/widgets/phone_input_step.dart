@@ -8,6 +8,14 @@ import 'package:ustaapp/core/constants/app_constants.dart';
 import 'package:ustaapp/core/utils/phone_formatter.dart';
 import 'package:ustaapp/features/auth/controllers/auth_controller.dart';
 import 'package:ustaapp/features/auth/models/user_role.dart';
+import 'package:ustaapp/features/auth/views/widgets/customer_register_form.dart';
+import 'package:ustaapp/features/auth/views/widgets/usta_register_form.dart';
+
+enum AuthScreenTab {
+  login,
+  customerRegister,
+  ustaRegister,
+}
 
 class PhoneInputStep extends ConsumerStatefulWidget {
   const PhoneInputStep({super.key});
@@ -22,6 +30,7 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
   late final AnimationController _pulseController;
   final _maskFormatter = PhoneFormatter.trPhoneMask;
   bool _isFocused = false;
+  AuthScreenTab _currentTab = AuthScreenTab.login;
 
   @override
   void initState() {
@@ -284,7 +293,7 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
               const SizedBox(height: 18),
 
               // ===============================================================
-              // 2. SEGMENTED ROL SEÇİCİ (Müşteriyim | Ustayım)
+              // 2. SEGMENTED TAB SEÇİCİ (Giriş Yap | Müşteri Kaydı | Usta Kaydı)
               // ===============================================================
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -293,32 +302,46 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
                     Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE2E8F0).withValues(alpha: 0.75),
+                        color: const Color(0xFFE2E8F0).withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
                         children: [
                           Expanded(
                             child: _RoleSegmentTab(
-                              label: 'Müşteriyim',
-                              icon: Icons.person_search_rounded,
-                              isSelected: !isUsta,
-                              activeColor: const Color(0xFF1E3A8A),
+                              label: 'Giriş Yap',
+                              icon: Icons.login_rounded,
+                              isSelected: _currentTab == AuthScreenTab.login,
+                              activeColor: const Color(0xFF0F172A),
                               onTap: () {
                                 HapticFeedback.selectionClick();
-                                controller.selectRole(UserRole.musteri);
+                                setState(() => _currentTab = AuthScreenTab.login);
                               },
                             ),
                           ),
                           Expanded(
                             child: _RoleSegmentTab(
-                              label: 'Ustayım',
+                              label: 'Müşteri Kaydı',
+                              icon: Icons.person_add_alt_1_rounded,
+                              isSelected: _currentTab == AuthScreenTab.customerRegister,
+                              activeColor: const Color(0xFF1E3A8A),
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                controller.selectRole(UserRole.musteri);
+                                setState(() => _currentTab = AuthScreenTab.customerRegister);
+                              },
+                            ),
+                          ),
+                          Expanded(
+                            child: _RoleSegmentTab(
+                              label: 'Usta Kaydı',
                               icon: Icons.handyman_rounded,
-                              isSelected: isUsta,
+                              isSelected: _currentTab == AuthScreenTab.ustaRegister,
                               activeColor: const Color(0xFFEA580C),
                               onTap: () {
                                 HapticFeedback.selectionClick();
                                 controller.selectRole(UserRole.usta);
+                                setState(() => _currentTab = AuthScreenTab.ustaRegister);
                               },
                             ),
                           ),
@@ -329,10 +352,12 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 200),
                       child: Text(
-                        isUsta
-                            ? 'Çevrendeki acil işleri gör, taban ücretini belirle ve kazan'
-                            : 'Tesisat, elektrik, çilingir ve tadilat için anında usta çağır',
-                        key: ValueKey(isUsta),
+                        _currentTab == AuthScreenTab.login
+                            ? 'Mevcut hesabınıza SMS onay koduyla hızlı ve şifresiz giriş yapın'
+                            : (_currentTab == AuthScreenTab.customerRegister
+                                ? 'Müşteri hesabı açın; elektrik, tesisat, çilingir ustalarını anında çağırın'
+                                : 'Usta ve esnaf olarak başvurun, bölgenizdeki çağrılarla kazancınızı artırın'),
+                        key: ValueKey(_currentTab),
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 12.5,
@@ -348,11 +373,29 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
               const SizedBox(height: 16),
 
               // ===============================================================
-              // 3. ANA GİRİŞ KARTI
+              // 3. SEÇİLİ FORMA GÖRE GÖSTERİM (Giriş Yap | Müşteri Kaydı | Usta Kaydı)
               // ===============================================================
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
+              if (_currentTab == AuthScreenTab.customerRegister) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: CustomerRegisterForm(
+                    onSwitchToLogin: () => setState(() => _currentTab = AuthScreenTab.login),
+                    onSwitchToUsta: () => setState(() => _currentTab = AuthScreenTab.ustaRegister),
+                  ),
+                ),
+              ] else if (_currentTab == AuthScreenTab.ustaRegister) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: UstaRegisterForm(
+                    onSwitchToLogin: () => setState(() => _currentTab = AuthScreenTab.login),
+                    onSwitchToCustomer: () => setState(() => _currentTab = AuthScreenTab.customerRegister),
+                  ),
+                ),
+              ] else ...[
+                // Ana Giriş Kartı
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -793,10 +836,67 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
                           ),
                         ),
                       ),
+                      const SizedBox(height: 14),
+
+                      // Yeni Müşteri / Usta Kaydı Yönlendirmeleri
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                HapticFeedback.selectionClick();
+                                controller.selectRole(UserRole.musteri);
+                                setState(() => _currentTab = AuthScreenTab.customerRegister);
+                              },
+                              icon: const Icon(Icons.person_add_alt_1_rounded, size: 15, color: Color(0xFF1E3A8A)),
+                              label: const Text(
+                                'Müşteri Kaydı',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1E3A8A),
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFFBFDBFE)),
+                                backgroundColor: const Color(0xFFEFF6FF),
+                                padding: const EdgeInsets.symmetric(vertical: 9),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                HapticFeedback.selectionClick();
+                                controller.selectRole(UserRole.usta);
+                                setState(() => _currentTab = AuthScreenTab.ustaRegister);
+                              },
+                              icon: const Icon(Icons.handyman_rounded, size: 15, color: Color(0xFFEA580C)),
+                              label: const Text(
+                                'Usta Kaydı',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFEA580C),
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFFFED7AA)),
+                                backgroundColor: const Color(0xFFFFF7ED),
+                                padding: const EdgeInsets.symmetric(vertical: 9),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
               ),
+            ],
 
               const SizedBox(height: 22),
 
@@ -996,7 +1096,7 @@ class _RoleSegmentTab extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(vertical: 11),
+        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
@@ -1012,19 +1112,23 @@ class _RoleSegmentTab extends StatelessWidget {
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              size: 18,
+              size: 16,
               color: isSelected ? activeColor : const Color(0xFF64748B),
             ),
-            const SizedBox(width: 7),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                ),
               ),
             ),
           ],

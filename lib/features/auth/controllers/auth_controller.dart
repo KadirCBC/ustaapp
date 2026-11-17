@@ -313,6 +313,156 @@ class PhoneAuthController extends StateNotifier<PhoneAuthState> {
     return true;
   }
 
+  /// Profesyonel Müşteri Kaydı
+  Future<bool> registerCustomer({
+    required String phone,
+    required String firstName,
+    required String lastName,
+    String? email,
+    required String cityDistrict,
+    required String address,
+    String? addressTitle,
+    String? addressNotes,
+  }) async {
+    final cleanPhone = PhoneFormatter.clean(phone);
+    if (cleanPhone.length < 10) {
+      state = state.copyWith(
+        errorMessage: 'Lütfen 10 haneli geçerli bir cep telefonu numarası giriniz.',
+      );
+      return false;
+    }
+    if (firstName.trim().isEmpty || lastName.trim().isEmpty) {
+      state = state.copyWith(
+        errorMessage: 'Lütfen adınızı ve soyadınızı eksiksiz giriniz.',
+      );
+      return false;
+    }
+    if (address.trim().isEmpty) {
+      state = state.copyWith(
+        errorMessage: 'Lütfen hizmet alacağınız açık adresi belirtiniz.',
+      );
+      return false;
+    }
+
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    try {
+      await _appDataService.registerCustomer(
+        phone: cleanPhone,
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        cityDistrict: cityDistrict,
+        address: address,
+        addressTitle: addressTitle,
+        addressNotes: addressNotes,
+      );
+
+      final fullName = '${firstName.trim()} ${lastName.trim()}';
+      _authNotifier.setAuthenticatedSession(
+        role: UserRole.musteri,
+        phone: cleanPhone,
+        fullName: fullName,
+      );
+
+      state = state.copyWith(
+        isLoading: false,
+        step: AuthStep.completed,
+        selectedRole: UserRole.musteri,
+        fullName: fullName,
+        formattedPhone: cleanPhone,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('registerCustomer hatası: $e');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Kayıt sırasında hata oluştu: $e',
+      );
+      return false;
+    }
+  }
+
+  /// Profesyonel Usta Kaydı (Vergi no, Uzmanlık, Adres vb.)
+  Future<bool> registerUsta({
+    required String phone,
+    required String firstName,
+    required String lastName,
+    String? email,
+    required String category,
+    required String cityDistrict,
+    required String address,
+    String? vergiNo,
+    int experienceYears = 5,
+    bool hasMykCertificate = false,
+    String? iban,
+    double baseServiceFee = 750.0,
+    double workRadiusKm = 15.0,
+  }) async {
+    final cleanPhone = PhoneFormatter.clean(phone);
+    if (cleanPhone.length < 10) {
+      state = state.copyWith(
+        errorMessage: 'Lütfen 10 haneli geçerli bir cep telefonu numarası giriniz.',
+      );
+      return false;
+    }
+    if (firstName.trim().isEmpty || lastName.trim().isEmpty) {
+      state = state.copyWith(
+        errorMessage: 'Lütfen adınızı ve soyadınızı eksiksiz giriniz.',
+      );
+      return false;
+    }
+    if (address.trim().isEmpty) {
+      state = state.copyWith(
+        errorMessage: 'Lütfen dükkan / çalışma adresinizi belirtiniz.',
+      );
+      return false;
+    }
+
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    try {
+      await _appDataService.registerUsta(
+        phone: cleanPhone,
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        category: category,
+        cityDistrict: cityDistrict,
+        address: address,
+        vergiNo: vergiNo,
+        experienceYears: experienceYears,
+        hasMykCertificate: hasMykCertificate,
+        iban: iban,
+        baseServiceFee: baseServiceFee,
+        workRadiusKm: workRadiusKm,
+      );
+
+      final fullName = '${firstName.trim()} ${lastName.trim()}';
+      _authNotifier.setAuthenticatedSession(
+        role: UserRole.usta,
+        phone: cleanPhone,
+        fullName: fullName,
+      );
+
+      state = state.copyWith(
+        isLoading: false,
+        step: AuthStep.completed,
+        selectedRole: UserRole.usta,
+        fullName: fullName,
+        formattedPhone: cleanPhone,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('registerUsta hatası: $e');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Usta kaydı sırasında hata oluştu: $e',
+      );
+      return false;
+    }
+  }
+
   /// Hızlı demo testi için rol seçip doğrudan giriş yap
   void directDemoLogin(UserRole role, {String fullName = 'Demo Kullanıcı', String phone = '5524342069'}) {
     _appDataService.registerOrUpdateUser(

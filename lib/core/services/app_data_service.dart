@@ -1270,6 +1270,208 @@ class AppDataService {
     );
   }
 
+  /// Profesyonel Müşteri Kaydı (Ad, Soyad, Telefon, E-posta, Adres vb.)
+  Future<void> registerCustomer({
+    required String phone,
+    required String firstName,
+    required String lastName,
+    String? email,
+    required String cityDistrict,
+    required String address,
+    String? addressTitle,
+    String? addressNotes,
+  }) async {
+    final norm = normalizePhone(phone);
+    final fullName = '${firstName.trim()} ${lastName.trim()}'.trim();
+
+    final profile = {
+      'phone': norm,
+      'first_name': firstName.trim(),
+      'last_name': lastName.trim(),
+      'full_name': fullName,
+      'email': email?.trim() ?? '',
+      'city_district': cityDistrict.trim(),
+      'address': address.trim(),
+      'address_title': addressTitle ?? 'Ev',
+      'address_notes': addressNotes?.trim() ?? '',
+      'role': 'musteri',
+      'registered_at': DateTime.now().toIso8601String(),
+    };
+
+    await getRegisteredUsers();
+    _cachedRegisteredUsers![norm] = profile;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kRegisteredUsersKey, jsonEncode(_cachedRegisteredUsers));
+    } catch (e) {
+      debugPrint('Müşteri kaydedilirken hata: $e');
+    }
+
+    final members = await getMembers();
+    final idx = members.indexWhere((m) => normalizePhone((m['phone'] ?? '').toString()) == norm);
+    if (idx >= 0) {
+      members[idx] = {
+        ...members[idx],
+        ...profile,
+        'name': fullName,
+      };
+    } else {
+      members.add({
+        'id': 'mem-${DateTime.now().millisecondsSinceEpoch}',
+        ...profile,
+        'name': fullName,
+      });
+    }
+    await saveMembers(members);
+
+    await saveActiveSession(
+      phone: norm,
+      fullName: fullName,
+      role: 'musteri',
+      extra: profile,
+    );
+  }
+
+  /// Profesyonel Usta Kaydı (Ad, Soyad, Vergi No, Adres, Telefon vb.)
+  Future<void> registerUsta({
+    required String phone,
+    required String firstName,
+    required String lastName,
+    String? email,
+    required String category,
+    required String cityDistrict,
+    required String address,
+    String? vergiNo,
+    int experienceYears = 5,
+    bool hasMykCertificate = false,
+    String? iban,
+    double baseServiceFee = 750.0,
+    double workRadiusKm = 15.0,
+  }) async {
+    final norm = normalizePhone(phone);
+    final fullName = '${firstName.trim()} ${lastName.trim()}'.trim();
+    final bool isOnayli = vergiNo != null && vergiNo.trim().isNotEmpty;
+
+    final guvenceler = <String>[
+      '30 Gün İşçilik Garantisi',
+      'Sabit Fiyat Güvencesi',
+      if (hasMykCertificate) 'MYK Belgeli',
+      if (isOnayli) 'Vergi Levhalı Onaylı Usta',
+    ];
+
+    final profile = {
+      'phone': norm,
+      'first_name': firstName.trim(),
+      'last_name': lastName.trim(),
+      'full_name': fullName,
+      'email': email?.trim() ?? '',
+      'category': category.trim(),
+      'city_district': cityDistrict.trim(),
+      'address': address.trim(),
+      'vergi_no': vergiNo?.trim() ?? '',
+      'is_onayli': isOnayli,
+      'experience_years': experienceYears,
+      'has_myk': hasMykCertificate,
+      'iban': iban?.trim() ?? '',
+      'base_service_fee': baseServiceFee,
+      'work_radius_km': workRadiusKm,
+      'role': 'usta',
+      'registered_at': DateTime.now().toIso8601String(),
+    };
+
+    await getRegisteredUsers();
+    _cachedRegisteredUsers![norm] = profile;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kRegisteredUsersKey, jsonEncode(_cachedRegisteredUsers));
+    } catch (e) {
+      debugPrint('Usta kaydedilirken hata: $e');
+    }
+
+    final members = await getMembers();
+    final idx = members.indexWhere((m) => normalizePhone((m['phone'] ?? '').toString()) == norm);
+    if (idx >= 0) {
+      members[idx] = {
+        ...members[idx],
+        ...profile,
+        'name': fullName,
+      };
+    } else {
+      members.add({
+        'id': 'mem-${DateTime.now().millisecondsSinceEpoch}',
+        ...profile,
+        'name': fullName,
+      });
+    }
+    await saveMembers(members);
+
+    // Koordinat çözümleme (Şehir/İlçe bazlı harita pini)
+    double resolvedLat = 38.4647;
+    double resolvedLng = 30.2719;
+    final syncMatch = LocationLookupService.resolveSync(cityDistrict);
+    if (syncMatch != null) {
+      resolvedLat = syncMatch.lat;
+      resolvedLng = syncMatch.lng;
+    }
+
+    final ustalar = await getUstalar();
+    final uIdx = ustalar.indexWhere((u) => normalizePhone(u.phone) == norm);
+    final ustaId = uIdx >= 0 ? ustalar[uIdx].ustaId : 'usta-${DateTime.now().millisecondsSinceEpoch}';
+
+    final ustaModel = NearbyUstaModel(
+      ustaId: ustaId,
+      fullName: fullName,
+      phone: norm,
+      kategori: category.toLowerCase().contains('elektrik')
+          ? 'elektrik'
+          : (category.toLowerCase().contains('tesisat')
+              ? 'tesisat'
+              : (category.toLowerCase().contains('çilingir') ? 'cilingir' : 'genel')),
+      puan: 5.0,
+      tamamlananIsSayisi: 0,
+      latitude: resolvedLat,
+      longitude: resolvedLng,
+      mesafeMetre: 500,
+      ustaHakedis: baseServiceFee,
+      komisyonOrani: 0.15,
+      komisyonTutari: baseServiceFee * 0.15,
+      toplamTutar: baseServiceFee * 1.15,
+      servisUcreti: baseServiceFee,
+      deneyimYili: experienceYears,
+      uzmanlikBasligi: '$cityDistrict • ${isOnayli ? '⭐ Onaylı Usta' : 'Uzman Usta'}',
+      guvenceler: guvenceler,
+      ilanlar: [
+        UstaHizmetIlan(
+          id: 'hz-1',
+          baslik: '$category Hizmeti',
+          aciklama: 'Yerinde arıza tespiti, malzeme kontrolü ve profesyonel müdahale.',
+          fiyat: baseServiceFee,
+          tahminiSure: '30 dk',
+          isDefault: true,
+          konum: cityDistrict,
+          lat: resolvedLat,
+          lng: resolvedLng,
+        ),
+      ],
+    );
+
+    if (uIdx >= 0) {
+      ustalar[uIdx] = ustaModel;
+    } else {
+      ustalar.add(ustaModel);
+    }
+    await saveUstalar(ustalar);
+
+    await saveActiveSession(
+      phone: norm,
+      fullName: fullName,
+      role: 'usta',
+      extra: profile,
+    );
+  }
+
   /// Aktif oturumu getirir (Cihaz/Tarayıcı yenilenince girişin korunması için)
   Future<Map<String, dynamic>?> getActiveSession() async {
     if (_cachedActiveSession != null) return Map.from(_cachedActiveSession!);
