@@ -275,12 +275,12 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
 
                               const SizedBox(width: 8),
 
-                              // Sağ: 3D Baret, Pin ve Plan Görseli (Hareketsiz / Statik)
+                              // Sağ: 3D Baret, Pin ve Plan Görseli (Hareketsiz / Statik 2. Görsel)
                               Expanded(
-                                flex: 5,
+                                flex: 6,
                                 child: Image.asset(
-                                  'assets/images/hero_3d_worker.png',
-                                  height: 135,
+                                  'assets/images/hero_worker_hd.png',
+                                  height: 140,
                                   fit: BoxFit.contain,
                                 ),
                               ),
