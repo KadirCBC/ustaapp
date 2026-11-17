@@ -264,16 +264,16 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      // Sola dayalı logo (Görselin ÜSTÜNDE yer alır - 66px)
+                                      // Sola dayalı logo (Görselin ÜSTÜNDE yer alır - 52px)
                                       SizedBox(
-                                        height: 66,
+                                        height: 52,
                                         child: OverflowBox(
                                           alignment: Alignment.centerLeft,
                                           maxWidth: 340,
-                                          maxHeight: 66,
+                                          maxHeight: 52,
                                           child: Image.asset(
                                             'assets/images/app_logo.png',
-                                            height: 66,
+                                            height: 52,
                                             fit: BoxFit.contain,
                                           ),
                                         ),
