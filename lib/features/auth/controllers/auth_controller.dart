@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
+import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/core/utils/phone_formatter.dart';
 import 'package:ustaapp/features/auth/models/user_role.dart';
@@ -69,15 +70,17 @@ final phoneAuthControllerProvider =
     StateNotifierProvider.autoDispose<PhoneAuthController, PhoneAuthState>((ref) {
   final supabaseService = ref.watch(supabaseServiceProvider);
   final authNotifier = ref.watch(authStateProvider.notifier);
-  return PhoneAuthController(supabaseService, authNotifier);
+  final appDataService = ref.watch(appDataServiceProvider);
+  return PhoneAuthController(supabaseService, authNotifier, appDataService);
 });
 
 class PhoneAuthController extends StateNotifier<PhoneAuthState> {
   final SupabaseService _supabaseService;
   final AuthNotifier _authNotifier;
+  final AppDataService _appDataService;
   Timer? _countdownTimer;
 
-  PhoneAuthController(this._supabaseService, this._authNotifier)
+  PhoneAuthController(this._supabaseService, this._authNotifier, this._appDataService)
       : super(const PhoneAuthState());
 
   void setPhone(String rawInput) {
@@ -125,6 +128,16 @@ class PhoneAuthController extends StateNotifier<PhoneAuthState> {
       e164Phone: e164,
     );
 
+    // Telefonun sistemde daha önce kayıtlı olup olmadığını kontrol et
+    final existingUser = await _appDataService.findUserByPhone(raw);
+    if (existingUser != null) {
+      final role = UserRole.fromDbValue(existingUser['role'] ?? 'musteri');
+      state = state.copyWith(
+        fullName: existingUser['full_name'] ?? '',
+        selectedRole: role,
+      );
+    }
+
     try {
       await _supabaseService.sendOtp(e164);
       _startResendTimer();
@@ -170,6 +183,27 @@ class PhoneAuthController extends StateNotifier<PhoneAuthState> {
 
     state = state.copyWith(isLoading: true, errorMessage: null);
 
+    // 1. Önce bu telefon numarasının daha önce kayıtlı bir Müşteri veya Usta hesabı var mı kontrol et!
+    final existingUser = await _appDataService.findUserByPhone(state.formattedPhone);
+    if (existingUser != null) {
+      final role = UserRole.fromDbValue(existingUser['role'] ?? 'musteri') ?? UserRole.musteri;
+      final name = (existingUser['full_name'] ?? '').toString();
+
+      debugPrint('>>> [PhoneAuthController] Kayıtlı kullanıcı bulundu: $name ($role), doğrudan giriş yapılıyor.');
+      _authNotifier.setAuthenticatedSession(
+        role: role,
+        phone: state.formattedPhone,
+        fullName: name,
+      );
+      state = state.copyWith(
+        isLoading: false,
+        step: AuthStep.completed,
+        selectedRole: role,
+        fullName: name,
+      );
+      return true;
+    }
+
     try {
       final response = await _supabaseService.verifyOtp(
         phone: state.e164Phone,
@@ -186,7 +220,7 @@ class PhoneAuthController extends StateNotifier<PhoneAuthState> {
 
       if (existingRole != null) {
         // Zaten kayıtlı usta veya müşteri, ana ekrana yönlendir
-        _authNotifier.setRole(existingRole);
+        _authNotifier.setRole(existingRole, phone: state.formattedPhone, fullName: state.fullName);
         state = state.copyWith(
           isLoading: false,
           step: AuthStep.completed,
@@ -243,51 +277,58 @@ class PhoneAuthController extends StateNotifier<PhoneAuthState> {
       return false;
     }
 
-    final currentUser = _supabaseService.currentUser;
-    if (currentUser == null) {
-      // Demo modunda doğrudan rolü kaydet ve tamamla
-      _authNotifier.setRole(state.selectedRole!);
-      state = state.copyWith(
-        isLoading: false,
-        step: AuthStep.completed,
-      );
-      return true;
-    }
-
     state = state.copyWith(isLoading: true, errorMessage: null);
 
-    try {
-      await _supabaseService.completeProfileAndRole(
-        userId: currentUser.id,
-        phone: state.e164Phone.isNotEmpty ? state.e164Phone : (currentUser.phone ?? ''),
-        role: state.selectedRole!,
-        fullName: state.fullName.trim(),
-      );
+    // Telefon numarasını ve kullanıcı profilini kalıcı olarak kaydet (Müşteri & Usta kayıt defteri)
+    await _appDataService.registerOrUpdateUser(
+      phone: state.formattedPhone,
+      fullName: state.fullName.trim(),
+      role: state.selectedRole!.toDbValue(),
+    );
 
-      _authNotifier.setRole(state.selectedRole!);
-      state = state.copyWith(
-        isLoading: false,
-        step: AuthStep.completed,
-      );
-      return true;
-    } catch (e) {
-      debugPrint('completeRegistration error: $e');
-      // Offline fallback
-      _authNotifier.setRole(state.selectedRole!);
-      state = state.copyWith(
-        isLoading: false,
-        step: AuthStep.completed,
-      );
-      return true;
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser != null) {
+      try {
+        await _supabaseService.completeProfileAndRole(
+          userId: currentUser.id,
+          phone: state.e164Phone.isNotEmpty ? state.e164Phone : (currentUser.phone ?? ''),
+          role: state.selectedRole!,
+          fullName: state.fullName.trim(),
+        );
+      } catch (dbErr) {
+        debugPrint('Supabase profile update opsiyonel hata: $dbErr');
+      }
     }
+
+    _authNotifier.setAuthenticatedSession(
+      role: state.selectedRole!,
+      phone: state.formattedPhone,
+      fullName: state.fullName.trim(),
+    );
+
+    state = state.copyWith(
+      isLoading: false,
+      step: AuthStep.completed,
+    );
+    return true;
   }
 
   /// Hızlı demo testi için rol seçip doğrudan giriş yap
-  void directDemoLogin(UserRole role, {String fullName = 'Demo Kullanıcı'}) {
-    _authNotifier.setDemoSession(role);
+  void directDemoLogin(UserRole role, {String fullName = 'Demo Kullanıcı', String phone = '5524342069'}) {
+    _appDataService.registerOrUpdateUser(
+      phone: phone,
+      fullName: fullName,
+      role: role.toDbValue(),
+    );
+    _authNotifier.setAuthenticatedSession(
+      role: role,
+      phone: phone,
+      fullName: fullName,
+    );
     state = state.copyWith(
       selectedRole: role,
       fullName: fullName,
+      formattedPhone: phone,
       step: AuthStep.completed,
     );
   }

@@ -31,6 +31,8 @@ class AppDataService {
   static const String _kMembersKey = 'app_shared_members';
   static const String _kPendingUstalarKey = 'app_shared_pending_ustalar';
   static const String _kFinancialTransactionsKey = 'app_shared_financial_transactions';
+  static const String _kActiveSessionKey = 'app_active_session';
+  static const String _kRegisteredUsersKey = 'app_registered_users';
 
   static const int _kSyncPort = 8090;
 
@@ -292,6 +294,8 @@ class AppDataService {
   List<Map<String, dynamic>>? _cachedPending;
   List<Map<String, dynamic>>? _cachedFinancialTransactions;
   List<Map<String, dynamic>>? _cachedCagrilar;
+  Map<String, dynamic>? _cachedActiveSession;
+  Map<String, Map<String, dynamic>>? _cachedRegisteredUsers;
 
   // ==========================================
   // 1. USTALAR & HARİTA VERİSİ (CRUD)
@@ -1051,6 +1055,274 @@ class AppDataService {
     }
     _changesStreamController.add(null);
     _postToSyncServer('/api/pending_ustalar', list);
+  }
+
+  // ==========================================
+  // 6.1 KULLANICI / ÜYE KAYITLARI & OTURUM KALICILIĞI (SESSION PERSISTENCE)
+  // ==========================================
+
+  static String normalizePhone(String raw) {
+    String digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('90') && digits.length == 12) {
+      digits = digits.substring(2);
+    } else if (digits.startsWith('0') && digits.length == 11) {
+      digits = digits.substring(1);
+    }
+    return digits;
+  }
+
+  /// Kayıtlı kullanıcıları getirir (telefon -> kullanıcı profili)
+  Future<Map<String, Map<String, dynamic>>> getRegisteredUsers() async {
+    if (_cachedRegisteredUsers != null) return Map.from(_cachedRegisteredUsers!);
+
+    _cachedRegisteredUsers = {};
+
+    // 1. Önce SharedPreferences'tan oku
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_kRegisteredUsersKey);
+      if (raw != null) {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        decoded.forEach((key, val) {
+          _cachedRegisteredUsers![key] = Map<String, dynamic>.from(val as Map);
+        });
+      }
+    } catch (e) {
+      debugPrint('Kayıtlı kullanıcılar yüklenirken hata: $e');
+    }
+
+    // 2. Varsayılan kullanıcıları (Demo Kadir Usta ve Ahmet Demir) ekle
+    if (!_cachedRegisteredUsers!.containsKey('5524342069')) {
+      _cachedRegisteredUsers!['5524342069'] = {
+        'phone': '5524342069',
+        'full_name': 'Kadir Usta',
+        'role': 'usta',
+        'registered_at': DateTime.now().toIso8601String(),
+      };
+    }
+    if (!_cachedRegisteredUsers!.containsKey('5329998877')) {
+      _cachedRegisteredUsers!['5329998877'] = {
+        'phone': '5329998877',
+        'full_name': 'Ahmet Demir',
+        'role': 'musteri',
+        'registered_at': DateTime.now().toIso8601String(),
+      };
+    }
+
+    // 3. Mevcut members listesindeki kullanıcıları da dahil et
+    final members = await getMembers();
+    for (final m in members) {
+      final p = normalizePhone((m['phone'] ?? '').toString());
+      if (p.isNotEmpty && !_cachedRegisteredUsers!.containsKey(p)) {
+        _cachedRegisteredUsers![p] = {
+          'phone': p,
+          'full_name': m['full_name'] ?? m['name'] ?? 'Kullanıcı',
+          'role': m['role'] ?? 'musteri',
+          'registered_at': m['created_at'] ?? DateTime.now().toIso8601String(),
+        };
+      }
+    }
+
+    // 4. Mevcut ustalar listesindeki ustaları da dahil et
+    final ustalar = await getUstalar();
+    for (final u in ustalar) {
+      final p = normalizePhone(u.phone);
+      if (p.isNotEmpty && !_cachedRegisteredUsers!.containsKey(p)) {
+        _cachedRegisteredUsers![p] = {
+          'phone': p,
+          'full_name': u.fullName,
+          'role': 'usta',
+          'registered_at': DateTime.now().toIso8601String(),
+        };
+      }
+    }
+
+    return Map.from(_cachedRegisteredUsers!);
+  }
+
+  /// Telefon numarasına göre kayıtlı kullanıcı arar
+  Future<Map<String, dynamic>?> findUserByPhone(String rawPhone) async {
+    final norm = normalizePhone(rawPhone);
+    if (norm.isEmpty) return null;
+
+    final users = await getRegisteredUsers();
+    if (users.containsKey(norm)) {
+      return Map<String, dynamic>.from(users[norm]!);
+    }
+
+    // Ayrıca members ve ustalar'da da ara (farklı formatlar için)
+    final members = await getMembers();
+    for (final m in members) {
+      final p = normalizePhone((m['phone'] ?? '').toString());
+      if (p == norm) {
+        return {
+          'phone': norm,
+          'full_name': m['full_name'] ?? m['name'] ?? 'Kullanıcı',
+          'role': m['role'] ?? 'musteri',
+        };
+      }
+    }
+
+    final ustalar = await getUstalar();
+    for (final u in ustalar) {
+      if (normalizePhone(u.phone) == norm) {
+        return {
+          'phone': norm,
+          'full_name': u.fullName,
+          'role': 'usta',
+        };
+      }
+    }
+
+    return null;
+  }
+
+  /// Yeni kullanıcı kaydeder veya günceller
+  Future<void> registerOrUpdateUser({
+    required String phone,
+    required String fullName,
+    required String role,
+  }) async {
+    final norm = normalizePhone(phone);
+    if (norm.isEmpty) return;
+
+    await getRegisteredUsers(); // ensure cache loaded
+    final profile = {
+      'phone': norm,
+      'full_name': fullName.trim(),
+      'role': role.trim().toLowerCase(),
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+
+    _cachedRegisteredUsers![norm] = profile;
+
+    // Prefs'e yaz
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kRegisteredUsersKey, jsonEncode(_cachedRegisteredUsers));
+    } catch (e) {
+      debugPrint('Kullanıcı kaydedilirken hata: $e');
+    }
+
+    // members tablosunu da güncelle ve sunucuya bildir
+    final members = await getMembers();
+    final idx = members.indexWhere((m) => normalizePhone((m['phone'] ?? '').toString()) == norm);
+    if (idx >= 0) {
+      members[idx] = {
+        ...members[idx],
+        'phone': norm,
+        'full_name': fullName.trim(),
+        'name': fullName.trim(),
+        'role': role.trim().toLowerCase(),
+      };
+    } else {
+      members.add({
+        'id': 'mem-${DateTime.now().millisecondsSinceEpoch}',
+        'phone': norm,
+        'full_name': fullName.trim(),
+        'name': fullName.trim(),
+        'role': role.trim().toLowerCase(),
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    }
+    await saveMembers(members);
+
+    // Eğer usta ise ustalar listesini de kontrol et
+    if (role.trim().toLowerCase() == 'usta') {
+      final ustalar = await getUstalar();
+      final uIdx = ustalar.indexWhere((u) => normalizePhone(u.phone) == norm);
+      if (uIdx < 0) {
+        // Yeni usta olarak ekle
+        final newUsta = NearbyUstaModel(
+          ustaId: 'usta-${DateTime.now().millisecondsSinceEpoch}',
+          fullName: fullName.trim(),
+          phone: norm,
+          kategori: 'elektrik',
+          puan: 5.0,
+          tamamlananIsSayisi: 0,
+          latitude: 38.4647,
+          longitude: 30.2719,
+          mesafeMetre: 500,
+          ustaHakedis: 750.0,
+          komisyonOrani: 0.15,
+          komisyonTutari: 112.5,
+          toplamTutar: 862.5,
+          servisUcreti: 750.0,
+          deneyimYili: 5,
+          uzmanlikBasligi: 'Uzman Usta',
+          guvenceler: const [
+            '30 Gün İşçilik Garantisi',
+            'Sabit Fiyat Güvencesi',
+            'MYK Belgeli'
+          ],
+          ilanlar: const [],
+        );
+        ustalar.add(newUsta);
+        await saveUstalar(ustalar);
+      }
+    }
+
+    // Aktif oturum olarak da kaydet
+    await saveActiveSession(
+      phone: norm,
+      fullName: fullName.trim(),
+      role: role.trim().toLowerCase(),
+    );
+  }
+
+  /// Aktif oturumu getirir (Cihaz/Tarayıcı yenilenince girişin korunması için)
+  Future<Map<String, dynamic>?> getActiveSession() async {
+    if (_cachedActiveSession != null) return Map.from(_cachedActiveSession!);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_kActiveSessionKey);
+      if (raw != null) {
+        _cachedActiveSession = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+        return Map.from(_cachedActiveSession!);
+      }
+    } catch (e) {
+      debugPrint('Aktif oturum yüklenirken hata: $e');
+    }
+    return null;
+  }
+
+  /// Aktif oturumu kaydeder
+  Future<void> saveActiveSession({
+    required String phone,
+    required String fullName,
+    required String role,
+    Map<String, dynamic>? extra,
+  }) async {
+    final norm = normalizePhone(phone);
+    final session = {
+      'phone': norm,
+      'full_name': fullName.trim(),
+      'role': role.trim().toLowerCase(),
+      'saved_at': DateTime.now().toIso8601String(),
+      if (extra != null) ...extra,
+    };
+    _cachedActiveSession = session;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kActiveSessionKey, jsonEncode(session));
+    } catch (e) {
+      debugPrint('Aktif oturum kaydedilirken hata: $e');
+    }
+    _changesStreamController.add(null);
+  }
+
+  /// Oturumu kapatır (Çıkış yapıldığında oturumu temizler)
+  Future<void> clearActiveSession() async {
+    _cachedActiveSession = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kActiveSessionKey);
+    } catch (e) {
+      debugPrint('Aktif oturum silinirken hata: $e');
+    }
+    _changesStreamController.add(null);
   }
 
   // ==========================================

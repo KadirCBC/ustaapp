@@ -435,10 +435,18 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     final targetLat = hizmet.lat ?? state.ustaLat;
     final targetLng = hizmet.lng ?? state.ustaLng;
 
+    final session = await _appDataService.getActiveSession();
+    final activeUstaName = (session?['full_name'] as String?)?.isNotEmpty == true
+        ? session!['full_name'] as String
+        : 'Kadir Usta';
+    final activeUstaPhone = (session?['phone'] as String?)?.isNotEmpty == true
+        ? session!['phone'] as String
+        : '5524342069';
+
     await AppDataService.instance.syncUstaHizmetListing(
       hizmet: hizmet,
-      ustaName: 'Kadir Usta',
-      ustaPhone: '5524342069',
+      ustaName: activeUstaName,
+      ustaPhone: activeUstaPhone,
       ustaId: currentUserId ?? 'usta-1794603229298',
       ustaCategory: 'Elektrik & Aydınlatma',
       location: targetLocation,
@@ -466,10 +474,18 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     final targetLat = updatedHizmet.lat ?? state.ustaLat;
     final targetLng = updatedHizmet.lng ?? state.ustaLng;
 
+    final session = await _appDataService.getActiveSession();
+    final activeUstaName = (session?['full_name'] as String?)?.isNotEmpty == true
+        ? session!['full_name'] as String
+        : 'Kadir Usta';
+    final activeUstaPhone = (session?['phone'] as String?)?.isNotEmpty == true
+        ? session!['phone'] as String
+        : '5524342069';
+
     await AppDataService.instance.syncUstaHizmetListing(
       hizmet: updatedHizmet,
-      ustaName: 'Kadir Usta',
-      ustaPhone: '5524342069',
+      ustaName: activeUstaName,
+      ustaPhone: activeUstaPhone,
       ustaId: currentUserId ?? 'usta-1794603229298',
       ustaCategory: 'Elektrik & Aydınlatma',
       location: targetLocation,

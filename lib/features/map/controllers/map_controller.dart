@@ -1115,6 +1115,10 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
     // Demo oturumunda yerel çağrı kaydı oluştur
     if (customerId == null) {
       final demoId = 'demo-cagri-${DateTime.now().millisecondsSinceEpoch}';
+      final activeSession = await _appDataService.getActiveSession();
+      final activeCustName = activeSession?['full_name'] as String?;
+      final activeCustPhone = activeSession?['phone'] as String?;
+
       final demoCall = CagriModel(
         id: demoId,
         musteriId: 'demo-musteri-id',
@@ -1131,8 +1135,12 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
         createdAt: DateTime.now(),
         ustaFullName: usta.fullName,
         ustaPhone: usta.phone,
-        musteriFullName: 'Ahmet Demir',
-        musteriPhone: '+90 532 999 88 77',
+        musteriFullName: (activeCustName != null && activeCustName.isNotEmpty)
+            ? activeCustName
+            : 'Ahmet Demir',
+        musteriPhone: (activeCustPhone != null && activeCustPhone.isNotEmpty)
+            ? activeCustPhone
+            : '+90 532 999 88 77',
       );
       DemoCallRepository.save(demoCall);
       await _appDataService.saveOrUpdateCagri(demoCall);

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
+import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/features/auth/models/user_role.dart';
 
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
@@ -17,7 +18,8 @@ final supabaseServiceProvider = Provider<SupabaseService>((ref) {
 // Kullanıcının anlık auth oturumu ve rolü için StateNotifierProvider
 final authStateProvider = StateNotifierProvider<AuthNotifier, AppAuthState>((ref) {
   final service = ref.watch(supabaseServiceProvider);
-  return AuthNotifier(service);
+  final appDataService = ref.watch(appDataServiceProvider);
+  return AuthNotifier(service, appDataService);
 });
 
 class AppAuthState {
@@ -26,16 +28,20 @@ class AppAuthState {
   final UserRole? role;
   final String? errorMessage;
   final bool isDemo;
+  final String? phone;
+  final String? fullName;
 
   const AppAuthState({
-    this.isLoading = false,
+    this.isLoading = true,
     this.user,
     this.role,
     this.errorMessage,
     this.isDemo = false,
+    this.phone,
+    this.fullName,
   });
 
-  bool get isAuthenticated => user != null || isDemo;
+  bool get isAuthenticated => (user != null || isDemo) && role != null;
   bool get hasSelectedRole => role != null;
 
   AppAuthState copyWith({
@@ -44,6 +50,8 @@ class AppAuthState {
     UserRole? role,
     String? errorMessage,
     bool? isDemo,
+    String? phone,
+    String? fullName,
   }) {
     return AppAuthState(
       isLoading: isLoading ?? this.isLoading,
@@ -51,28 +59,55 @@ class AppAuthState {
       role: role ?? this.role,
       errorMessage: errorMessage,
       isDemo: isDemo ?? this.isDemo,
+      phone: phone ?? this.phone,
+      fullName: fullName ?? this.fullName,
     );
   }
 }
 
 class AuthNotifier extends StateNotifier<AppAuthState> {
   final SupabaseService _service;
+  final AppDataService _appDataService;
   StreamSubscription<AuthState>? _authSubscription;
 
-  AuthNotifier(this._service) : super(const AppAuthState()) {
+  AuthNotifier(this._service, this._appDataService) : super(const AppAuthState(isLoading: true)) {
     _init();
   }
 
-  void _init() {
-    // Mevcut oturumu kontrol et
+  Future<void> _init() async {
+    // 1. Önce cihazda/tarayıcıda saklanan aktif oturumu kontrol et (F5 ve uygulama yeniden açılışları)
+    try {
+      final activeSession = await _appDataService.getActiveSession();
+      if (activeSession != null) {
+        final roleStr = activeSession['role'] as String?;
+        final role = roleStr != null ? UserRole.fromDbValue(roleStr) : null;
+        if (role != null) {
+          state = state.copyWith(
+            isLoading: false,
+            isDemo: true,
+            role: role,
+            phone: activeSession['phone'] as String?,
+            fullName: activeSession['full_name'] as String?,
+          );
+          debugPrint(
+            '>>> [AuthNotifier] Aktif oturum geri yüklendi: phone=${state.phone}, name=${state.fullName}, role=${state.role}',
+          );
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Aktif oturum geri yüklenirken hata: $e');
+    }
+
+    // 2. Supabase oturumunu kontrol et
     final currentUser = _service.currentUser;
     if (currentUser != null) {
-      _loadUserRole(currentUser);
+      await _loadUserRole(currentUser);
     } else {
       state = state.copyWith(isLoading: false, user: null, role: null, isDemo: false);
     }
 
-    // Oturum değişikliklerini dinle
+    // 3. Supabase oturum değişikliklerini dinle
     _authSubscription = _service.authStateChanges.listen((event) async {
       final user = event.session?.user;
       if (user != null) {
@@ -102,21 +137,45 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
     }
   }
 
-  void setRole(UserRole role) {
-    state = state.copyWith(role: role, isDemo: true, isLoading: false);
-  }
-
-  void setDemoSession(UserRole role) {
+  void setAuthenticatedSession({
+    required UserRole role,
+    required String phone,
+    required String fullName,
+  }) {
     state = state.copyWith(
       role: role,
+      phone: phone,
+      fullName: fullName,
       isDemo: true,
       isLoading: false,
     );
+    _appDataService.saveActiveSession(
+      phone: phone,
+      fullName: fullName,
+      role: role.toDbValue(),
+    );
+  }
+
+  void setRole(UserRole role, {String? phone, String? fullName}) {
+    final effectivePhone = phone ?? state.phone ?? (role == UserRole.usta ? '5524342069' : '5329998877');
+    final effectiveName = fullName ?? state.fullName ?? (role == UserRole.usta ? 'Kadir Usta' : 'Ahmet Demir');
+    setAuthenticatedSession(
+      role: role,
+      phone: effectivePhone,
+      fullName: effectiveName,
+    );
+  }
+
+  void setDemoSession(UserRole role) {
+    setRole(role);
   }
 
   Future<void> signOut() async {
     state = const AppAuthState(isLoading: false, user: null, role: null, isDemo: false);
-    await _service.signOut();
+    await _appDataService.clearActiveSession();
+    try {
+      await _service.signOut();
+    } catch (_) {}
   }
 
   @override
