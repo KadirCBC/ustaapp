@@ -17,6 +17,28 @@ class CustomerOnTheWayScreen extends ConsumerStatefulWidget {
 }
 
 class _CustomerOnTheWayScreenState extends ConsumerState<CustomerOnTheWayScreen> {
+  bool _dialogOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkInitialCompletionState();
+    });
+  }
+
+  void _checkInitialCompletionState() {
+    if (!mounted || _dialogOpen) return;
+    final state = ref.read(activeOrderControllerProvider(widget.cagriId));
+    if (state.completionRequested && state.cagri != null) {
+      _dialogOpen = true;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => CustomerCompletionDialog(cagri: state.cagri!),
+      ).then((_) => _dialogOpen = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,13 +60,15 @@ class _CustomerOnTheWayScreenState extends ConsumerState<CustomerOnTheWayScreen>
 
       // Usta 'İşi Tamamladım ve Müşteriden Onay İste' dediğinde kilitli onay diyaloğunu aç
       if (next.completionRequested &&
-          previous?.completionRequested != true &&
-          next.cagri != null) {
+          (previous?.completionRequested != true || !_dialogOpen) &&
+          next.cagri != null &&
+          !_dialogOpen) {
+        _dialogOpen = true;
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (ctx) => CustomerCompletionDialog(cagri: next.cagri!),
-        );
+        ).then((_) => _dialogOpen = false);
       }
 
       // Çağrı tamamlandığında Özet & Değerlendirme sayfasına yönlendir

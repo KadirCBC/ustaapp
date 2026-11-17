@@ -39,6 +39,16 @@ class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
           SnackBar(content: Text(next.successMessage!), backgroundColor: Colors.green),
         );
       }
+      // Müşteri işi onaylayıp tamamladığında ustayı bilgilendirip panele yönlendir
+      if (next.cagri?.isCompleted == true && previous?.cagri?.isCompleted != true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Müşteri işi onayladı! Ödeme hesabınıza aktarıldı.'),
+            backgroundColor: Color(0xFF16A34A),
+          ),
+        );
+        context.go('/usta/orders');
+      }
     });
 
     if (state.isLoading) {

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mapbox;
 import 'package:ustaapp/core/services/route_service.dart';
@@ -106,53 +107,59 @@ class _UstaRouteMapWidgetState extends State<UstaRouteMapWidget> {
 
       if (!mounted) return;
 
-      // Çizgileri temizle ve gerçek sokak rotasını çiz
-      await polylineManager.deleteAll();
+      // Çizgileri temizle ve gerçek sokak rotasını çiz (Web ortamında annotation manager desteklenmediğinde sessizce atla)
+      if (!kIsWeb) {
+        try {
+          await polylineManager.deleteAll();
 
-      // 1. Alt gölge/kontur çizgisi (daha net ve profesyonel navigasyon görünümü)
-      await polylineManager.create(
-        mapbox.PolylineAnnotationOptions(
-          geometry: mapbox.LineString(coordinates: route.coordinates),
-          lineColor: const Color(0xFF0F172A).toARGB32(),
-          lineWidth: 8.5,
-          lineJoin: mapbox.LineJoin.ROUND,
-        ),
-      );
+          // 1. Alt gölge/kontur çizgisi (daha net ve profesyonel navigasyon görünümü)
+          await polylineManager.create(
+            mapbox.PolylineAnnotationOptions(
+              geometry: mapbox.LineString(coordinates: route.coordinates),
+              lineColor: const Color(0xFF0F172A).toARGB32(),
+              lineWidth: 8.5,
+              lineJoin: mapbox.LineJoin.ROUND,
+            ),
+          );
 
-      // 2. Ana rota çizgisi (canlı renk)
-      await polylineManager.create(
-        mapbox.PolylineAnnotationOptions(
-          geometry: mapbox.LineString(coordinates: route.coordinates),
-          lineColor: widget.routeColor.toARGB32(),
-          lineWidth: 5.5,
-          lineJoin: mapbox.LineJoin.ROUND,
-        ),
-      );
+          // 2. Ana rota çizgisi (canlı renk)
+          await polylineManager.create(
+            mapbox.PolylineAnnotationOptions(
+              geometry: mapbox.LineString(coordinates: route.coordinates),
+              lineColor: widget.routeColor.toARGB32(),
+              lineWidth: 5.5,
+              lineJoin: mapbox.LineJoin.ROUND,
+            ),
+          );
 
-      // 3. Usta ve Müşteri pinleri
-      await circleManager.deleteAll();
-      await circleManager.createMulti([
-        // Müşteri hedef pini (dış beyaz çeperli kırmızı nokta)
-        mapbox.CircleAnnotationOptions(
-          geometry: mapbox.Point(
-            coordinates: mapbox.Position(widget.customerLng, widget.customerLat),
-          ),
-          circleRadius: 11.0,
-          circleColor: widget.customerMarkerColor.toARGB32(),
-          circleStrokeColor: Colors.white.toARGB32(),
-          circleStrokeWidth: 3.5,
-        ),
-        // Usta başlangıç pini (turuncu/mavi usta noktası)
-        mapbox.CircleAnnotationOptions(
-          geometry: mapbox.Point(
-            coordinates: mapbox.Position(widget.ustaLng, widget.ustaLat),
-          ),
-          circleRadius: 10.0,
-          circleColor: widget.ustaMarkerColor.toARGB32(),
-          circleStrokeColor: Colors.white.toARGB32(),
-          circleStrokeWidth: 3.0,
-        ),
-      ]);
+          // 3. Usta ve Müşteri pinleri
+          await circleManager.deleteAll();
+          await circleManager.createMulti([
+            // Müşteri hedef pini (dış beyaz çeperli kırmızı nokta)
+            mapbox.CircleAnnotationOptions(
+              geometry: mapbox.Point(
+                coordinates: mapbox.Position(widget.customerLng, widget.customerLat),
+              ),
+              circleRadius: 11.0,
+              circleColor: widget.customerMarkerColor.toARGB32(),
+              circleStrokeColor: Colors.white.toARGB32(),
+              circleStrokeWidth: 3.5,
+            ),
+            // Usta başlangıç pini (turuncu/mavi usta noktası)
+            mapbox.CircleAnnotationOptions(
+              geometry: mapbox.Point(
+                coordinates: mapbox.Position(widget.ustaLng, widget.ustaLat),
+              ),
+              circleRadius: 10.0,
+              circleColor: widget.ustaMarkerColor.toARGB32(),
+              circleStrokeColor: Colors.white.toARGB32(),
+              circleStrokeWidth: 3.0,
+            ),
+          ]);
+        } catch (e) {
+          debugPrint('Harita annotation çizim atlandı: $e');
+        }
+      }
 
       // Rota sonucunu üst bileşene bildir
       if (widget.onRouteCalculated != null) {

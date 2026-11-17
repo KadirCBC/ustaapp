@@ -179,26 +179,46 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
     final synced = await _appDataService.getCagriById(_cagriId);
     if (synced != null) {
       final prev = state.cagri;
-      if (prev == null || prev.durum != synced.durum) {
+      final durumChanged = prev == null || prev.durum != synced.durum;
+      final arrivalChanged = state.ustaArrived != synced.ustaArrived;
+      final completionChanged = state.completionRequested != synced.completionRequested;
+      final photoChanged = state.completionPhotoUrl != synced.completionPhotoUrl;
+
+      if (durumChanged || arrivalChanged || completionChanged || photoChanged) {
         debugPrint(
-          '>>> [ActiveOrderController] Çağrı durumu senkronize edildi: id=${synced.id}, durum=${synced.durum}',
+          '>>> [ActiveOrderController] Çağrı senkronize edildi: id=${synced.id}, durum=${synced.durum}, ustaArrived=${synced.ustaArrived}, completionReq=${synced.completionRequested}',
         );
+
         if (synced.isAccepted || synced.isOnTheWay) {
           _pendingTimer?.cancel();
           _demoAutoAcceptTimer?.cancel();
           state = state.copyWith(
             cagri: synced,
-            successMessage: 'Usta çağrınızı kabul etti!',
+            ustaArrived: synced.ustaArrived,
+            completionRequested: synced.completionRequested,
+            completionPhotoUrl: synced.completionPhotoUrl,
+            completionNote: synced.completionNote,
+            successMessage: durumChanged && prev?.durum != synced.durum
+                ? 'Usta çağrınızı kabul etti!'
+                : null,
           );
         } else if (synced.isCancelled) {
           _pendingTimer?.cancel();
           _demoAutoAcceptTimer?.cancel();
           state = state.copyWith(
             cagri: synced,
+            ustaArrived: synced.ustaArrived,
+            completionRequested: synced.completionRequested,
             errorMessage: 'Usta çağrıyı kabul etmedi veya süre doldu.',
           );
         } else {
-          state = state.copyWith(cagri: synced);
+          state = state.copyWith(
+            cagri: synced,
+            ustaArrived: synced.ustaArrived,
+            completionRequested: synced.completionRequested,
+            completionPhotoUrl: synced.completionPhotoUrl,
+            completionNote: synced.completionNote,
+          );
         }
       }
     }
@@ -448,12 +468,21 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
           arrivedAt: now,
         );
         DemoCallRepository.saveWorkflow(_cagriId, wf);
-        await _appDataService.updateCagriStatus(_cagriId, CagriDurumu.yolda);
+        await _appDataService.updateCagriStatus(
+          _cagriId,
+          CagriDurumu.yolda,
+          ustaArrived: true,
+        );
       } else {
         await _broadcastWorkflowEvent('usta_arrived', {
           'cagri_id': _cagriId,
           'arrived_at': now.toIso8601String(),
         });
+        await _appDataService.updateCagriStatus(
+          _cagriId,
+          CagriDurumu.yolda,
+          ustaArrived: true,
+        );
       }
 
       state = state.copyWith(
@@ -501,11 +530,22 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
         final existingCall = DemoCallRepository.get(_cagriId);
         if (existingCall != null) {
           final updated = existingCall.copyWith(
+            ustaArrived: true,
+            completionRequested: true,
             completionPhotoUrl: photoUrl,
             completionNote: note,
           );
           DemoCallRepository.save(updated);
           await _appDataService.saveOrUpdateCagri(updated);
+        } else {
+          await _appDataService.updateCagriStatus(
+            _cagriId,
+            state.cagri?.durum ?? CagriDurumu.yolda,
+            ustaArrived: true,
+            completionRequested: true,
+            completionPhotoUrl: photoUrl,
+            completionNote: note,
+          );
         }
       } else {
         await _broadcastWorkflowEvent('completion_requested', {
@@ -514,6 +554,15 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
           'completion_photo_url': photoUrl,
           'completion_note': note,
         });
+
+        await _appDataService.updateCagriStatus(
+          _cagriId,
+          state.cagri?.durum ?? CagriDurumu.yolda,
+          ustaArrived: true,
+          completionRequested: true,
+          completionPhotoUrl: photoUrl,
+          completionNote: note,
+        );
 
         // Supabase cagrilar tablosuna da fotoğrafı ve notu kaydet
         try {
@@ -575,6 +624,11 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
           'DKT-$shortCode';
 
       await _persistStatusChange(CagriDurumu.tamamlandi);
+      await _appDataService.updateCagriStatus(
+        _cagriId,
+        CagriDurumu.tamamlandi,
+        completionRequested: false,
+      );
 
       if (_isDemo) {
         final wf = DemoCallRepository.getWorkflow(_cagriId).copyWith(
@@ -627,12 +681,22 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
           reportedIssue: trimmed,
         );
         DemoCallRepository.saveWorkflow(_cagriId, wf);
+        await _appDataService.updateCagriStatus(
+          _cagriId,
+          state.cagri?.durum ?? CagriDurumu.yolda,
+          completionRequested: false,
+        );
       } else {
         await _broadcastWorkflowEvent('issue_reported', {
           'cagri_id': _cagriId,
           'reason': trimmed,
           'reported_at': DateTime.now().toIso8601String(),
         });
+        await _appDataService.updateCagriStatus(
+          _cagriId,
+          state.cagri?.durum ?? CagriDurumu.yolda,
+          completionRequested: false,
+        );
       }
 
       state = state.copyWith(

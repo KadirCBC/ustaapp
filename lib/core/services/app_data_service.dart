@@ -1172,6 +1172,8 @@ class AppDataService {
   Future<void> updateCagriStatus(
     String cagriId,
     CagriDurumu newStatus, {
+    bool? ustaArrived,
+    bool? completionRequested,
     String? completionPhotoUrl,
     String? completionNote,
   }) async {
@@ -1179,6 +1181,9 @@ class AppDataService {
     if (existing != null) {
       final updated = existing.copyWith(
         durum: newStatus,
+        ustaArrived: ustaArrived ?? existing.ustaArrived,
+        completionRequested:
+            completionRequested ?? existing.completionRequested,
         completionPhotoUrl: completionPhotoUrl ?? existing.completionPhotoUrl,
         completionNote: completionNote ?? existing.completionNote,
       );
