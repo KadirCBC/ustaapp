@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -28,11 +29,51 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
   late final TextEditingController _phoneController;
   late final AnimationController _animController;
   late final Animation<double> _floatAnim;
-  late final Animation<double> _pulseAnim;
-  late final Animation<double> _glowAnim;
+  Timer? _categoryCycleTimer;
+  int _currentCategoryIndex = 0;
+
   final _maskFormatter = PhoneFormatter.trPhoneMask;
   bool _isFocused = false;
   AuthScreenTab _currentTab = AuthScreenTab.login;
+
+  static const List<Map<String, dynamic>> _serviceCategories = [
+    {
+      'title': 'Elektrik & Aydınlatma',
+      'icon': '⚡',
+      'color': Color(0xFFD97706),
+      'bgColor': Color(0xFFFEF3C7),
+    },
+    {
+      'title': 'Sıhhi Tesisat & Su',
+      'icon': '🔧',
+      'color': Color(0xFF2563EB),
+      'bgColor': Color(0xFFDBEAFE),
+    },
+    {
+      'title': 'Çilingir & Kilit',
+      'icon': '🔑',
+      'color': Color(0xFFB45309),
+      'bgColor': Color(0xFFFDE68A),
+    },
+    {
+      'title': 'Kombi & Isıtma',
+      'icon': '❄️',
+      'color': Color(0xFF0284C7),
+      'bgColor': Color(0xFFE0F2FE),
+    },
+    {
+      'title': 'Boya & Badana',
+      'icon': '🎨',
+      'color': Color(0xFF7C3AED),
+      'bgColor': Color(0xFFEDE9FE),
+    },
+    {
+      'title': 'Mobilya & Marangoz',
+      'icon': '🪑',
+      'color': Color(0xFFC2410C),
+      'bgColor': Color(0xFFFFEDD5),
+    },
+  ];
 
   @override
   void initState() {
@@ -45,21 +86,22 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
       duration: const Duration(milliseconds: 2200),
     )..repeat(reverse: true);
 
-    _floatAnim = Tween<double>(begin: -3.5, end: 3.5).animate(
+    _floatAnim = Tween<double>(begin: -3.0, end: 3.0).animate(
       CurvedAnimation(parent: _animController, curve: Curves.easeInOutSine),
     );
 
-    _pulseAnim = Tween<double>(begin: 0.97, end: 1.03).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
-    );
-
-    _glowAnim = Tween<double>(begin: 0.25, end: 0.85).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
-    );
+    _categoryCycleTimer = Timer.periodic(const Duration(milliseconds: 2300), (_) {
+      if (mounted) {
+        setState(() {
+          _currentCategoryIndex = (_currentCategoryIndex + 1) % _serviceCategories.length;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+    _categoryCycleTimer?.cancel();
     _animController.dispose();
     _phoneController.dispose();
     super.dispose();
@@ -101,102 +143,115 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
                   const SizedBox(height: 8),
 
                   // ===============================================================
-                  // 1. MARKA & LOGO BAŞLIĞI (Hafif Süzülme ve Canlı Slogan Animasyonu)
+                  // 1. MARKA & LOGO BAŞLIĞI + DİNAMİK DEĞİŞEN KATEGORİ SLOGANI
                   // ===============================================================
                   Center(
-                    child: AnimatedBuilder(
-                      animation: _animController,
-                      builder: (context, child) {
-                        return Column(
-                          children: [
-                            // 1. Logo (Zarif dikey süzülme ve yumuşak gölge efekti)
-                            Transform.translate(
-                              offset: Offset(0, _floatAnim.value),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFFEA580C).withValues(alpha: 0.06 + (_glowAnim.value * 0.06)),
-                                      blurRadius: 16,
-                                      offset: Offset(0, 8 + _floatAnim.value),
-                                    ),
-                                  ],
-                                ),
-                                child: Image.asset(
-                                  'assets/images/app_logo.png',
-                                  height: 52,
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
+                    child: Column(
+                      children: [
+                        // 1. Logo (Zarif dikey süzülme ve yumuşak gölge efekti)
+                        AnimatedBuilder(
+                          animation: _floatAnim,
+                          builder: (context, child) => Transform.translate(
+                            offset: Offset(0, _floatAnim.value),
+                            child: Image.asset(
+                              'assets/images/app_logo.png',
+                              height: 52,
+                              fit: BoxFit.contain,
                             ),
-                            const SizedBox(height: 8),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
 
-                            // 2. Hareketli ve Belirgin Slogan Rozeti
-                            Transform.scale(
-                              scale: _pulseAnim.value,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFFFFF7ED),
-                                      Color(0xFFFFEDD5),
+                        // 2. Ana Başlık & Slogan
+                        const Text(
+                          'En Yakın Usta Kapında',
+                          style: TextStyle(
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.3,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+
+                        // 3. Sırayla Değişen Canlı Hizmet Kategorisi ve Varış Rozeti
+                        SizedBox(
+                          height: 32,
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 350),
+                            transitionBuilder: (Widget child, Animation<double> animation) {
+                              final offsetAnim = Tween<Offset>(
+                                begin: const Offset(0.0, 0.45),
+                                end: Offset.zero,
+                              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+
+                              return FadeTransition(
+                                opacity: animation,
+                                child: SlideTransition(position: offsetAnim, child: child),
+                              );
+                            },
+                            child: Row(
+                              key: ValueKey<int>(_currentCategoryIndex),
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _serviceCategories[_currentCategoryIndex]['bgColor'] as Color,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: (_serviceCategories[_currentCategoryIndex]['color'] as Color).withValues(alpha: 0.35),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _serviceCategories[_currentCategoryIndex]['icon'] as String,
+                                        style: const TextStyle(fontSize: 13),
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        _serviceCategories[_currentCategoryIndex]['title'] as String,
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: _serviceCategories[_currentCategoryIndex]['color'] as Color,
+                                          letterSpacing: 0.2,
+                                        ),
+                                      ),
                                     ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
                                   ),
-                                  borderRadius: BorderRadius.circular(22),
-                                  border: Border.all(
-                                    color: const Color(0xFFFDBA74).withValues(alpha: 0.7 + (_glowAnim.value * 0.3)),
-                                    width: 1.4,
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFFEA580C).withValues(alpha: 0.12 + (_glowAnim.value * 0.12)),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    // Yanıp sönen canlı radar noktası
-                                    Container(
-                                      width: 9,
-                                      height: 9,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFEA580C),
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: const Color(0xFFEA580C).withValues(alpha: _glowAnim.value),
-                                            blurRadius: 6,
-                                            spreadRadius: 2,
-                                          ),
-                                        ],
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.timer_outlined, size: 12.5, color: Color(0xFF059669)),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        '15 Dk Varış',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF059669),
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    // Belirgin & Şık Slogan Metni
-                                    const Text(
-                                      '⚡ En Yakın Usta Kapında',
-                                      style: TextStyle(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 0.7,
-                                        color: Color(0xFFC2410C),
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        );
-                      },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
