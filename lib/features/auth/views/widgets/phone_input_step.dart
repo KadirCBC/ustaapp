@@ -23,8 +23,13 @@ class PhoneInputStep extends ConsumerStatefulWidget {
   ConsumerState<PhoneInputStep> createState() => _PhoneInputStepState();
 }
 
-class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
+class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
+    with SingleTickerProviderStateMixin {
   late final TextEditingController _phoneController;
+  late final AnimationController _animController;
+  late final Animation<double> _floatAnim;
+  late final Animation<double> _pulseAnim;
+  late final Animation<double> _glowAnim;
   final _maskFormatter = PhoneFormatter.trPhoneMask;
   bool _isFocused = false;
   AuthScreenTab _currentTab = AuthScreenTab.login;
@@ -34,10 +39,28 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
     super.initState();
     final currentPhone = ref.read(phoneAuthControllerProvider).formattedPhone;
     _phoneController = TextEditingController(text: currentPhone);
+
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat(reverse: true);
+
+    _floatAnim = Tween<double>(begin: -3.5, end: 3.5).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOutSine),
+    );
+
+    _pulseAnim = Tween<double>(begin: 0.97, end: 1.03).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+
+    _glowAnim = Tween<double>(begin: 0.25, end: 0.85).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
+    _animController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
@@ -78,27 +101,102 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                   const SizedBox(height: 8),
 
                   // ===============================================================
-                  // 1. MARKA & LOGO BAŞLIĞI
+                  // 1. MARKA & LOGO BAŞLIĞI (Hafif Süzülme ve Canlı Slogan Animasyonu)
                   // ===============================================================
                   Center(
-                    child: Column(
-                      children: [
-                        Image.asset(
-                          'assets/images/app_logo.png',
-                          height: 48,
-                          fit: BoxFit.contain,
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'En Yakın Usta Kapında',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.8,
-                            color: Color(0xFF475569),
-                          ),
-                        ),
-                      ],
+                    child: AnimatedBuilder(
+                      animation: _animController,
+                      builder: (context, child) {
+                        return Column(
+                          children: [
+                            // 1. Logo (Zarif dikey süzülme ve yumuşak gölge efekti)
+                            Transform.translate(
+                              offset: Offset(0, _floatAnim.value),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFEA580C).withValues(alpha: 0.06 + (_glowAnim.value * 0.06)),
+                                      blurRadius: 16,
+                                      offset: Offset(0, 8 + _floatAnim.value),
+                                    ),
+                                  ],
+                                ),
+                                child: Image.asset(
+                                  'assets/images/app_logo.png',
+                                  height: 52,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+
+                            // 2. Hareketli ve Belirgin Slogan Rozeti
+                            Transform.scale(
+                              scale: _pulseAnim.value,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFFFFF7ED),
+                                      Color(0xFFFFEDD5),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(22),
+                                  border: Border.all(
+                                    color: const Color(0xFFFDBA74).withValues(alpha: 0.7 + (_glowAnim.value * 0.3)),
+                                    width: 1.4,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFEA580C).withValues(alpha: 0.12 + (_glowAnim.value * 0.12)),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Yanıp sönen canlı radar noktası
+                                    Container(
+                                      width: 9,
+                                      height: 9,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEA580C),
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFFEA580C).withValues(alpha: _glowAnim.value),
+                                            blurRadius: 6,
+                                            spreadRadius: 2,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    // Belirgin & Şık Slogan Metni
+                                    const Text(
+                                      '⚡ En Yakın Usta Kapında',
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.7,
+                                        color: Color(0xFFC2410C),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
 
