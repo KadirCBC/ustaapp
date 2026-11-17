@@ -133,7 +133,8 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
 
           SafeArea(
             top: !kIsWeb,
-            child: Center(
+            child: Align(
+              alignment: Alignment.topCenter,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 480),
                 child: SingleChildScrollView(
@@ -236,11 +237,19 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Sola dayalı logo
-                                  Image.asset(
-                                    'assets/images/app_logo.png',
-                                    height: 44,
-                                    fit: BoxFit.contain,
+                                  // Sola dayalı belirgin büyük logo
+                                  SizedBox(
+                                    height: 72,
+                                    child: OverflowBox(
+                                      alignment: Alignment.centerLeft,
+                                      maxWidth: 340,
+                                      maxHeight: 72,
+                                      child: Image.asset(
+                                        'assets/images/app_logo.png',
+                                        height: 72,
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
                                   ),
                                   const SizedBox(height: 10),
                                   // Animasyonlu Başlık (Işık geçişi ve yumuşak nabız efekti)
