@@ -236,10 +236,10 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Sola dayalı küçültülmüş logo
+                                  // Sola dayalı logo
                                   Image.asset(
                                     'assets/images/app_logo.png',
-                                    height: 38,
+                                    height: 44,
                                     fit: BoxFit.contain,
                                   ),
                                   const SizedBox(height: 10),
