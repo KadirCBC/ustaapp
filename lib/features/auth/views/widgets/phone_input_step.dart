@@ -23,11 +23,8 @@ class PhoneInputStep extends ConsumerStatefulWidget {
   ConsumerState<PhoneInputStep> createState() => _PhoneInputStepState();
 }
 
-class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
-    with SingleTickerProviderStateMixin {
+class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
   late final TextEditingController _phoneController;
-  late final AnimationController _animController;
-  late final Animation<double> _floatAnim;
 
   final _maskFormatter = PhoneFormatter.trPhoneMask;
   bool _isFocused = false;
@@ -38,20 +35,10 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
     super.initState();
     final currentPhone = ref.read(phoneAuthControllerProvider).formattedPhone;
     _phoneController = TextEditingController(text: currentPhone);
-
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2200),
-    )..repeat(reverse: true);
-
-    _floatAnim = Tween<double>(begin: -3.0, end: 3.0).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeInOutSine),
-    );
   }
 
   @override
   void dispose() {
-    _animController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
@@ -160,18 +147,22 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Image.asset(
-                            'assets/images/app_logo.png',
-                            height: 42,
-                            fit: BoxFit.contain,
+                          Flexible(
+                            child: Image.asset(
+                              'assets/images/app_logo.png',
+                              height: 38,
+                              fit: BoxFit.contain,
+                            ),
                           ),
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               if (kIsWeb)
                                 Padding(
-                                  padding: const EdgeInsets.only(right: 4),
+                                  padding: const EdgeInsets.only(right: 6),
                                   child: IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
                                     onPressed: () => context.go('/admin'),
                                     icon: const Icon(Icons.admin_panel_settings_outlined, size: 18, color: Color(0xFF94A3B8)),
                                     tooltip: 'Yönetici Paneli',
@@ -181,22 +172,22 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
                                 onTap: _showHelpModal,
                                 borderRadius: BorderRadius.circular(10),
                                 child: const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.headset_mic_outlined, size: 16, color: Color(0xFF64748B)),
+                                      Icon(Icons.headset_mic_outlined, size: 15, color: Color(0xFF64748B)),
                                       SizedBox(width: 4),
                                       Text(
                                         'Nasıl Giriş Yapılır?',
                                         style: TextStyle(
-                                          fontSize: 12.5,
+                                          fontSize: 12,
                                           fontWeight: FontWeight.w600,
                                           color: Color(0xFF64748B),
                                         ),
                                       ),
                                       SizedBox(width: 2),
-                                      Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF64748B)),
+                                      Icon(Icons.chevron_right_rounded, size: 15, color: Color(0xFF64748B)),
                                     ],
                                   ),
                                 ),
@@ -284,19 +275,13 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep>
 
                               const SizedBox(width: 8),
 
-                              // Sağ: 3D Baret, Pin ve Plan Görseli
+                              // Sağ: 3D Baret, Pin ve Plan Görseli (Hareketsiz / Statik)
                               Expanded(
                                 flex: 5,
-                                child: AnimatedBuilder(
-                                  animation: _floatAnim,
-                                  builder: (context, child) => Transform.translate(
-                                    offset: Offset(0, _floatAnim.value),
-                                    child: Image.asset(
-                                      'assets/images/hero_3d_worker.png',
-                                      height: 130,
-                                      fit: BoxFit.contain,
-                                    ),
-                                  ),
+                                child: Image.asset(
+                                  'assets/images/hero_3d_worker.png',
+                                  height: 135,
+                                  fit: BoxFit.contain,
                                 ),
                               ),
                             ],
