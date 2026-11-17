@@ -33,12 +33,6 @@ class _CustomerRegisterFormState extends ConsumerState<CustomerRegisterForm> {
   bool _kvkkAccepted = true;
 
   static const List<String> _addressTitles = ['Ev', 'İş Yeri', 'Yazlık', 'Diğer'];
-  static const List<String> _popularLocations = [
-    'Sandıklı, Afyonkarahisar',
-    'Kadıköy, İstanbul',
-    'Çankaya, Ankara',
-    'Konak, İzmir',
-  ];
 
   @override
   void initState() {
@@ -48,7 +42,7 @@ class _CustomerRegisterFormState extends ConsumerState<CustomerRegisterForm> {
     _lastNameController = TextEditingController();
     _phoneController = TextEditingController(text: authState.formattedPhone);
     _emailController = TextEditingController();
-    _cityDistrictController = TextEditingController(text: 'Sandıklı, Afyonkarahisar');
+    _cityDistrictController = TextEditingController();
     _addressController = TextEditingController();
     _notesController = TextEditingController();
   }
@@ -258,38 +252,13 @@ class _CustomerRegisterFormState extends ConsumerState<CustomerRegisterForm> {
               controller: _cityDistrictController,
               textInputAction: TextInputAction.next,
               decoration: _buildInputDecoration(
-                hint: 'İlçe, Şehir (Örn: Sandıklı, Afyonkarahisar)',
+                hint: 'Şehir ve İlçe (Örn: Kadıköy, İstanbul)',
                 prefixIcon: Icons.location_city_rounded,
               ),
               validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Şehir/İlçe belirtiniz' : null,
+                  (v == null || v.trim().isEmpty) ? 'Lütfen şehir ve ilçe belirtiniz' : null,
             ),
-            const SizedBox(height: 6),
-
-            // Hızlı Lokasyon Pill'leri
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: _popularLocations.map((loc) {
-                final isSelected = _cityDistrictController.text == loc;
-                return ChoiceChip(
-                  label: Text(loc, style: const TextStyle(fontSize: 11)),
-                  selected: isSelected,
-                  selectedColor: const Color(0xFFDBEAFE),
-                  backgroundColor: const Color(0xFFF1F5F9),
-                  labelStyle: TextStyle(
-                    color: isSelected ? const Color(0xFF1E3A8A) : const Color(0xFF475569),
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                  onSelected: (_) {
-                    setState(() {
-                      _cityDistrictController.text = loc;
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
 
             _buildFieldLabel('Adres Başlığı'),
             Row(

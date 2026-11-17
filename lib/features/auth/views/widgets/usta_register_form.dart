@@ -57,7 +57,7 @@ class _UstaRegisterFormState extends ConsumerState<UstaRegisterForm> {
     _phoneController = TextEditingController(text: authState.formattedPhone);
     _emailController = TextEditingController();
     _vergiNoController = TextEditingController();
-    _cityDistrictController = TextEditingController(text: 'Sandıklı, Afyonkarahisar');
+    _cityDistrictController = TextEditingController();
     _addressController = TextEditingController();
     _ibanController = TextEditingController(text: 'TR');
     _baseFeeController = TextEditingController(text: '750');
@@ -422,7 +422,7 @@ class _UstaRegisterFormState extends ConsumerState<UstaRegisterForm> {
               controller: _cityDistrictController,
               textInputAction: TextInputAction.next,
               decoration: _buildInputDecoration(
-                hint: 'Örn: Sandıklı, Afyonkarahisar veya Kadıköy, İstanbul',
+                hint: 'Şehir ve İlçe (Örn: Kadıköy, İstanbul)',
                 prefixIcon: Icons.location_on_outlined,
               ),
               validator: (v) =>
