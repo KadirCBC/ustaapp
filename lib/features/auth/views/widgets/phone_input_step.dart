@@ -105,62 +105,26 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                   const SizedBox(height: 20),
 
                   // ===============================================================
-                  // 2. PROFESYONEL 3-SEKMELİ MENÜ (Giriş Yap | Müşteri Kaydı | Usta Kaydı)
+                  // 2. KAYIT MODUNDA İSE GERİ DÖNÜŞ BAŞLIĞI
                   // ===============================================================
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE2E8F0),
-                      borderRadius: BorderRadius.circular(16),
+                  if (_currentTab != AuthScreenTab.login) ...[
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () => setState(() => _currentTab = AuthScreenTab.login),
+                        icon: const Icon(Icons.arrow_back_rounded, size: 18, color: Color(0xFF0F172A)),
+                        label: const Text(
+                          '← Giriş Ekranına Dön',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                      ),
                     ),
-                    child: Row(
-                      children: [
-                        // 1. Giriş Yap
-                        Expanded(
-                          child: _TabButton(
-                            label: 'Giriş Yap',
-                            icon: Icons.login_rounded,
-                            isSelected: _currentTab == AuthScreenTab.login,
-                            activeColor: const Color(0xFF0F172A),
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              setState(() => _currentTab = AuthScreenTab.login);
-                            },
-                          ),
-                        ),
-                        // 2. Müşteri Kaydı
-                        Expanded(
-                          child: _TabButton(
-                            label: 'Müşteri Kaydı',
-                            icon: Icons.person_add_alt_1_rounded,
-                            isSelected: _currentTab == AuthScreenTab.customerRegister,
-                            activeColor: const Color(0xFF1E3A8A),
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              controller.selectRole(UserRole.musteri);
-                              setState(() => _currentTab = AuthScreenTab.customerRegister);
-                            },
-                          ),
-                        ),
-                        // 3. Usta Kaydı
-                        Expanded(
-                          child: _TabButton(
-                            label: 'Usta Kaydı',
-                            icon: Icons.handyman_rounded,
-                            isSelected: _currentTab == AuthScreenTab.ustaRegister,
-                            activeColor: const Color(0xFFEA580C),
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              controller.selectRole(UserRole.usta);
-                              setState(() => _currentTab = AuthScreenTab.ustaRegister);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 18),
+                    const SizedBox(height: 10),
+                  ],
 
                   // ===============================================================
                   // 3. SEÇİLİ SEKMENİN İÇERİĞİ
@@ -177,7 +141,64 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                     ),
                   ] else ...[
                     // =============================================================
-                    // GİRİŞ YAP ALANI
+                    // MÜŞTERİ KAYDI VE USTA KAYDI (ALT ALTA BÜYÜK BELİRGİN BUTONLAR)
+                    // =============================================================
+                    _BigRegistrationButton(
+                      title: 'Müşteri Kaydı',
+                      subtitle: 'Hemen usta çağırın ve güvenle hizmet alın',
+                      icon: Icons.person_add_alt_1_rounded,
+                      iconBgColor: const Color(0xFFEFF6FF),
+                      iconColor: const Color(0xFF1E3A8A),
+                      borderColor: const Color(0xFFBFDBFE),
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        controller.selectRole(UserRole.musteri);
+                        setState(() => _currentTab = AuthScreenTab.customerRegister);
+                      },
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    _BigRegistrationButton(
+                      title: 'Usta Kaydı',
+                      subtitle: 'Usta olarak başvurun, yeni işlerle kazancınızı katlayın',
+                      icon: Icons.handyman_rounded,
+                      iconBgColor: const Color(0xFFFFF7ED),
+                      iconColor: const Color(0xFFEA580C),
+                      borderColor: const Color(0xFFFED7AA),
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        controller.selectRole(UserRole.usta);
+                        setState(() => _currentTab = AuthScreenTab.ustaRegister);
+                      },
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    // VEYA GİRİŞ YAPIN AYIRICISI
+                    const Row(
+                      children: [
+                        Expanded(child: Divider(color: Color(0xFFCBD5E1))),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'VEYA HESABINIZA GİRİŞ YAPIN',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.8,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ),
+                        Expanded(child: Divider(color: Color(0xFFCBD5E1))),
+                      ],
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // =============================================================
+                    // GİRİŞ YAP KARTI
                     // =============================================================
                     Container(
                       padding: const EdgeInsets.all(22),
@@ -448,83 +469,6 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                                     ),
                             ),
                           ),
-
-                          const SizedBox(height: 20),
-
-                          // Henüz hesabınız yok mu?
-                          const Row(
-                            children: [
-                              Expanded(child: Divider(color: Color(0xFFE2E8F0))),
-                              Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 10),
-                                child: Text(
-                                  'Hesabınız yok mu?',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF64748B),
-                                  ),
-                                ),
-                              ),
-                              Expanded(child: Divider(color: Color(0xFFE2E8F0))),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Müşteri / Usta Kaydı Hızlı Geçiş Butonları
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () {
-                                    HapticFeedback.selectionClick();
-                                    controller.selectRole(UserRole.musteri);
-                                    setState(() => _currentTab = AuthScreenTab.customerRegister);
-                                  },
-                                  icon: const Icon(Icons.person_add_alt_1_rounded, size: 16, color: Color(0xFF1E3A8A)),
-                                  label: const Text(
-                                    'Müşteri Kaydı',
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF1E3A8A),
-                                    ),
-                                  ),
-                                  style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(color: Color(0xFFBFDBFE)),
-                                    backgroundColor: const Color(0xFFEFF6FF),
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () {
-                                    HapticFeedback.selectionClick();
-                                    controller.selectRole(UserRole.usta);
-                                    setState(() => _currentTab = AuthScreenTab.ustaRegister);
-                                  },
-                                  icon: const Icon(Icons.handyman_rounded, size: 16, color: Color(0xFFEA580C)),
-                                  label: const Text(
-                                    'Usta Kaydı',
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFFEA580C),
-                                    ),
-                                  ),
-                                  style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(color: Color(0xFFFED7AA)),
-                                    backgroundColor: const Color(0xFFFFF7ED),
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
                         ],
                       ),
                     ),
@@ -561,64 +505,112 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
   }
 }
 
-class _TabButton extends StatelessWidget {
-  final String label;
+/// Büyük, belirgin ve prestijli kayıt butonu kartı
+class _BigRegistrationButton extends StatelessWidget {
+  final String title;
+  final String subtitle;
   final IconData icon;
-  final bool isSelected;
-  final Color activeColor;
+  final Color iconBgColor;
+  final Color iconColor;
+  final Color borderColor;
   final VoidCallback onTap;
 
-  const _TabButton({
-    required this.label,
+  const _BigRegistrationButton({
+    required this.title,
+    required this.subtitle,
     required this.icon,
-    required this.isSelected,
-    required this.activeColor,
+    required this.iconBgColor,
+    required this.iconColor,
+    required this.borderColor,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: borderColor, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: iconColor.withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            child: Row(
+              children: [
+                // İkon Kutusu
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: iconBgColor,
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected ? activeColor : const Color(0xFF64748B),
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                  color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                  child: Icon(
+                    icon,
+                    size: 26,
+                    color: iconColor,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 14),
+
+                // Başlık & Açıklama
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
+                // Sağ Ok İkonu
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 14,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
