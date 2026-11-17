@@ -261,16 +261,19 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
 
                             const SizedBox(width: 4),
 
-                            // Sağ: 3D Baret, Pin ve Plan Görseli (Kırmızı Alana Yukarı Taşındı)
+                            // Sağ: 3D Baret, Pin ve Plan Görseli (Sağa ve Üste Doğru Kaydırıldı)
                             Expanded(
                               flex: 7,
-                              child: Transform.scale(
-                                scale: 1.35,
-                                alignment: Alignment.topRight,
-                                child: Image.asset(
-                                  'assets/images/hero_worker_hd.png',
-                                  height: 185,
-                                  fit: BoxFit.contain,
+                              child: Transform.translate(
+                                offset: const Offset(20, -18),
+                                child: Transform.scale(
+                                  scale: 1.30,
+                                  alignment: Alignment.centerRight,
+                                  child: Image.asset(
+                                    'assets/images/hero_worker_hd.png',
+                                    height: 185,
+                                    fit: BoxFit.contain,
+                                  ),
                                 ),
                               ),
                             ),
