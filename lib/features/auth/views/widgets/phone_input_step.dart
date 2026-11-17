@@ -225,27 +225,28 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                         ),
                       ] else ...[
                         // =============================================================
-                        // ORTALANMIŞ VE BÜYÜTÜLMÜŞ LOGO (Kırmızı Alandaki Boşluk Azaltıldı)
+                        // SOLA DAYALI VE KÜÇÜLTÜLMÜŞ LOGO
                         // =============================================================
-                        Center(
+                        Align(
+                          alignment: Alignment.centerLeft,
                           child: Image.asset(
                             'assets/images/app_logo.png',
-                            height: 60,
+                            height: 38,
                             fit: BoxFit.contain,
                           ),
                         ),
 
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 6),
 
                         // =============================================================
-                        // HERO ALANI (Mavi Alandaki Boşluk Azaltıldı & Hizalandı)
+                        // HERO ALANI (Sol: Başlık + Sağ: Mavi Çizgiye Kadar Büyütülen 3D Görsel)
                         // =============================================================
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Sol: Animasyonlu Başlık ve Açıklama
                             const Expanded(
-                              flex: 5,
+                              flex: 4,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -255,7 +256,7 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                                   Text(
                                     'Profesyonel ustalarla\nhızlı ve güvenli hizmet.',
                                     style: TextStyle(
-                                      fontSize: 12.5,
+                                      fontSize: 12,
                                       height: 1.35,
                                       fontWeight: FontWeight.w500,
                                       color: Color(0xFF64748B),
@@ -265,17 +266,17 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                               ),
                             ),
 
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 4),
 
-                            // Sağ: 3D Baret, Pin ve Plan Görseli (Büyütülmüş Hareketsiz Görsel)
+                            // Sağ: 3D Baret, Pin ve Plan Görseli (Mavi Çizgiye Kadar Büyütüldü)
                             Expanded(
-                              flex: 6,
+                              flex: 7,
                               child: Transform.scale(
-                                scale: 1.15,
-                                alignment: Alignment.topRight,
+                                scale: 1.35,
+                                alignment: Alignment.centerRight,
                                 child: Image.asset(
                                   'assets/images/hero_worker_hd.png',
-                                  height: 160,
+                                  height: 180,
                                   fit: BoxFit.contain,
                                 ),
                               ),
@@ -890,10 +891,10 @@ class _AnimatedHeroTitleState extends State<_AnimatedHeroTitle>
       child: const Text(
         'En Yakın Usta\nKapında!',
         style: TextStyle(
-          fontSize: 23,
+          fontSize: 21.5,
           fontWeight: FontWeight.w900,
           height: 1.15,
-          letterSpacing: -0.5,
+          letterSpacing: -0.6,
           color: Colors.white,
         ),
       ),
