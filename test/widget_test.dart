@@ -222,5 +222,8 @@ class _MockUstaDashboardController extends StateNotifier<UstaDashboardState>
       : super(UstaDashboardState(isLoading: isLoading));
 
   @override
+  Future<void> loadDashboardData({bool forceRefresh = false, bool isBackground = false}) async {}
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

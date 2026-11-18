@@ -1620,14 +1620,14 @@ class AppDataService {
   // 6. FİNANSAL İŞLEMLER & HİZMET AKIŞI
   // ==========================================
 
-  Future<List<Map<String, dynamic>>> getFinancialTransactions() async {
-    if (_cachedFinancialTransactions != null) {
+  Future<List<Map<String, dynamic>>> getFinancialTransactions({bool forceRefresh = false}) async {
+    if (_cachedFinancialTransactions != null && !forceRefresh) {
       return List.from(_cachedFinancialTransactions!);
     }
     try {
       final prefs = await SharedPreferences.getInstance();
       final str = prefs.getString(_kFinancialTransactionsKey);
-      if (str != null) {
+      if (str != null && !forceRefresh) {
         final decoded = jsonDecode(str);
         if (decoded is List) {
           _cachedFinancialTransactions = List<Map<String, dynamic>>.from(decoded);
@@ -1637,6 +1637,20 @@ class AppDataService {
     } catch (e) {
       debugPrint('Finansal verileri okuma hatası: $e');
     }
+
+    try {
+      final res = await http
+          .get(Uri.parse('$_syncBaseUrl/api/financial_transactions'))
+          .timeout(const Duration(seconds: 1));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is List) {
+          _cachedFinancialTransactions = List<Map<String, dynamic>>.from(data);
+          _persistFinancialTransactionsToPrefs(_cachedFinancialTransactions!);
+          return List.from(_cachedFinancialTransactions!);
+        }
+      }
+    } catch (_) {}
 
     await _fetchServerData();
     if (_cachedFinancialTransactions != null) return List.from(_cachedFinancialTransactions!);
@@ -1684,8 +1698,8 @@ class AppDataService {
     }
   }
 
-  Future<List<CagriModel>> getCagrilar() async {
-    if (_cachedCagrilar == null) {
+  Future<List<CagriModel>> getCagrilar({bool forceRefresh = false}) async {
+    if (_cachedCagrilar == null || forceRefresh) {
       try {
         final res = await http
             .get(Uri.parse('$_syncBaseUrl/api/cagrilar'))

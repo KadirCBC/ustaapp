@@ -41,6 +41,7 @@ class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
       }
       // Müşteri işi onaylayıp tamamladığında ustayı bilgilendirip panele yönlendir
       if (next.cagri?.isCompleted == true && previous?.cagri?.isCompleted != true) {
+        ref.read(ustaDashboardControllerProvider.notifier).loadDashboardData(forceRefresh: true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Müşteri işi onayladı! Ödeme hesabınıza aktarıldı.'),

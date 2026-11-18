@@ -162,8 +162,9 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
   ) : super(const UstaDashboardState()) {
     _appDataSubscription = _appDataService.onDataChanged.listen((_) {
       _checkIncomingCallsFromSyncService();
+      loadDashboardData(forceRefresh: true, isBackground: true);
     });
-    loadDashboardData();
+    loadDashboardData(forceRefresh: true);
   }
 
   String? get currentUserId => _supabase.auth.currentUser?.id;
@@ -184,9 +185,39 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     } catch (_) {}
   }
 
+  static DateTime? _parseTxDate(dynamic raw) {
+    if (raw == null) return null;
+    final str = raw.toString().trim();
+    final iso = DateTime.tryParse(str);
+    if (iso != null) return iso;
+    try {
+      final parts = str.split('•');
+      final datePart = parts[0].trim();
+      final dmy = datePart.split('.');
+      if (dmy.length == 3) {
+        final day = int.parse(dmy[0]);
+        final month = int.parse(dmy[1]);
+        final year = int.parse(dmy[2]);
+        int hour = 0;
+        int minute = 0;
+        if (parts.length > 1) {
+          final timePart = parts[1].trim().split(':');
+          if (timePart.length >= 2) {
+            hour = int.tryParse(timePart[0]) ?? 0;
+            minute = int.tryParse(timePart[1]) ?? 0;
+          }
+        }
+        return DateTime(year, month, day, hour, minute);
+      }
+    } catch (_) {}
+    return null;
+  }
+
   /// Ustanın veritabanındaki ve yerel oturumundaki güncel durumunu, kalıcı hizmetlerini ve gerçek kazancını çeker
-  Future<void> loadDashboardData() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+  Future<void> loadDashboardData({bool forceRefresh = false, bool isBackground = false}) async {
+    if (!isBackground) {
+      state = state.copyWith(isLoading: true, errorMessage: null);
+    }
 
     try {
       unawaited(_updateCurrentUstaCoordinates());
@@ -251,8 +282,10 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
         realHizmetler = List<UstaHizmetIlan>.from(matchedUsta.ilanlar);
       }
 
-      // 4. Gerçek İstatistikleri Hesapla (Yeni usta ise tam 0 ve gerçek değerler!)
-      final cagrilar = await _appDataService.getCagrilar();
+      // 4. Gerçek İstatistikleri Hesapla (Hem cagrilar hem financial_transactions)
+      final cagrilar = await _appDataService.getCagrilar(forceRefresh: forceRefresh);
+      final transactions = await _appDataService.getFinancialTransactions(forceRefresh: forceRefresh);
+
       final ustaCalls = cagrilar.where((c) {
         final cPhone = AppDataService.normalizePhone(c.ustaPhone ?? '');
         final cUstaId = c.ustaId;
@@ -262,32 +295,73 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       }).toList();
 
       final now = DateTime.now();
-      final todayStart = DateTime(now.year, now.month, now.day);
-      final weekStart = todayStart.subtract(Duration(days: now.weekday - 1));
-
-      int completedToday = 0;
-      double dailyEarnings = 0.0;
-      double weeklyEarnings = 0.0;
       int acceptedCalls = 0;
       int rejectedCalls = 0;
 
       for (final call in ustaCalls) {
-        final date = call.createdAt;
-        if (call.durum == CagriDurumu.tamamlandi) {
-          if (date.isAfter(todayStart)) {
-            completedToday++;
-            dailyEarnings += (call.ustaHakedis ?? 0.0);
-          }
-          if (date.isAfter(weekStart)) {
-            weeklyEarnings += (call.ustaHakedis ?? 0.0);
-          }
-          acceptedCalls++;
-        } else if (call.durum == CagriDurumu.kabulEdildi ||
+        if (call.durum == CagriDurumu.tamamlandi ||
+            call.durum == CagriDurumu.kabulEdildi ||
             call.durum == CagriDurumu.yolda ||
             call.durum == CagriDurumu.adreste) {
           acceptedCalls++;
         } else if (call.durum == CagriDurumu.iptal) {
           rejectedCalls++;
+        }
+      }
+
+      // Tamamlanan işleri ve hakedişleri cagri_id bazında tekilleştirerek hesapla
+      final Map<String, double> completedEarningsMap = {};
+      final Map<String, DateTime> completedDateMap = {};
+
+      // 1. Cagrilar'dan tamamlananlar
+      for (final call in ustaCalls) {
+        if (call.durum == CagriDurumu.tamamlandi) {
+          final hakedis = call.ustaHakedis ?? 0.0;
+          completedEarningsMap[call.id] = hakedis;
+          completedDateMap[call.id] = call.createdAt;
+        }
+      }
+
+      // 2. FinancialTransactions'dan tamamlananlar (provizyon kapandı / hakediş aktarıldı)
+      for (final tx in transactions) {
+        final txPhone = AppDataService.normalizePhone((tx['usta_tel'] ?? '').toString());
+        final isMyTx = (normPhone.isNotEmpty && txPhone == normPhone) ||
+            (matchedUsta != null && (tx['usta_id'] == matchedUsta.ustaId || tx['usta_tel'] == matchedUsta.phone));
+        if (isMyTx) {
+          final isCompleted = tx['is_payout_transferred'] == true ||
+              (tx['durum'] ?? '').toString().toLowerCase().contains('tamamlan');
+          if (isCompleted) {
+            final cagriId = (tx['cagri_id'] ?? tx['id'] ?? '').toString();
+            final hakedis = (tx['usta_hakedis'] as num?)?.toDouble() ?? 0.0;
+            if (hakedis > 0) {
+              completedEarningsMap[cagriId] = hakedis;
+              if (!completedDateMap.containsKey(cagriId)) {
+                completedDateMap[cagriId] = _parseTxDate(tx['created_at']) ?? now;
+              }
+            }
+          }
+        }
+      }
+
+      int completedToday = 0;
+      double dailyEarnings = 0.0;
+      double weeklyEarnings = 0.0;
+
+      for (final entry in completedEarningsMap.entries) {
+        final cagriId = entry.key;
+        final hakedis = entry.value;
+        final date = completedDateMap[cagriId] ?? now;
+
+        final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
+        final diffDays = now.difference(date).inDays;
+        final isThisWeek = diffDays >= 0 && diffDays <= 7;
+
+        if (isToday) {
+          completedToday++;
+          dailyEarnings += hakedis;
+        }
+        if (isThisWeek) {
+          weeklyEarnings += hakedis;
         }
       }
 

@@ -32,6 +32,9 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
     _kmFeeController = TextEditingController(text: '18');
     _freeKmController = TextEditingController(text: '3');
     _emergencyFeeController = TextEditingController(text: '250');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(ustaDashboardControllerProvider.notifier).loadDashboardData(forceRefresh: true);
+    });
   }
 
   void _syncControllers(UstaDashboardState state) {
@@ -300,19 +303,23 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                     // Hizmet Bölgesi / İlçe / Konum Girişi
                     TextField(
                       controller: locationController,
-                      style: const TextStyle(color: Colors.white, fontSize: 13.5),
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 13.5),
                       decoration: InputDecoration(
                         labelText: 'Hizmet Bölgesi / Şehir, İlçe veya Mahalle',
                         labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
                         hintText: 'Örn: Sandıklı, Afyonkarahisar veya Ece Mah.',
                         hintStyle: const TextStyle(color: Color(0xFF64748B)),
-                        prefixIcon: const Icon(Icons.location_on_rounded, color: AppTheme.ustaPrimary),
+                        prefixIcon: const Icon(Icons.location_on_rounded,
+                            color: AppTheme.ustaPrimary),
                         suffixIcon: IconButton(
                           tooltip: 'Mevcut Çalışma Konumumu Kullan',
-                          icon: const Icon(Icons.my_location_rounded, color: AppTheme.ustaPrimary, size: 20),
+                          icon: const Icon(Icons.my_location_rounded,
+                              color: AppTheme.ustaPrimary, size: 20),
                           onPressed: () {
                             setModalState(() {
-                              locationController.text = currentUstaState.ustaLocationAddress;
+                              locationController.text =
+                                  currentUstaState.ustaLocationAddress;
                             });
                           },
                         ),
@@ -320,7 +327,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                         fillColor: const Color(0xFF0F172A),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF334155)),
+                          borderSide:
+                              const BorderSide(color: Color(0xFF334155)),
                         ),
                       ),
                     ),
@@ -334,15 +342,20 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                         'Çakır, Sandıklı',
                         'Kadıköy, İstanbul',
                         'Beşiktaş, İstanbul',
-                      ].map((dist) => ActionChip(
-                        label: Text(
-                          dist,
-                          style: const TextStyle(fontSize: 11, color: Colors.white70),
-                        ),
-                        backgroundColor: const Color(0xFF0F172A),
-                        side: const BorderSide(color: Color(0xFF334155)),
-                        onPressed: () => setModalState(() => locationController.text = dist),
-                      )).toList(),
+                      ]
+                          .map((dist) => ActionChip(
+                                label: Text(
+                                  dist,
+                                  style: const TextStyle(
+                                      fontSize: 11, color: Colors.white70),
+                                ),
+                                backgroundColor: const Color(0xFF0F172A),
+                                side:
+                                    const BorderSide(color: Color(0xFF334155)),
+                                onPressed: () => setModalState(
+                                    () => locationController.text = dist),
+                              ))
+                          .toList(),
                     ),
                     const SizedBox(height: 12),
 
@@ -374,18 +387,22 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                           return;
                         }
 
-                        final locationText = locationController.text.trim().isNotEmpty
-                            ? locationController.text.trim()
-                            : currentUstaState.ustaLocationAddress;
+                        final locationText =
+                            locationController.text.trim().isNotEmpty
+                                ? locationController.text.trim()
+                                : currentUstaState.ustaLocationAddress;
 
                         double resolvedLat = currentUstaState.ustaLat;
                         double resolvedLng = currentUstaState.ustaLng;
-                        final syncMatch = LocationLookupService.resolveSync(locationText);
+                        final syncMatch =
+                            LocationLookupService.resolveSync(locationText);
                         if (syncMatch != null) {
                           resolvedLat = syncMatch.lat;
                           resolvedLng = syncMatch.lng;
                         } else {
-                          final match = await LocationLookupService.resolveBestMatch(locationText);
+                          final match =
+                              await LocationLookupService.resolveBestMatch(
+                                  locationText);
                           if (match != null) {
                             resolvedLat = match.lat;
                             resolvedLng = match.lng;
@@ -528,7 +545,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Yenile',
-            onPressed: () => controller.loadDashboardData(),
+            onPressed: () => controller.loadDashboardData(forceRefresh: true),
           ),
           IconButton(
             icon: const Icon(Icons.person_rounded),
@@ -549,7 +566,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () => controller.loadDashboardData(),
+        onRefresh: () => controller.loadDashboardData(forceRefresh: true),
         color: AppTheme.ustaPrimary,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -685,10 +702,12 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                     ),
                     const SizedBox(height: 6),
                     InkWell(
-                      onTap: () => _showUstaLocationChangeDialog(state, controller),
+                      onTap: () =>
+                          _showUstaLocationChangeDialog(state, controller),
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(8),
@@ -697,7 +716,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.location_on_rounded, size: 13, color: AppTheme.ustaPrimary),
+                            const Icon(Icons.location_on_rounded,
+                                size: 13, color: AppTheme.ustaPrimary),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
@@ -720,7 +740,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                                 color: AppTheme.ustaPrimary,
                               ),
                             ),
-                            const Icon(Icons.keyboard_arrow_right_rounded, size: 14, color: AppTheme.ustaPrimary),
+                            const Icon(Icons.keyboard_arrow_right_rounded,
+                                size: 14, color: AppTheme.ustaPrimary),
                           ],
                         ),
                       ),
@@ -748,7 +769,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
     UstaDashboardState state,
     UstaDashboardController controller,
   ) async {
-    final textController = TextEditingController(text: state.ustaLocationAddress);
+    final textController =
+        TextEditingController(text: state.ustaLocationAddress);
     const presets = [
       'Sandıklı, Afyonkarahisar',
       'Ece, Sandıklı',
@@ -803,7 +825,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                 controller: textController,
                 style: const TextStyle(color: Colors.white, fontSize: 13.5),
                 decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.location_on_rounded, color: AppTheme.ustaPrimary),
+                  prefixIcon: const Icon(Icons.location_on_rounded,
+                      color: AppTheme.ustaPrimary),
                   hintText: 'Şehir, İlçe veya Semt yazın...',
                   hintStyle: const TextStyle(color: Color(0xFF64748B)),
                   filled: true,
@@ -825,13 +848,19 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                       district,
                       style: TextStyle(
                         fontSize: 11.5,
-                        fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
-                        color: isCurrent ? Colors.white : const Color(0xFFCBD5E1),
+                        fontWeight:
+                            isCurrent ? FontWeight.w700 : FontWeight.w500,
+                        color:
+                            isCurrent ? Colors.white : const Color(0xFFCBD5E1),
                       ),
                     ),
-                    backgroundColor: isCurrent ? AppTheme.ustaPrimary : const Color(0xFF0F172A),
+                    backgroundColor: isCurrent
+                        ? AppTheme.ustaPrimary
+                        : const Color(0xFF0F172A),
                     side: BorderSide(
-                      color: isCurrent ? AppTheme.ustaPrimary : const Color(0xFF334155),
+                      color: isCurrent
+                          ? AppTheme.ustaPrimary
+                          : const Color(0xFF334155),
                     ),
                     onPressed: () => Navigator.of(ctx).pop(district),
                   );
@@ -839,13 +868,17 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
               ),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => Navigator.of(ctx).pop(textController.text.trim()),
+                onPressed: () =>
+                    Navigator.of(ctx).pop(textController.text.trim()),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.ustaPrimary,
                   minimumSize: const Size.fromHeight(48),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Konumu Güncelle', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text('Konumu Güncelle',
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -1071,11 +1104,13 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                               style: const TextStyle(
                                   fontSize: 11, color: Color(0xFF94A3B8)),
                             ),
-                            if (hizmet.konum != null && hizmet.konum!.isNotEmpty) ...[
+                            if (hizmet.konum != null &&
+                                hizmet.konum!.isNotEmpty) ...[
                               const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  const Icon(Icons.location_on_rounded, size: 12, color: Color(0xFFF59E0B)),
+                                  const Icon(Icons.location_on_rounded,
+                                      size: 12, color: Color(0xFFF59E0B)),
                                   const SizedBox(width: 3),
                                   Flexible(
                                     child: Text(
@@ -1475,7 +1510,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
         decoration: BoxDecoration(
           color: const Color(0xFF1E293B).withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF334155).withValues(alpha: 0.6)),
+          border:
+              Border.all(color: const Color(0xFF334155).withValues(alpha: 0.6)),
         ),
         child: const Center(
           child: Column(
@@ -1513,9 +1549,8 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
         final title = rawAdres.contains('•')
             ? rawAdres.split('•').first.trim()
             : (rawAdres.isNotEmpty ? rawAdres : 'Acil Hizmet Talebi');
-        final address = rawAdres.contains('•')
-            ? rawAdres.split('•').last.trim()
-            : rawAdres;
+        final address =
+            rawAdres.contains('•') ? rawAdres.split('•').last.trim() : rawAdres;
         final fee = call.ustaHakedis ?? state.servisUcreti;
 
         return Padding(
