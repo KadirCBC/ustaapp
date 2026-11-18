@@ -808,6 +808,55 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     );
   }
 
+  /// Usta gerçekçi profil resmi URL yardımcısı
+  String _getUstaAvatarUrl(NearbyUstaModel usta) {
+    if (usta.avatarUrl != null && usta.avatarUrl!.trim().isNotEmpty) {
+      return usta.avatarUrl!;
+    }
+    final cat = usta.kategori.toLowerCase();
+    if (cat.contains('cilingir')) {
+      return 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=600&auto=format&fit=crop';
+    } else if (cat.contains('tesisat')) {
+      return 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=600&auto=format&fit=crop';
+    } else if (cat.contains('elektrik')) {
+      return 'https://images.unsplash.com/photo-1541888946425-d0fbb186156f?q=80&w=600&auto=format&fit=crop';
+    }
+    return 'https://images.unsplash.com/photo-1541888946425-d0fbb186156f?q=80&w=600&auto=format&fit=crop';
+  }
+
+  /// Güvenilir resim yükleyici: Ağ hatası veya çevrimdışı durumda kaliteli yerel usta görseline düşer
+  Widget _buildUstaImage(String url, {double? width, double? height, BoxFit fit = BoxFit.cover}) {
+    return Image.network(
+      url,
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) {
+        return Image.asset(
+          'assets/images/hero_worker_hd.png',
+          width: width,
+          height: height,
+          fit: fit,
+        );
+      },
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          width: width,
+          height: height,
+          color: const Color(0xFFF1F5F9),
+          child: const Center(
+            child: SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.customerPrimary),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   /// Alt alta 2 sütunlu Grid Sliver Görünümü
   Widget _buildGridSliver(List<_ListingCardData> items, bool isLoading) {
     if (isLoading && items.isEmpty) {
@@ -832,8 +881,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
           crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 0.72,
+          mainAxisSpacing: 14,
+          childAspectRatio: 0.62,
         ),
         delegate: SliverChildBuilderDelegate(
           (context, index) {
@@ -881,9 +930,10 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     );
   }
 
-  /// Tekil Grid Kartı
+  /// Tekil Profesyonel Grid Kartı
   Widget _buildGridCard(_ListingCardData item) {
     final usta = item.usta;
+    final photoUrl = _getUstaAvatarUrl(usta);
 
     return Container(
       decoration: BoxDecoration(
@@ -892,7 +942,357 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0A000000),
+            color: Color(0x0E0F172A),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _openBookingSheet(usta, ilan: item.ilan),
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 1. ÜST: USTA PROFİL RESMİ VE ROZETLER
+              SizedBox(
+                height: 114,
+                child: Stack(
+                  children: [
+                    // Usta Profil Fotoğrafı
+                    Positioned.fill(
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                        child: _buildUstaImage(photoUrl, height: 114, fit: BoxFit.cover),
+                      ),
+                    ),
+
+                    // Üst Karartma Gradyanı (Rozetlerin net okunması için)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: 48,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.black.withValues(alpha: 0.55),
+                              Colors.transparent,
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Alt Karartma Gradyanı
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: 42,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.65),
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Sol Üst: Kategori İkonu ve Adı
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xCC0F172A),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.white24, width: 0.8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(item.icon, style: const TextStyle(fontSize: 12)),
+                            const SizedBox(width: 4),
+                            Text(
+                              usta.kategori.toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Sağ Üst: Puan Rozeti
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black26, blurRadius: 4),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star_rounded, size: 13, color: Color(0xFFD97706)),
+                            const SizedBox(width: 2),
+                            Text(
+                              usta.puan.toStringAsFixed(1),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Sol Alt: Onaylı Usta Rozeti
+                    Positioned(
+                      bottom: 6,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981),
+                          borderRadius: BorderRadius.circular(6),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black26, blurRadius: 4),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.verified_user_rounded, size: 10, color: Colors.white),
+                            SizedBox(width: 3),
+                            Text(
+                              'Onaylı Usta',
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Sağ Alt: Tahmini Varış
+                    Positioned(
+                      bottom: 6,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xCC0F172A),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '${usta.tahminiVarisDakika} dk',
+                          style: const TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // 2. ORTA: USTA BİLGİSİ, BAŞLIK VE AYRINTILAR
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Usta Adı ve Doğrulama
+                      Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: _buildUstaImage(photoUrl, width: 18, height: 18),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              usta.fullName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF334155),
+                              ),
+                            ),
+                          ),
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            size: 13,
+                            color: Color(0xFF3B82F6),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+
+                      // İlan Başlığı (2 Satır, Net ve Kalın)
+                      Text(
+                        item.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                          height: 1.22,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+
+                      // Tahmini Süre & Garanti Şeridi
+                      Row(
+                        children: [
+                          const Icon(Icons.schedule_rounded, size: 12, color: Color(0xFF64748B)),
+                          const SizedBox(width: 3),
+                          Text(
+                            item.duration,
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Garantili',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF16A34A),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const Spacer(),
+
+                      // 3. ALT: FİYAT VE ÇAĞIR BUTONU
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  'TABAN',
+                                  style: TextStyle(
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF94A3B8),
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                                Text(
+                                  '${item.price.toStringAsFixed(0)} ₺',
+                                  style: const TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF15803D),
+                                    height: 1.1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0F172A),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Çağır',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  SizedBox(width: 3),
+                                  Icon(
+                                    Icons.arrow_forward_rounded,
+                                    size: 12,
+                                    color: Colors.white,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Tekil Profesyonel Liste Kartı
+  Widget _buildListCard(_ListingCardData item) {
+    final usta = item.usta;
+    final photoUrl = _getUstaAvatarUrl(usta);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A0F172A),
             blurRadius: 10,
             offset: Offset(0, 3),
           ),
@@ -905,195 +1305,54 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Üst Rozet & Puan
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Kategori İkon Kutusu
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        item.icon,
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                    ),
-                    // Puan Çipi
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFBEB),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFFDE68A)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.star_rounded, size: 13, color: Color(0xFFD97706)),
-                          const SizedBox(width: 3),
-                          Text(
-                            usta.puan.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF92400E),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                // İlan Başlığı
-                Text(
-                  item.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
-                    height: 1.25,
-                  ),
-                ),
-                const SizedBox(height: 4),
-
-                // Açıklama / Alt Başlık
-                Text(
-                  item.description,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-
-                const Spacer(),
-
-                // Usta Adı ve Doğrulama
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 9,
-                      backgroundColor: const Color(0xFF10B981),
-                      child: Text(
-                        usta.fullName.isNotEmpty ? usta.fullName[0] : 'U',
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        usta.shortDisplayName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF334155),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Fiyat ve Çağır Butonu
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0FDF4),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFBBF7D0)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '${item.price.toStringAsFixed(0)} ₺',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF166534),
-                        ),
-                      ),
-                      const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Çağır',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF166534),
-                            ),
-                          ),
-                          Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 13,
-                            color: Color(0xFF166534),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Tekil Liste Kartı
-  Widget _buildListCard(_ListingCardData item) {
-    final usta = item.usta;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _openBookingSheet(usta, ilan: item.ilan),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
             child: Row(
               children: [
-                // Sol İkon
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    item.icon,
-                    style: const TextStyle(fontSize: 22),
-                  ),
+                // Sol Usta Portre Fotoğrafı (Rozetli)
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: _buildUstaImage(photoUrl, width: 82, height: 82),
+                    ),
+                    Positioned(
+                      top: 4,
+                      left: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xCC0F172A),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          item.icon,
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 4,
+                      right: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star_rounded, size: 12, color: Color(0xFFD97706)),
+                            const SizedBox(width: 1),
+                            Text(
+                              usta.puan.toStringAsFixed(1),
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(width: 12),
 
@@ -1102,6 +1361,25 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              usta.fullName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF475569),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF3B82F6)),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
                       Text(
                         item.title,
                         maxLines: 1,
@@ -1112,35 +1390,23 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                           color: Color(0xFF0F172A),
                         ),
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '${usta.fullName} • ${item.duration}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(Icons.star_rounded, size: 14, color: Color(0xFFD97706)),
-                          const SizedBox(width: 2),
                           Text(
-                            usta.puan.toStringAsFixed(1),
+                            '${usta.kategori} • ${item.duration}',
                             style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF334155),
+                              fontSize: 11.5,
+                              color: Color(0xFF64748B),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           Text(
-                            '📍 ${usta.tahminiVarisDakika} dk varış',
+                            '• 📍 ${usta.tahminiVarisDakika} dk varış',
                             style: const TextStyle(
                               fontSize: 11,
-                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF16A34A),
                             ),
                           ),
                         ],
@@ -1157,25 +1423,32 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                     Text(
                       '${item.price.toStringAsFixed(0)} ₺',
                       style: const TextStyle(
-                        fontSize: 15,
+                        fontSize: 16,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF166534),
+                        color: Color(0xFF15803D),
                       ),
                     ),
                     const SizedBox(height: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                       decoration: BoxDecoration(
-                        color: AppTheme.customerPrimary,
-                        borderRadius: BorderRadius.circular(8),
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Text(
-                        'Çağır',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Çağır',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(width: 3),
+                          Icon(Icons.arrow_forward_rounded, size: 12, color: Colors.white),
+                        ],
                       ),
                     ),
                   ],

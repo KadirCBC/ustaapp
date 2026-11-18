@@ -411,12 +411,24 @@ class AppDataService {
         }
 
         final dist = Geolocator.distanceBetween(customerLat, customerLng, lat, lng);
+        final normCategory = _normalizeCatKey(jobCat);
+        String ustaAvatar = (job['avatar_url'] ?? job['avatarUrl'])?.toString() ?? '';
+        if (ustaAvatar.isEmpty) {
+          if (normCategory.contains('cilingir')) {
+            ustaAvatar = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=600&auto=format&fit=crop';
+          } else if (normCategory.contains('tesisat')) {
+            ustaAvatar = 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=600&auto=format&fit=crop';
+          } else {
+            ustaAvatar = 'https://images.unsplash.com/photo-1541888946425-d0fbb186156f?q=80&w=600&auto=format&fit=crop';
+          }
+        }
 
         result.add(NearbyUstaModel(
           ustaId: jobId, // Her ilan için benzersiz harita pin ID'si
           fullName: ustaName,
           phone: ustaPhone,
-          kategori: _normalizeCatKey(jobCat),
+          avatarUrl: ustaAvatar,
+          kategori: normCategory,
           puan: 5.0,
           tamamlananIsSayisi: 48,
           latitude: lat,
