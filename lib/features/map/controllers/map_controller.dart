@@ -161,18 +161,27 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
   }
 
   List<NearbyUstaModel> _filterAndSortUstalar(List<NearbyUstaModel> list) {
-    final mapped = list.map((u) {
+    // Bölgesel hizmet yarıçapı: Müşterinin seçtiği arama yarıçapı (varsayılan 25 km, maks 35 km).
+    // Asla şehirlerarası (örneğin İstanbul'da Afyonkarahisar veya tersi) usta gösterilmez.
+    final maxRadius = state.searchRadiusMeter > 0
+        ? state.searchRadiusMeter.toDouble()
+        : 25000.0;
+
+    final filtered = <NearbyUstaModel>[];
+    for (final u in list) {
       final dist = Geolocator.distanceBetween(
         state.currentLat,
         state.currentLng,
         u.latitude,
         u.longitude,
       );
-      return u.copyWith(mesafeMetre: dist > 0 ? dist : u.mesafeMetre);
-    }).toList();
-    // Türkiye genelindeki tüm aktif ustaları haritada göster, mesafeye göre sırala
-    mapped.sort((a, b) => a.mesafeMetre.compareTo(b.mesafeMetre));
-    return mapped;
+      if (dist <= maxRadius) {
+        filtered.add(u.copyWith(mesafeMetre: dist > 0 ? dist : 500.0));
+      }
+    }
+
+    filtered.sort((a, b) => a.mesafeMetre.compareTo(b.mesafeMetre));
+    return filtered;
   }
 
   /// PostGIS RPC fonksiyonu `yakin_ustalari_getir` veya Admin Panelinin yönettiği canlı usta verisini çeker
@@ -244,15 +253,22 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
   }
 
   List<IsletmeModel> _processAndFilterIsletmeler(List<IsletmeModel> rawList) {
-    final mapped = rawList.map((item) {
+    final maxRadius = state.searchRadiusMeter > 0
+        ? state.searchRadiusMeter.toDouble()
+        : 25000.0;
+    final mapped = <IsletmeModel>[];
+
+    for (final item in rawList) {
       final dist = Geolocator.distanceBetween(
         state.currentLat,
         state.currentLng,
         item.latitude,
         item.longitude,
       );
-      return item.copyWith(mesafeMetre: dist > 0 ? dist : item.mesafeMetre);
-    }).toList();
+      if (dist <= maxRadius) {
+        mapped.add(item.copyWith(mesafeMetre: dist > 0 ? dist : item.mesafeMetre));
+      }
+    }
 
     final result = (state.selectedCategory == 'tedarikciler')
         ? mapped

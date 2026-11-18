@@ -380,10 +380,15 @@ class AppDataService {
       if (lat == 0.0 && lng == 0.0) continue;
 
       final jobCat = (job['kategori'] ?? job['category'] ?? '').toString().trim().toLowerCase();
-      final catMatch = (normalizedCat == 'tümü' || normalizedCat == 'all')
+      final catMatch = (normalizedCat == 'tümü' || normalizedCat == 'all' || normalizedCat == 'tum')
           ? true
           : (jobCat.contains(normalizedCat) || normalizedCat.contains(jobCat));
       if (!catMatch) continue;
+
+      // İl/İlçe ve Bölge Filtresi: Arama yarıçapını (varsayılan 25 km, maks 35 km) aşan ilanlar elenir.
+      // Örnek: İstanbul'da Afyon, Sandıklı veya Ankara ilanları asla görünmez.
+      final dist = Geolocator.distanceBetween(customerLat, customerLng, lat, lng);
+      if (dist > maxRadiusMeter) continue;
 
       final jobId = (job['id'] ?? '').toString();
       if (seenPinIds.add(jobId)) {
@@ -410,7 +415,6 @@ class AppDataService {
           }
         }
 
-        final dist = Geolocator.distanceBetween(customerLat, customerLng, lat, lng);
         final normCategory = _normalizeCatKey(jobCat);
         String ustaAvatar = (job['avatar_url'] ?? job['avatarUrl'])?.toString() ?? '';
         if (ustaAvatar.isEmpty) {
@@ -471,12 +475,14 @@ class AppDataService {
       bool alreadyRepresented = result.any((r) => r.phone == u.phone && r.fullName == u.fullName);
       if (!alreadyRepresented && seenPinIds.add(u.ustaId)) {
         final ustaCat = u.kategori.trim().toLowerCase();
-        final catMatch = (normalizedCat == 'tümü' || normalizedCat == 'all')
+        final catMatch = (normalizedCat == 'tümü' || normalizedCat == 'all' || normalizedCat == 'tum')
             ? true
             : (ustaCat.contains(normalizedCat) || normalizedCat.contains(ustaCat));
         if (catMatch) {
           final dist = Geolocator.distanceBetween(customerLat, customerLng, u.latitude, u.longitude);
-          result.add(u.copyWith(mesafeMetre: dist > 0 ? dist : u.mesafeMetre));
+          if (dist <= maxRadiusMeter) {
+            result.add(u.copyWith(mesafeMetre: dist > 0 ? dist : 500.0));
+          }
         }
       }
     }
@@ -1026,7 +1032,8 @@ class AppDataService {
           (item['boylam'] as num?)?.toDouble() ??
           0.0;
       if (lat == 0.0 && lng == 0.0) return false;
-      return true; // Harita üzerinde tüm tedarikçi dükkanları gösterilir
+      final dist = Geolocator.distanceBetween(customerLat, customerLng, lat, lng);
+      return dist <= maxRadiusMeter;
     }).toList();
     return filtered;
   }

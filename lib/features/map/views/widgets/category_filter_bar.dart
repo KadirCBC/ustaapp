@@ -249,6 +249,7 @@ class CategoryFilterBar extends StatelessWidget {
   });
 
   static const List<CategoryItem> _categories = [
+    CategoryItem(key: 'tum', label: 'Tümü', icon: Icons.apps_rounded),
     CategoryItem(key: 'elektrik', label: 'Elektrik', icon: Icons.bolt_rounded),
     CategoryItem(key: 'cilingir', label: 'Çilingir', icon: Icons.vpn_key_rounded),
     CategoryItem(key: 'tesisat', label: 'Tesisat', icon: Icons.build_rounded),

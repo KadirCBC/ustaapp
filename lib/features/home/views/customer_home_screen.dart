@@ -87,11 +87,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
       _selectedCategory = categoryKey;
     });
     // Harita kontrolcüsünü de senkronize tut
-    if (categoryKey != 'tum') {
-      ref.read(customerMapControllerProvider.notifier).setCategory(categoryKey);
-    } else {
-      ref.read(customerMapControllerProvider.notifier).setCategory('elektrik');
-    }
+    ref.read(customerMapControllerProvider.notifier).setCategory(categoryKey);
   }
 
   List<_ListingCardData> _buildListingItems(CustomerMapState mapState) {
