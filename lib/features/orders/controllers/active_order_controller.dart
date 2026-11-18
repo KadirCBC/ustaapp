@@ -189,17 +189,21 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
           '>>> [ActiveOrderController] Çağrı senkronize edildi: id=${synced.id}, durum=${synced.durum}, ustaArrived=${synced.ustaArrived}, completionReq=${synced.completionRequested}',
         );
 
-        if (synced.isAccepted || synced.isOnTheWay) {
+        if (synced.isAccepted || synced.isOnTheWay || synced.isAtAddress) {
           _pendingTimer?.cancel();
           _demoAutoAcceptTimer?.cancel();
           state = state.copyWith(
             cagri: synced,
-            ustaArrived: synced.ustaArrived,
+            ustaArrived: synced.isAtAddress,
             completionRequested: synced.completionRequested,
             completionPhotoUrl: synced.completionPhotoUrl,
             completionNote: synced.completionNote,
             successMessage: durumChanged && prev?.durum != synced.durum
-                ? 'Usta çağrınızı kabul etti!'
+                ? (synced.isAtAddress
+                    ? 'Ustanız adrese ulaştı!'
+                    : (synced.isOnTheWay
+                        ? 'Ustanız yola çıktı!'
+                        : 'Usta çağrınızı kabul etti!'))
                 : null,
           );
         } else if (synced.isCancelled) {
@@ -322,11 +326,25 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
     _workflowChannel = _supabase
         .channel('cagri_workflow:$_cagriId')
         .onBroadcast(
+          event: 'trip_started',
+          callback: (payload) {
+            if (!mounted) return;
+            state = state.copyWith(
+              cagri: state.cagri?.copyWith(durum: CagriDurumu.yolda),
+              successMessage: 'Ustanız yola çıktı! Canlı sürüş takibi başladı.',
+            );
+          },
+        )
+        .onBroadcast(
           event: 'usta_arrived',
           callback: (payload) {
             if (!mounted) return;
             state = state.copyWith(
               ustaArrived: true,
+              cagri: state.cagri?.copyWith(
+                durum: CagriDurumu.adreste,
+                ustaArrived: true,
+              ),
               arrivedAt: DateTime.tryParse(payload['arrived_at'] as String? ?? '') ??
                   DateTime.now(),
               successMessage: 'Ustanız adrese ulaştı!',
@@ -452,15 +470,54 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
     await cancelCall(reason: '30 saniye içinde yanıt alınamadığı için zaman aşımı');
   }
 
-  /// USTA AŞAMA 1: 'Adrese Ulaştım' -> Müşteriye varış bildirimi gönderir
+  /// USTA AŞAMA 1: 'Yola Çık (Canlı Takip Başlat)' -> Durumu 'yolda' yapar, müşteriye canlı rotayı başlatır
+  Future<bool> startTripToCustomer() async {
+    state = state.copyWith(isActionInProgress: true, errorMessage: null);
+
+    try {
+      await _persistStatusChange(CagriDurumu.yolda);
+
+      if (_isDemo) {
+        DemoCallRepository.updateStatus(_cagriId, CagriDurumu.yolda);
+        await _appDataService.updateCagriStatus(
+          _cagriId,
+          CagriDurumu.yolda,
+        );
+      } else {
+        await _broadcastWorkflowEvent('trip_started', {
+          'cagri_id': _cagriId,
+          'started_at': DateTime.now().toIso8601String(),
+        });
+        await _appDataService.updateCagriStatus(
+          _cagriId,
+          CagriDurumu.yolda,
+        );
+      }
+
+      state = state.copyWith(
+        isActionInProgress: false,
+        cagri: state.cagri?.copyWith(durum: CagriDurumu.yolda),
+        successMessage: 'Yola çıktınız! Canlı sürüş takibi müşteriye iletildi.',
+      );
+      await _syncToFinancialReports(status: CagriDurumu.yolda);
+      return true;
+    } catch (e) {
+      debugPrint('startTripToCustomer hatası: $e');
+      state = state.copyWith(
+        isActionInProgress: false,
+        errorMessage: 'Yola çıkış durumu bildirilemedi: $e',
+      );
+      return false;
+    }
+  }
+
+  /// USTA AŞAMA 2: 'Adrese Ulaştım' -> Durumu 'adreste' yapar, müşteriye varış bildirimi gönderir
   Future<bool> markUstaArrived() async {
     final now = DateTime.now();
     state = state.copyWith(isActionInProgress: true, errorMessage: null);
 
     try {
-      if (state.cagri?.isAccepted == true) {
-        await _persistStatusChange(CagriDurumu.yolda);
-      }
+      await _persistStatusChange(CagriDurumu.adreste);
 
       if (_isDemo) {
         final wf = DemoCallRepository.getWorkflow(_cagriId).copyWith(
@@ -468,9 +525,10 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
           arrivedAt: now,
         );
         DemoCallRepository.saveWorkflow(_cagriId, wf);
+        DemoCallRepository.updateStatus(_cagriId, CagriDurumu.adreste);
         await _appDataService.updateCagriStatus(
           _cagriId,
-          CagriDurumu.yolda,
+          CagriDurumu.adreste,
           ustaArrived: true,
         );
       } else {
@@ -480,7 +538,7 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
         });
         await _appDataService.updateCagriStatus(
           _cagriId,
-          CagriDurumu.yolda,
+          CagriDurumu.adreste,
           ustaArrived: true,
         );
       }
@@ -489,11 +547,13 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
         isActionInProgress: false,
         ustaArrived: true,
         arrivedAt: now,
-        cagri: state.cagri?.isAccepted == true
-            ? state.cagri?.copyWith(durum: CagriDurumu.yolda)
-            : state.cagri,
+        cagri: state.cagri?.copyWith(
+          durum: CagriDurumu.adreste,
+          ustaArrived: true,
+        ),
         successMessage: 'Adrese ulaştığınız müşteriye bildirildi!',
       );
+      await _syncToFinancialReports(status: CagriDurumu.adreste);
       return true;
     } catch (e) {
       debugPrint('markUstaArrived hatası: $e');
@@ -850,11 +910,15 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
           break;
         case CagriDurumu.kabulEdildi:
           flowStep = 2;
-          statusStr = 'Kabul Edildi / İşlemde';
+          statusStr = 'Hazırlanıyor';
           break;
         case CagriDurumu.yolda:
           flowStep = 3;
-          statusStr = 'Usta Yolda';
+          statusStr = 'Usta Yolda (Canlı Takip)';
+          break;
+        case CagriDurumu.adreste:
+          flowStep = 3;
+          statusStr = 'Usta Adreste';
           break;
         case CagriDurumu.tamamlandi:
           flowStep = 4;

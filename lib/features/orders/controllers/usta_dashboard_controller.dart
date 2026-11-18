@@ -283,7 +283,8 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
           }
           acceptedCalls++;
         } else if (call.durum == CagriDurumu.kabulEdildi ||
-            call.durum == CagriDurumu.yolda) {
+            call.durum == CagriDurumu.yolda ||
+            call.durum == CagriDurumu.adreste) {
           acceptedCalls++;
         } else if (call.durum == CagriDurumu.iptal) {
           rejectedCalls++;

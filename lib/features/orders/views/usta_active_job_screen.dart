@@ -218,21 +218,63 @@ class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
                             ),
                           ],
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppTheme.ustaPrimary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            cagri.durum.displayName,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.ustaSecondary,
+                        () {
+                          String badgeText;
+                          Color badgeBg;
+                          Color badgeFg;
+                          IconData badgeIcon;
+
+                          if (cagri.isCompleted) {
+                            badgeText = 'İş Tamamlandı';
+                            badgeIcon = Icons.check_circle_rounded;
+                            badgeBg = const Color(0xFF16A34A).withValues(alpha: 0.18);
+                            badgeFg = const Color(0xFF4ADE80);
+                          } else if (state.completionRequested) {
+                            badgeText = 'Onay Bekleniyor';
+                            badgeIcon = Icons.hourglass_top_rounded;
+                            badgeBg = const Color(0xFF8B5CF6).withValues(alpha: 0.18);
+                            badgeFg = const Color(0xFFA78BFA);
+                          } else if (state.ustaArrived || cagri.isAtAddress) {
+                            badgeText = 'Adrestesiniz';
+                            badgeIcon = Icons.location_on_rounded;
+                            badgeBg = const Color(0xFF10B981).withValues(alpha: 0.18);
+                            badgeFg = const Color(0xFF34D399);
+                          } else if (cagri.isOnTheWay) {
+                            badgeText = 'Yoldasınız';
+                            badgeIcon = Icons.directions_car_rounded;
+                            badgeBg = const Color(0xFF0284C7).withValues(alpha: 0.18);
+                            badgeFg = const Color(0xFF38BDF8);
+                          } else {
+                            badgeText = 'Hazırlanıyor';
+                            badgeIcon = Icons.handyman_rounded;
+                            badgeBg = AppTheme.ustaPrimary.withValues(alpha: 0.18);
+                            badgeFg = AppTheme.ustaSecondary;
+                          }
+
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: badgeBg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: badgeFg.withValues(alpha: 0.4)),
                             ),
-                          ),
-                        ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(badgeIcon, size: 14, color: badgeFg),
+                                const SizedBox(width: 6),
+                                Text(
+                                  badgeText,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: badgeFg,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }(),
                       ],
                     ),
                   ),
@@ -364,23 +406,98 @@ class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
                     ),
                   ],
 
-                  // ROTA HARİTASI ALTINDA İKİ AŞAMALI USTA OPERASYON BUTONLARI
-                  if (!cagri.isCompleted && !state.ustaArrived) ...[
+                  // ROTA HARİTASI ALTINDA ÜÇ AŞAMALI USTA OPERASYON BUTONLARI
+                  if (!cagri.isCompleted && (cagri.isAccepted && !cagri.isOnTheWay && !state.ustaArrived && !cagri.isAtAddress)) ...[
+                    // AŞAMA 1: HAZIRLANIYOR -> YOLA ÇIK
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
                         color: AppTheme.ustaPrimary.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.ustaPrimary.withValues(alpha: 0.4)),
                       ),
-                      child: const Text(
-                        'Aşama 1/2 • Müşteri adresine ulaştığınızda bildirin',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.ustaSecondary,
+                      child: const Row(
+                        children: [
+                          Icon(Icons.handyman_rounded, size: 18, color: AppTheme.ustaSecondary),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Aşama 1/3 • Malzemeleri hazırlayın, hazır olduğunuzda canlı takibi başlatın.',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.ustaSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: state.isActionInProgress
+                          ? null
+                          : () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              final ok = await controller.startTripToCustomer();
+                              if (ok) {
+                                messenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Yola çıktınız! Müşteriye canlı takip bildirildi.'),
+                                    backgroundColor: Color(0xFF0284C7),
+                                  ),
+                                );
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0284C7),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(56),
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
+                      ),
+                      icon: state.isActionInProgress
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.directions_car_rounded),
+                      label: const Text(
+                        'Yola Çık (Canlı Takip Başlat)',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ] else if (!cagri.isCompleted && (cagri.isOnTheWay && !state.ustaArrived && !cagri.isAtAddress)) ...[
+                    // AŞAMA 2: YOLDA -> ADRESE ULAŞTIM
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0284C7).withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.4)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.near_me_rounded, size: 18, color: Color(0xFF38BDF8)),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Aşama 2/3 • Adrese doğru ilerliyorsunuz. Vardığınızda bildirin.',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF38BDF8),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     ElevatedButton.icon(
@@ -402,6 +519,7 @@ class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
                         backgroundColor: AppTheme.ustaPrimary,
                         foregroundColor: Colors.white,
                         minimumSize: const Size.fromHeight(56),
+                        elevation: 4,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -421,7 +539,7 @@ class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                     ),
-                  ] else if (!cagri.isCompleted && state.ustaArrived) ...[
+                  ] else if (!cagri.isCompleted && (state.ustaArrived || cagri.isAtAddress)) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       margin: const EdgeInsets.only(bottom: 12),

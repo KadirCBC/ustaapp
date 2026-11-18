@@ -4,15 +4,22 @@ enum CagriDurumu {
   bekliyor,
   kabulEdildi,
   yolda,
+  adreste,
   tamamlandi,
   iptal;
 
   static CagriDurumu fromDbValue(String? value) {
     switch (value?.toLowerCase()) {
       case 'kabul_edildi':
+      case 'hazirlaniyor':
         return CagriDurumu.kabulEdildi;
       case 'yolda':
+      case 'yola_cikti':
         return CagriDurumu.yolda;
+      case 'adreste':
+      case 'adrese_ulasti':
+      case 'is_basladi':
+        return CagriDurumu.adreste;
       case 'tamamlandi':
         return CagriDurumu.tamamlandi;
       case 'iptal':
@@ -31,6 +38,8 @@ enum CagriDurumu {
         return 'kabul_edildi';
       case CagriDurumu.yolda:
         return 'yolda';
+      case CagriDurumu.adreste:
+        return 'adreste';
       case CagriDurumu.tamamlandi:
         return 'tamamlandi';
       case CagriDurumu.iptal:
@@ -43,9 +52,11 @@ enum CagriDurumu {
       case CagriDurumu.bekliyor:
         return 'Usta Onayı Bekleniyor';
       case CagriDurumu.kabulEdildi:
-        return 'Çağrı Kabul Edildi';
+        return 'Hazırlanıyor';
       case CagriDurumu.yolda:
         return 'Usta Yolda';
+      case CagriDurumu.adreste:
+        return 'Usta Adreste';
       case CagriDurumu.tamamlandi:
         return 'İşlem Tamamlandı';
       case CagriDurumu.iptal:
@@ -184,6 +195,7 @@ class CagriModel {
   bool get isPending => durum == CagriDurumu.bekliyor;
   bool get isAccepted => durum == CagriDurumu.kabulEdildi;
   bool get isOnTheWay => durum == CagriDurumu.yolda;
+  bool get isAtAddress => durum == CagriDurumu.adreste || ustaArrived;
   bool get isCompleted => durum == CagriDurumu.tamamlandi;
   bool get isCancelled => durum == CagriDurumu.iptal;
 

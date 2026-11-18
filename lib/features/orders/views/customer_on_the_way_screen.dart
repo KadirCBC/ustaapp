@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/map/views/widgets/map_widget.dart';
 import 'package:ustaapp/features/orders/controllers/active_order_controller.dart';
+import 'package:ustaapp/features/orders/models/cagri_model.dart';
 import 'package:ustaapp/features/orders/views/widgets/customer_completion_dialog.dart';
 
 class CustomerOnTheWayScreen extends ConsumerStatefulWidget {
@@ -46,13 +47,26 @@ class _CustomerOnTheWayScreenState extends ConsumerState<CustomerOnTheWayScreen>
     final controller = ref.read(activeOrderControllerProvider(widget.cagriId).notifier);
 
     ref.listen<ActiveOrderState>(activeOrderControllerProvider(widget.cagriId), (previous, next) {
+      // Usta 'Yola Çıktım' dediğinde bildirim düşür
+      if (next.cagri?.isOnTheWay == true && previous?.cagri?.isOnTheWay != true) {
+        HapticFeedback.lightImpact();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ustanız yola çıktı! Canlı sürüş takibi başladı.'),
+            backgroundColor: Color(0xFF0284C7),
+          ),
+        );
+      }
+
       // Usta 'Adrese Ulaştım' dediğinde bildirim düşür
-      if (next.ustaArrived && previous?.ustaArrived != true) {
+      if ((next.ustaArrived || next.cagri?.isAtAddress == true) &&
+          previous?.ustaArrived != true &&
+          previous?.cagri?.isAtAddress != true) {
         HapticFeedback.mediumImpact();
         SystemSound.play(SystemSoundType.alert);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Ustanız adrese ulaştı!'),
+            content: Text('Ustanız adrese ulaştı! Yerinde arıza tespiti başladı.'),
             backgroundColor: Color(0xFF16A34A),
           ),
         );
@@ -112,29 +126,57 @@ class _CustomerOnTheWayScreenState extends ConsumerState<CustomerOnTheWayScreen>
           onPressed: () => context.go('/customer/map'),
         ),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 14),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFDCFCE7),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.directions_car_rounded, size: 15, color: Color(0xFF15803D)),
-                const SizedBox(width: 5),
-                Text(
-                  cagri.isOnTheWay ? 'Yola Çıktı' : 'Hazırlanıyor',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF15803D),
+          () {
+            final isAtAddress = state.ustaArrived || cagri.isAtAddress;
+            final isOnTheWay = cagri.isOnTheWay;
+
+            String text;
+            IconData icon;
+            Color bg;
+            Color fg;
+
+            if (isAtAddress) {
+              text = 'Usta Adreste';
+              icon = Icons.location_on_rounded;
+              bg = const Color(0xFFDCFCE7);
+              fg = const Color(0xFF15803D);
+            } else if (isOnTheWay) {
+              text = 'Yolda (Canlı Takip)';
+              icon = Icons.directions_car_rounded;
+              bg = const Color(0xFFE0F2FE);
+              fg = const Color(0xFF0284C7);
+            } else {
+              text = 'Hazırlanıyor';
+              icon = Icons.handyman_rounded;
+              bg = const Color(0xFFFEF3C7);
+              fg = const Color(0xFFB45309);
+            }
+
+            return Container(
+              margin: const EdgeInsets.only(right: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: fg.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 15, color: fg),
+                  const SizedBox(width: 5),
+                  Text(
+                    text,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: fg,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
+                ],
+              ),
+            );
+          }(),
         ],
       ),
       body: Column(
@@ -160,63 +202,87 @@ class _CustomerOnTheWayScreenState extends ConsumerState<CustomerOnTheWayScreen>
                   top: 14,
                   left: 16,
                   right: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFDBEAFE),
-                            borderRadius: BorderRadius.circular(10),
+                  child: () {
+                    final isAtAddress = state.ustaArrived || cagri.isAtAddress;
+                    final isOnTheWay = cagri.isOnTheWay;
+
+                    Color iconBg;
+                    Color iconFg;
+                    IconData icon;
+                    String title;
+                    String subtitle;
+
+                    if (isAtAddress) {
+                      iconBg = const Color(0xFFDCFCE7);
+                      iconFg = const Color(0xFF15803D);
+                      icon = Icons.location_on_rounded;
+                      title = 'Ustanız Adrese Ulaştı!';
+                      subtitle = 'Yerinde arıza tespiti ve işlem başladı • Hizmet bitiminde onay istenir';
+                    } else if (isOnTheWay) {
+                      iconBg = const Color(0xFFDBEAFE);
+                      iconFg = const Color(0xFF0284C7);
+                      icon = Icons.near_me_rounded;
+                      title = 'Ustanız Yola Çıktı, Geliyor!';
+                      subtitle = 'Canlı sürüş takibi aktif • Kalan: $distanceStr (~7 - 12 dk)';
+                    } else {
+                      iconBg = const Color(0xFFFEF3C7);
+                      iconFg = const Color(0xFFB45309);
+                      icon = Icons.handyman_rounded;
+                      title = 'Usta Çağrıyı Kabul Etti, Hazırlanıyor';
+                      subtitle = 'Takım ve malzemeler hazırlanıyor • Tahmini hazırlık: 3 - 5 dk';
+                    }
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
                           ),
-                          child: const Icon(Icons.near_me_rounded, color: AppTheme.customerPrimary),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                state.ustaArrived
-                                    ? 'Ustanız adrese ulaştı!'
-                                    : (cagri.isOnTheWay
-                                        ? 'Ustanız konumunuza doğru ilerliyor'
-                                        : 'Usta çağrıyı kabul etti, yola çıkıyor'),
-                                style: TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: state.ustaArrived
-                                      ? const Color(0xFF15803D)
-                                      : AppTheme.customerTextDark,
-                                ),
-                              ),
-                              Text(
-                                state.ustaArrived
-                                    ? 'Hizmet başladıktan sonra onay istenecektir'
-                                    : 'Kalan Mesafe: $distanceStr • Tahmini 7 - 12 dk',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.customerTextMuted,
-                                ),
-                              ),
-                            ],
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: iconBg,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(icon, color: iconFg),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  title,
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: iconFg,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  subtitle,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.customerTextMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }(),
                 ),
               ],
             ),
@@ -240,6 +306,9 @@ class _CustomerOnTheWayScreenState extends ConsumerState<CustomerOnTheWayScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
+                // 3 Aşamalı Durum İlerleme Çubuğu (Hazırlanıyor -> Yolda -> Adreste)
+                _buildProgressTimeline(cagri, state),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     CircleAvatar(
@@ -324,6 +393,109 @@ class _CustomerOnTheWayScreenState extends ConsumerState<CustomerOnTheWayScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildProgressTimeline(CagriModel cagri, ActiveOrderState state) {
+    final isAtAddress = state.ustaArrived || cagri.isAtAddress;
+    final isOnTheWay = cagri.isOnTheWay;
+
+    int activeStep = 1;
+    if (isAtAddress) {
+      activeStep = 3;
+    } else if (isOnTheWay) {
+      activeStep = 2;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          _buildStepItem(
+            stepNumber: 1,
+            title: 'Hazırlanıyor',
+            isDone: activeStep > 1,
+            isActive: activeStep == 1,
+            icon: Icons.inventory_2_rounded,
+          ),
+          Expanded(
+            child: Container(
+              height: 2.5,
+              color: activeStep > 1 ? const Color(0xFF10B981) : const Color(0xFFCBD5E1),
+            ),
+          ),
+          _buildStepItem(
+            stepNumber: 2,
+            title: 'Yolda',
+            isDone: activeStep > 2,
+            isActive: activeStep == 2,
+            icon: Icons.directions_car_rounded,
+          ),
+          Expanded(
+            child: Container(
+              height: 2.5,
+              color: activeStep > 2 ? const Color(0xFF10B981) : const Color(0xFFCBD5E1),
+            ),
+          ),
+          _buildStepItem(
+            stepNumber: 3,
+            title: 'Adreste',
+            isDone: false,
+            isActive: activeStep == 3,
+            icon: Icons.location_on_rounded,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepItem({
+    required int stepNumber,
+    required String title,
+    required bool isDone,
+    required bool isActive,
+    required IconData icon,
+  }) {
+    Color bg;
+    Color fg;
+    if (isDone) {
+      bg = const Color(0xFF10B981);
+      fg = Colors.white;
+    } else if (isActive) {
+      bg = AppTheme.customerPrimary;
+      fg = Colors.white;
+    } else {
+      bg = const Color(0xFFE2E8F0);
+      fg = const Color(0xFF94A3B8);
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CircleAvatar(
+          radius: 12,
+          backgroundColor: bg,
+          child: isDone
+              ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+              : Icon(icon, size: 13, color: fg),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isActive || isDone ? FontWeight.bold : FontWeight.w500,
+            color: isActive
+                ? AppTheme.customerPrimary
+                : (isDone ? const Color(0xFF10B981) : const Color(0xFF64748B)),
+          ),
+        ),
+      ],
     );
   }
 }

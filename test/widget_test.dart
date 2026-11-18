@@ -16,11 +16,14 @@ void main() {
       expect(CagriDurumu.fromDbValue('bekliyor'), CagriDurumu.bekliyor);
       expect(CagriDurumu.fromDbValue('kabul_edildi'), CagriDurumu.kabulEdildi);
       expect(CagriDurumu.fromDbValue('yolda'), CagriDurumu.yolda);
+      expect(CagriDurumu.fromDbValue('adreste'), CagriDurumu.adreste);
       expect(CagriDurumu.fromDbValue('tamamlandi'), CagriDurumu.tamamlandi);
       expect(CagriDurumu.fromDbValue('iptal'), CagriDurumu.iptal);
 
       expect(CagriDurumu.bekliyor.toDbValue(), 'bekliyor');
       expect(CagriDurumu.kabulEdildi.toDbValue(), 'kabul_edildi');
+      expect(CagriDurumu.yolda.toDbValue(), 'yolda');
+      expect(CagriDurumu.adreste.toDbValue(), 'adreste');
       expect(CagriDurumu.iptal.toDbValue(), 'iptal');
     });
 
@@ -135,7 +138,7 @@ void main() {
         ),
       );
 
-      expect(find.text('4.9'), findsOneWidget);
+      expect(find.text('★ 4.9'), findsOneWidget);
       expect(find.text('Ahmet Y.'), findsOneWidget);
       expect(find.text('920 ₺'), findsOneWidget);
     });
