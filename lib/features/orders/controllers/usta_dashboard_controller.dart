@@ -18,7 +18,8 @@ class UstaDashboardState {
   final double ucretsizMesafeKm; // Taban ücrete dahil ücretsiz servis yarıçapı (km)
   final double acilGeceUcreti; // Acil / gece tarifesi ek bedeli (₺)
   final double calismaYaricapiKm; // Maksimum kabul edilen servis yarıçapı (km)
-  final List<UstaHizmetIlan> hizmetler; // Ustanın eklediği işler / hizmet tarifesi
+  final List<UstaHizmetIlan> hizmetler; // Ustanın eklediği işler / hizmet tarifesi (Kalıcı ve gerçek)
+  final List<CagriModel> pendingCalls; // Bekleyen acil çağrılar
   final int dailyCompletedJobs;
   final double dailyEarnings;
   final double weeklyEarnings;
@@ -27,6 +28,9 @@ class UstaDashboardState {
   final double ustaLat;
   final double ustaLng;
   final String ustaLocationAddress;
+  final String? activeUstaName;
+  final String? activeUstaPhone;
+  final String? activeUstaId;
   final bool isLoading;
   final bool isSavingFee;
   final CagriModel? incomingCall;
@@ -34,59 +38,25 @@ class UstaDashboardState {
   final String? successMessage;
 
   const UstaDashboardState({
-    this.isOnline = false,
+    this.isOnline = true,
     this.servisUcreti = 750.00,
     this.kmBasiYakitUcreti = 18.00,
     this.ucretsizMesafeKm = 3.00,
     this.acilGeceUcreti = 250.00,
     this.calismaYaricapiKm = 20.00,
-    this.hizmetler = const [
-      UstaHizmetIlan(
-        id: 'hz-1',
-        baslik: 'Temel Arıza Tespiti & Sigorta Kontrolü',
-        aciklama:
-            'Yerinde voltaj/hat ölçümü, arızalı hat izolasyonu ve güvenli ilk müdahale.',
-        fiyat: 750.0,
-        tahminiSure: '30 dk',
-        ikon: '⚡',
-        isDefault: true,
-      ),
-      UstaHizmetIlan(
-        id: 'hz-2',
-        baslik: 'Sigorta Panosu & Kaçak Akım Rölesi Montajı',
-        aciklama:
-            'Eski atan sigortanın yenilenmesi ve can güvenliği rölesi montajı.',
-        fiyat: 950.0,
-        tahminiSure: '45 dk',
-        ikon: '🛡️',
-      ),
-      UstaHizmetIlan(
-        id: 'hz-3',
-        baslik: 'Priz / Anahtar Hat Çekimi & Değişimi',
-        aciklama:
-            'Yanmış/kırık prizlerin değişimi veya sıva üstü yeni priz çekimi.',
-        fiyat: 400.0,
-        tahminiSure: '25 dk',
-        ikon: '🔌',
-      ),
-      UstaHizmetIlan(
-        id: 'hz-4',
-        baslik: 'Avize & LED Spot Aydınlatma Montajı',
-        aciklama:
-            'Tavana sağlam dübelleme, dimmer ve modern aydınlatma bağlantısı.',
-        fiyat: 500.0,
-        tahminiSure: '35 dk',
-        ikon: '💡',
-      ),
-    ],
-    this.dailyCompletedJobs = 4,
-    this.dailyEarnings = 2850.0,
-    this.weeklyEarnings = 14600.0,
-    this.ortalamaPuan = 4.9,
-    this.kabulOrani = 98,
-    this.ustaLat = 40.9905,
-    this.ustaLng = 29.0270,
-    this.ustaLocationAddress = 'Kadıköy, İstanbul',
+    this.hizmetler = const [],
+    this.pendingCalls = const [],
+    this.dailyCompletedJobs = 0,
+    this.dailyEarnings = 0.0,
+    this.weeklyEarnings = 0.0,
+    this.ortalamaPuan = 5.0,
+    this.kabulOrani = 100,
+    this.ustaLat = 38.4647,
+    this.ustaLng = 30.2719,
+    this.ustaLocationAddress = 'Sandıklı, Afyonkarahisar',
+    this.activeUstaName,
+    this.activeUstaPhone,
+    this.activeUstaId,
     this.isLoading = false,
     this.isSavingFee = false,
     this.incomingCall,
@@ -102,6 +72,7 @@ class UstaDashboardState {
     double? acilGeceUcreti,
     double? calismaYaricapiKm,
     List<UstaHizmetIlan>? hizmetler,
+    List<CagriModel>? pendingCalls,
     int? dailyCompletedJobs,
     double? dailyEarnings,
     double? weeklyEarnings,
@@ -110,6 +81,9 @@ class UstaDashboardState {
     double? ustaLat,
     double? ustaLng,
     String? ustaLocationAddress,
+    String? activeUstaName,
+    String? activeUstaPhone,
+    String? activeUstaId,
     bool? isLoading,
     bool? isSavingFee,
     CagriModel? incomingCall,
@@ -125,6 +99,7 @@ class UstaDashboardState {
       acilGeceUcreti: acilGeceUcreti ?? this.acilGeceUcreti,
       calismaYaricapiKm: calismaYaricapiKm ?? this.calismaYaricapiKm,
       hizmetler: hizmetler ?? this.hizmetler,
+      pendingCalls: pendingCalls ?? this.pendingCalls,
       dailyCompletedJobs: dailyCompletedJobs ?? this.dailyCompletedJobs,
       dailyEarnings: dailyEarnings ?? this.dailyEarnings,
       weeklyEarnings: weeklyEarnings ?? this.weeklyEarnings,
@@ -133,6 +108,9 @@ class UstaDashboardState {
       ustaLat: ustaLat ?? this.ustaLat,
       ustaLng: ustaLng ?? this.ustaLng,
       ustaLocationAddress: ustaLocationAddress ?? this.ustaLocationAddress,
+      activeUstaName: activeUstaName ?? this.activeUstaName,
+      activeUstaPhone: activeUstaPhone ?? this.activeUstaPhone,
+      activeUstaId: activeUstaId ?? this.activeUstaId,
       isLoading: isLoading ?? this.isLoading,
       isSavingFee: isSavingFee ?? this.isSavingFee,
       incomingCall:
@@ -206,83 +184,181 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     } catch (_) {}
   }
 
-  /// Ustanın veritabanındaki güncel durumunu, ücretini ve günlük kazancını çeker
+  /// Ustanın veritabanındaki ve yerel oturumundaki güncel durumunu, kalıcı hizmetlerini ve gerçek kazancını çeker
   Future<void> loadDashboardData() async {
-    final uid = currentUserId;
-    if (uid == null) {
-      // Demo / Test modunda çalışan varsayılan usta verileri
-      state = state.copyWith(
-        isLoading: false,
-        isOnline: true, // Çağrılara hazır olarak başla
-        servisUcreti: 750.00,
-        dailyCompletedJobs: 4,
-        dailyEarnings: 2850.00,
-      );
-      unawaited(_updateCurrentUstaCoordinates());
-      unawaited(_checkIncomingCallsFromSyncService());
-      return;
-    }
-
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
-      // Konum güncellemesini arka planda timeout ile çalıştır
       unawaited(_updateCurrentUstaCoordinates());
 
-      // 1. ustalar tablosundan is_online ve servis_ucreti bilgilerini çek
-      final ustaData = await _supabase
-          .from(AppConstants.ustalarTable)
-          .select('is_online, servis_ucreti')
-          .eq('id', uid)
-          .maybeSingle()
-          .timeout(const Duration(seconds: 3));
+      // 1. Aktif oturumu AppDataService'den al
+      final session = await _appDataService.getActiveSession();
+      final sessionPhone = session?['phone'] as String? ?? '';
+      final sessionFullName = session?['full_name'] as String? ?? '';
+      final normPhone = AppDataService.normalizePhone(sessionPhone);
+      final uid = currentUserId;
 
-      bool isOnline = state.isOnline;
-      double servisUcreti = state.servisUcreti;
+      // 2. Ustalar listesinden / AppDataService'den ustayı bul
+      final ustalar = await _appDataService.getUstalar();
+      NearbyUstaModel? matchedUsta;
 
-      if (ustaData != null) {
-        isOnline = ustaData['is_online'] as bool? ?? false;
-        servisUcreti = (ustaData['servis_ucreti'] as num?)?.toDouble() ?? 750.00;
+      if (normPhone.isNotEmpty) {
+        matchedUsta = ustalar.cast<NearbyUstaModel?>().firstWhere(
+          (u) => u != null && AppDataService.normalizePhone(u.phone) == normPhone,
+          orElse: () => null,
+        );
+      }
+      if (matchedUsta == null && uid != null) {
+        matchedUsta = ustalar.cast<NearbyUstaModel?>().firstWhere(
+          (u) => u != null && u.ustaId == uid,
+          orElse: () => null,
+        );
       }
 
-      // 2. Günlük tamamlanan siparişleri ve toplam kazancı hesapla
-      final todayStart = DateTime.now().toUtc().toIso8601String().substring(0, 10);
-      final completedCalls = await _supabase
-          .from(AppConstants.cagrilarTable)
-          .select('usta_hakedis, durum, created_at')
-          .eq('usta_id', uid)
-          .eq('durum', 'tamamlandi')
-          .gte('created_at', '$todayStart 00:00:00+00')
-          .timeout(const Duration(seconds: 3));
+      // Eğer sistemde kayıtlı usta yoksa ve aktif oturum varsa model oluştur
+      if (matchedUsta == null && normPhone.isNotEmpty) {
+        final baseFee = (session?['base_service_fee'] as num?)?.toDouble() ?? 750.0;
+        final ustaId = uid ?? 'usta-${DateTime.now().millisecondsSinceEpoch}';
+        matchedUsta = NearbyUstaModel(
+          ustaId: ustaId,
+          fullName: sessionFullName.isNotEmpty ? sessionFullName : 'Usta',
+          phone: normPhone,
+          kategori: session?['category'] ?? 'genel',
+          puan: 5.0,
+          tamamlananIsSayisi: 0,
+          latitude: state.ustaLat,
+          longitude: state.ustaLng,
+          mesafeMetre: 500,
+          ustaHakedis: baseFee,
+          komisyonOrani: 0.15,
+          komisyonTutari: baseFee * 0.15,
+          toplamTutar: baseFee * 1.15,
+          servisUcreti: baseFee,
+          deneyimYili: (session?['experience_years'] as num?)?.toInt() ?? 5,
+          uzmanlikBasligi: session?['address'] ?? session?['city_district'] ?? 'Sandıklı, Afyonkarahisar',
+          guvenceler: const ['30 Gün İşçilik Garantisi', 'Sabit Fiyat Güvencesi'],
+          ilanlar: const [],
+        );
+        ustalar.add(matchedUsta);
+        await _appDataService.saveUstalar(ustalar);
+      }
 
-      int completedCount = 0;
-      double totalEarnings = 0.0;
+      // 3. Kalıcı ve gerçek hizmet ilanlarını yükle
+      List<UstaHizmetIlan> realHizmetler = [];
+      if (normPhone.isNotEmpty) {
+        realHizmetler = await _appDataService.getUstaHizmetleri(normPhone);
+      } else if (matchedUsta != null) {
+        realHizmetler = List<UstaHizmetIlan>.from(matchedUsta.ilanlar);
+      }
 
-      for (final call in (completedCalls as List)) {
-        completedCount++;
-        totalEarnings += (call['usta_hakedis'] as num?)?.toDouble() ?? 0.0;
+      // 4. Gerçek İstatistikleri Hesapla (Yeni usta ise tam 0 ve gerçek değerler!)
+      final cagrilar = await _appDataService.getCagrilar();
+      final ustaCalls = cagrilar.where((c) {
+        final cPhone = AppDataService.normalizePhone(c.ustaPhone ?? '');
+        final cUstaId = c.ustaId;
+        return (normPhone.isNotEmpty && cPhone == normPhone) ||
+            (matchedUsta != null &&
+                (cUstaId == matchedUsta.ustaId || cUstaId == matchedUsta.phone));
+      }).toList();
+
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final weekStart = todayStart.subtract(Duration(days: now.weekday - 1));
+
+      int completedToday = 0;
+      double dailyEarnings = 0.0;
+      double weeklyEarnings = 0.0;
+      int acceptedCalls = 0;
+      int rejectedCalls = 0;
+
+      for (final call in ustaCalls) {
+        final date = call.createdAt;
+        if (call.durum == CagriDurumu.tamamlandi) {
+          if (date.isAfter(todayStart)) {
+            completedToday++;
+            dailyEarnings += (call.ustaHakedis ?? 0.0);
+          }
+          if (date.isAfter(weekStart)) {
+            weeklyEarnings += (call.ustaHakedis ?? 0.0);
+          }
+          acceptedCalls++;
+        } else if (call.durum == CagriDurumu.kabulEdildi ||
+            call.durum == CagriDurumu.yolda) {
+          acceptedCalls++;
+        } else if (call.durum == CagriDurumu.iptal) {
+          rejectedCalls++;
+        }
+      }
+
+      final totalProcessed = acceptedCalls + rejectedCalls;
+      final int realKabulOrani = totalProcessed > 0
+          ? ((acceptedCalls / totalProcessed) * 100).round()
+          : 100;
+      final double realPuan = (matchedUsta != null && matchedUsta.tamamlananIsSayisi > 0)
+          ? matchedUsta.puan
+          : 5.0;
+
+      // Bekleyen çağrılar listesi
+      final pendingCalls = cagrilar
+          .where((c) => c.durum == CagriDurumu.bekliyor)
+          .toList();
+
+      final double resolvedServisUcreti = (matchedUsta != null && matchedUsta.servisUcreti > 0)
+          ? matchedUsta.servisUcreti
+          : ((session?['base_service_fee'] as num?)?.toDouble() ?? 750.0);
+
+      // Supabase veritabanı kontrolü (giriş yapılmışsa)
+      bool isOnline = state.isOnline;
+      if (uid != null) {
+        try {
+          final ustaData = await _supabase
+              .from(AppConstants.ustalarTable)
+              .select('is_online, servis_ucreti')
+              .eq('id', uid)
+              .maybeSingle()
+              .timeout(const Duration(seconds: 2));
+          if (ustaData != null) {
+            isOnline = ustaData['is_online'] as bool? ?? isOnline;
+          }
+        } catch (_) {}
       }
 
       state = state.copyWith(
         isLoading: false,
         isOnline: isOnline,
-        servisUcreti: servisUcreti,
-        dailyCompletedJobs: completedCount > 0 ? completedCount : 4,
-        dailyEarnings: totalEarnings > 0 ? totalEarnings : 2850.0,
+        servisUcreti: resolvedServisUcreti,
+        hizmetler: realHizmetler,
+        pendingCalls: pendingCalls,
+        dailyCompletedJobs: completedToday,
+        dailyEarnings: dailyEarnings,
+        weeklyEarnings: weeklyEarnings,
+        ortalamaPuan: realPuan,
+        kabulOrani: realKabulOrani,
+        activeUstaId: matchedUsta?.ustaId ?? (normPhone.isNotEmpty ? 'usta-$normPhone' : 'usta-default'),
+        activeUstaName: matchedUsta?.fullName ?? (sessionFullName.isNotEmpty ? sessionFullName : 'Usta'),
+        activeUstaPhone: normPhone,
+        ustaLocationAddress: (matchedUsta?.uzmanlikBasligi != null && matchedUsta!.uzmanlikBasligi.isNotEmpty)
+            ? matchedUsta.uzmanlikBasligi
+            : (session?['address'] ?? session?['city_district'] ?? state.ustaLocationAddress),
+        ustaLat: (matchedUsta != null && matchedUsta.latitude != 0.0)
+            ? matchedUsta.latitude
+            : state.ustaLat,
+        ustaLng: (matchedUsta != null && matchedUsta.longitude != 0.0)
+            ? matchedUsta.longitude
+            : state.ustaLng,
       );
 
-      // Çevrimiçi ise konum takibini ve Supabase Realtime Stream çağrı dinlemesini başlat
-      if (isOnline) {
+      // Supabase Realtime Stream dinlemesini başlat
+      if (uid != null && isOnline) {
         if (!_locationService.isTracking) {
           unawaited(_locationService.startTracking(uid));
         }
         _subscribeToIncomingCallsStream(uid);
       }
+      unawaited(_checkIncomingCallsFromSyncService());
     } catch (e) {
-      debugPrint('loadDashboardData hatası (demo verileri korunuyor): $e');
-      state = state.copyWith(
-        isLoading: false,
-      );
+      debugPrint('loadDashboardData hatası: $e');
+      state = state.copyWith(isLoading: false);
     } finally {
       if (mounted && state.isLoading) {
         state = state.copyWith(isLoading: false);
@@ -299,13 +375,11 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
         .eq('usta_id', uid)
         .listen(
           (List<Map<String, dynamic>> rows) async {
-            // İstemci tarafında durum = 'bekliyor' olan çağrıları filtrele
             final pendingRows = rows
                 .where((r) => r['durum'] == 'bekliyor')
                 .toList();
 
             if (pendingRows.isEmpty) {
-              // Bekleyen çağrı yoksa (iptal/kabul edildiyse) açık modalı temizle
               if (state.incomingCall != null && !state.incomingCall!.id.startsWith('demo-')) {
                 state = state.copyWith(clearIncomingCall: true);
               }
@@ -315,14 +389,12 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
             final record = pendingRows.first;
             final callId = record['id'] as String;
 
-            // Eğer bu çağrı zaten işlendiyse veya halihazırda ekrandaysa tekrar açma
             if (_handledCallIds.contains(callId) || state.incomingCall?.id == callId) {
               return;
             }
 
             var incoming = CagriModel.fromJson(record);
 
-            // Müşteri adını/telefonunu profiles tablosundan zenginleştir
             try {
               final profile = await _supabase
                   .from(AppConstants.profilesTable)
@@ -347,7 +419,7 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
         );
   }
 
-  /// Demo Modu için gelen acil çağrı simülasyonu (Tam ekran modal & 30 sn sayaç testi)
+  /// Gelen acil çağrı simülasyonu (Tam ekran modal & canlı sayaç testi)
   void simulateIncomingCall({
     String title = 'Elektrik Sigortası Sürekli Atıyor',
     String customerName = 'Kerem T.',
@@ -366,7 +438,7 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     final demoCagri = CagriModel(
       id: demoId,
       musteriId: 'demo-musteri-1',
-      ustaId: currentUserId ?? 'demo-usta-id',
+      ustaId: state.activeUstaId ?? currentUserId ?? 'demo-usta-id',
       musteriLat: state.ustaLat + 0.0065,
       musteriLng: state.ustaLng + 0.0052,
       adresTarifi: '$title • $address',
@@ -378,8 +450,12 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       musteriFullName: customerName,
       musteriPhone: '+90 532 456 78 90',
     );
+    _appDataService.saveOrUpdateCagri(demoCagri);
     DemoCallRepository.save(demoCagri);
-    state = state.copyWith(incomingCall: demoCagri);
+    state = state.copyWith(
+      incomingCall: demoCagri,
+      pendingCalls: [demoCagri, ...state.pendingCalls.where((c) => c.id != demoId)],
+    );
   }
 
   /// Ustanın çalışma bölgesini / ilçesini ve koordinatlarını günceller
@@ -411,8 +487,9 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       successMessage: 'Çalışma bölgeniz "$resolvedAddress" olarak güncellendi.',
     );
 
-    await AppDataService.instance.updateUstaLocation(
-      ustaId: currentUserId ?? 'usta-1794603229298',
+    final ustaId = state.activeUstaId ?? currentUserId ?? 'usta-default';
+    await _appDataService.updateUstaLocation(
+      ustaId: ustaId,
       address: resolvedAddress,
       lat: resolvedLat,
       lng: resolvedLng,
@@ -421,7 +498,7 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     return true;
   }
 
-  /// Yeni iş / hizmet ilanı ekler ve harita/admin sistemine senkronize eder
+  /// Yeni iş / hizmet ilanı ekler ve kalıcı olarak kaydeder
   Future<void> addHizmet(UstaHizmetIlan hizmet) async {
     final updatedList = List<UstaHizmetIlan>.from(state.hizmetler)..add(hizmet);
     state = state.copyWith(
@@ -429,33 +506,35 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       successMessage: '"${hizmet.baslik}" hizmet listenize eklendi.',
     );
 
+    final normPhone = AppDataService.normalizePhone(state.activeUstaPhone ?? '');
+    final ustaName = state.activeUstaName ?? 'Usta';
+    final ustaId = state.activeUstaId ?? (normPhone.isNotEmpty ? 'usta-$normPhone' : 'usta-default');
+
+    // 1. Kalıcı olarak Preferences ve Ustalar modeline kaydet
+    if (normPhone.isNotEmpty) {
+      await _appDataService.saveUstaHizmetleri(normPhone, updatedList);
+    }
+
+    // 2. Harita ve Jobs sistemine senkronize et
     final targetLocation = (hizmet.konum != null && hizmet.konum!.isNotEmpty)
         ? hizmet.konum!
         : state.ustaLocationAddress;
     final targetLat = hizmet.lat ?? state.ustaLat;
     final targetLng = hizmet.lng ?? state.ustaLng;
 
-    final session = await _appDataService.getActiveSession();
-    final activeUstaName = (session?['full_name'] as String?)?.isNotEmpty == true
-        ? session!['full_name'] as String
-        : 'Kadir Usta';
-    final activeUstaPhone = (session?['phone'] as String?)?.isNotEmpty == true
-        ? session!['phone'] as String
-        : '5524342069';
-
-    await AppDataService.instance.syncUstaHizmetListing(
+    await _appDataService.syncUstaHizmetListing(
       hizmet: hizmet,
-      ustaName: activeUstaName,
-      ustaPhone: activeUstaPhone,
-      ustaId: currentUserId ?? 'usta-1794603229298',
-      ustaCategory: 'Elektrik & Aydınlatma',
+      ustaName: ustaName,
+      ustaPhone: normPhone,
+      ustaId: ustaId,
+      ustaCategory: hizmet.baslik,
       location: targetLocation,
       lat: targetLat,
       lng: targetLng,
     );
   }
 
-  /// Mevcut iş / hizmet ilanını günceller ve harita/admin sistemine senkronize eder
+  /// Mevcut iş / hizmet ilanını günceller ve kalıcı olarak kaydeder
   Future<void> updateHizmet(UstaHizmetIlan updatedHizmet) async {
     final index = state.hizmetler.indexWhere((h) => h.id == updatedHizmet.id);
     if (index == -1) return;
@@ -468,33 +547,35 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       successMessage: '"${updatedHizmet.baslik}" başarıyla güncellendi.',
     );
 
+    final normPhone = AppDataService.normalizePhone(state.activeUstaPhone ?? '');
+    final ustaName = state.activeUstaName ?? 'Usta';
+    final ustaId = state.activeUstaId ?? (normPhone.isNotEmpty ? 'usta-$normPhone' : 'usta-default');
+
+    // 1. Kalıcı kaydet
+    if (normPhone.isNotEmpty) {
+      await _appDataService.saveUstaHizmetleri(normPhone, updatedList);
+    }
+
+    // 2. Harita ve Jobs sistemine senkronize et
     final targetLocation = (updatedHizmet.konum != null && updatedHizmet.konum!.isNotEmpty)
         ? updatedHizmet.konum!
         : state.ustaLocationAddress;
     final targetLat = updatedHizmet.lat ?? state.ustaLat;
     final targetLng = updatedHizmet.lng ?? state.ustaLng;
 
-    final session = await _appDataService.getActiveSession();
-    final activeUstaName = (session?['full_name'] as String?)?.isNotEmpty == true
-        ? session!['full_name'] as String
-        : 'Kadir Usta';
-    final activeUstaPhone = (session?['phone'] as String?)?.isNotEmpty == true
-        ? session!['phone'] as String
-        : '5524342069';
-
-    await AppDataService.instance.syncUstaHizmetListing(
+    await _appDataService.syncUstaHizmetListing(
       hizmet: updatedHizmet,
-      ustaName: activeUstaName,
-      ustaPhone: activeUstaPhone,
-      ustaId: currentUserId ?? 'usta-1794603229298',
-      ustaCategory: 'Elektrik & Aydınlatma',
+      ustaName: ustaName,
+      ustaPhone: normPhone,
+      ustaId: ustaId,
+      ustaCategory: updatedHizmet.baslik,
       location: targetLocation,
       lat: targetLat,
       lng: targetLng,
     );
   }
 
-  /// İş / hizmet ilanını listeden kaldırır ve haritadan siler
+  /// İş / hizmet ilanını listeden kaldırır ve kalıcı depodan siler
   Future<void> deleteHizmet(String id) async {
     final removed = state.hizmetler.firstWhere(
       (h) => h.id == id,
@@ -508,7 +589,15 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
           : 'Hizmet kaldırıldı.',
     );
 
-    await AppDataService.instance.removeUstaHizmetListing(id);
+    final normPhone = AppDataService.normalizePhone(state.activeUstaPhone ?? '');
+
+    // 1. Kalıcı olarak güncelle (Preferences + Ustalar Listesi)
+    if (normPhone.isNotEmpty) {
+      await _appDataService.saveUstaHizmetleri(normPhone, updatedList);
+    }
+
+    // 2. Harita ve aktif işlerden kaldır
+    await _appDataService.removeUstaHizmetListing(id, ustaPhone: normPhone);
   }
 
   /// Ayrıntılı tarife ve kilometre başına yakıt/ulaşım ayarlarını topluca kaydeder
@@ -533,6 +622,16 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     }
 
     state = state.copyWith(isSavingFee: true, errorMessage: null, successMessage: null);
+
+    final normPhone = AppDataService.normalizePhone(state.activeUstaPhone ?? '');
+    if (normPhone.isNotEmpty) {
+      final ustalar = await _appDataService.getUstalar();
+      final idx = ustalar.indexWhere((u) => AppDataService.normalizePhone(u.phone) == normPhone);
+      if (idx >= 0) {
+        ustalar[idx] = ustalar[idx].copyWith(servisUcreti: tabanServis);
+        await _appDataService.saveUstalar(ustalar);
+      }
+    }
 
     final uid = currentUserId;
     if (uid != null) {

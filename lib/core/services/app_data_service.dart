@@ -858,11 +858,89 @@ class AppDataService {
     }
   }
 
-  /// Usta bir hizmet ilanını sildiğinde haritadan ve ilanlar masasından kaldırır
-  Future<void> removeUstaHizmetListing(String hizmetId) async {
+  /// Usta bir hizmet ilanını sildiğinde haritadan, ilanlar masasından ve ustanın profilinden tamamen kaldırır
+  Future<void> removeUstaHizmetListing(String hizmetId, {String? ustaPhone}) async {
     final jobs = await getActiveJobs();
     jobs.removeWhere((j) => j['id'] == hizmetId || j['id'].toString().contains(hizmetId) || hizmetId.contains(j['id'].toString()));
     await saveActiveJobs(jobs);
+
+    final ustalar = await getUstalar();
+    bool changed = false;
+    for (int i = 0; i < ustalar.length; i++) {
+      final u = ustalar[i];
+      final originalCount = u.ilanlar.length;
+      final filtered = u.ilanlar.where((h) => h.id != hizmetId && !hizmetId.contains(h.id)).toList();
+      if (filtered.length != originalCount) {
+        ustalar[i] = u.copyWith(ilanlar: filtered);
+        changed = true;
+        final norm = normalizePhone(u.phone);
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final key = 'usta_hizmetler_$norm';
+          final encoded = jsonEncode(filtered.map((s) => s.toJson()).toList());
+          await prefs.setString(key, encoded);
+        } catch (_) {}
+      }
+    }
+    if (changed) {
+      await saveUstalar(ustalar);
+    }
+
+    if (ustaPhone != null && ustaPhone.isNotEmpty) {
+      final norm = normalizePhone(ustaPhone);
+      final current = await getUstaHizmetleri(norm);
+      final updated = current.where((h) => h.id != hizmetId && !hizmetId.contains(h.id)).toList();
+      await saveUstaHizmetleri(norm, updated);
+    }
+  }
+
+  /// Belirli bir ustanın hizmetlerini getirir (Kalıcı ve gerçek)
+  Future<List<UstaHizmetIlan>> getUstaHizmetleri(String phoneOrUstaId) async {
+    final norm = normalizePhone(phoneOrUstaId);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'usta_hizmetler_$norm';
+      final raw = prefs.getString(key);
+      if (raw != null) {
+        final List list = jsonDecode(raw);
+        return list.map((e) => UstaHizmetIlan.fromJson(Map<String, dynamic>.from(e))).toList();
+      }
+    } catch (e) {
+      debugPrint('getUstaHizmetleri prefs error: $e');
+    }
+
+    final ustalar = await getUstalar();
+    final match = ustalar.cast<NearbyUstaModel?>().firstWhere(
+      (u) => u != null && (normalizePhone(u.phone) == norm || u.ustaId == phoneOrUstaId),
+      orElse: () => null,
+    );
+    if (match != null) {
+      return List<UstaHizmetIlan>.from(match.ilanlar);
+    }
+    return [];
+  }
+
+  /// Belirli bir ustanın hizmet tarifesini günceller ve hem prefs hem ustalar listesine kalıcı yazar
+  Future<void> saveUstaHizmetleri(String phoneOrUstaId, List<UstaHizmetIlan> services) async {
+    final norm = normalizePhone(phoneOrUstaId);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'usta_hizmetler_$norm';
+      final encoded = jsonEncode(services.map((s) => s.toJson()).toList());
+      await prefs.setString(key, encoded);
+    } catch (e) {
+      debugPrint('saveUstaHizmetleri prefs error: $e');
+    }
+
+    final ustalar = await getUstalar();
+    final idx = ustalar.indexWhere(
+      (u) => normalizePhone(u.phone) == norm || u.ustaId == phoneOrUstaId,
+    );
+    if (idx >= 0) {
+      ustalar[idx] = ustalar[idx].copyWith(ilanlar: List.from(services));
+      await saveUstalar(ustalar);
+    }
+    _changesStreamController.add(null);
   }
 
   /// Ustanın çalışma konumunu ve koordinatlarını günceller
@@ -1420,6 +1498,18 @@ class AppDataService {
     final uIdx = ustalar.indexWhere((u) => normalizePhone(u.phone) == norm);
     final ustaId = uIdx >= 0 ? ustalar[uIdx].ustaId : 'usta-${DateTime.now().millisecondsSinceEpoch}';
 
+    final initialHizmet = UstaHizmetIlan(
+      id: 'ILN-${DateTime.now().millisecondsSinceEpoch % 9000 + 1000}',
+      baslik: '$category Hizmeti',
+      aciklama: 'Yerinde arıza tespiti, malzeme kontrolü ve profesyonel müdahale.',
+      fiyat: baseServiceFee,
+      tahminiSure: '30 dk',
+      isDefault: true,
+      konum: cityDistrict,
+      lat: resolvedLat,
+      lng: resolvedLng,
+    );
+
     final ustaModel = NearbyUstaModel(
       ustaId: ustaId,
       fullName: fullName,
@@ -1442,19 +1532,7 @@ class AppDataService {
       deneyimYili: experienceYears,
       uzmanlikBasligi: '$cityDistrict • ${isOnayli ? '⭐ Onaylı Usta' : 'Uzman Usta'}',
       guvenceler: guvenceler,
-      ilanlar: [
-        UstaHizmetIlan(
-          id: 'hz-1',
-          baslik: '$category Hizmeti',
-          aciklama: 'Yerinde arıza tespiti, malzeme kontrolü ve profesyonel müdahale.',
-          fiyat: baseServiceFee,
-          tahminiSure: '30 dk',
-          isDefault: true,
-          konum: cityDistrict,
-          lat: resolvedLat,
-          lng: resolvedLng,
-        ),
-      ],
+      ilanlar: [initialHizmet],
     );
 
     if (uIdx >= 0) {
@@ -1463,6 +1541,17 @@ class AppDataService {
       ustalar.add(ustaModel);
     }
     await saveUstalar(ustalar);
+    await saveUstaHizmetleri(norm, [initialHizmet]);
+    await syncUstaHizmetListing(
+      hizmet: initialHizmet,
+      ustaName: fullName,
+      ustaPhone: norm,
+      ustaId: ustaId,
+      ustaCategory: category,
+      location: cityDistrict,
+      lat: resolvedLat,
+      lng: resolvedLng,
+    );
 
     await saveActiveSession(
       phone: norm,

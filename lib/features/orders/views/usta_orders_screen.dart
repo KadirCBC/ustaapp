@@ -8,7 +8,6 @@ import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/auth/controllers/auth_controller.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:ustaapp/features/orders/controllers/usta_dashboard_controller.dart';
-import 'package:ustaapp/features/orders/models/cagri_model.dart';
 import 'package:ustaapp/features/orders/views/widgets/incoming_call_dialog.dart';
 
 class UstaOrdersScreen extends ConsumerStatefulWidget {
@@ -1412,7 +1411,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
         if (!state.isOnline)
           _buildOfflineNotice(controller)
         else
-          _buildSampleCallsList(state),
+          _buildLiveCallsList(state),
       ],
     );
   }
@@ -1467,85 +1466,78 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
     );
   }
 
-  Widget _buildSampleCallsList(UstaDashboardState state) {
+  Widget _buildLiveCallsList(UstaDashboardState state) {
     final controller = ref.read(ustaDashboardControllerProvider.notifier);
 
-    // Mesafeye göre yakıtlı ücret hesaplamaları
-    const sampleDistance1 = 1.2;
-    final fee1 = state.calculateTotalQuote(
-        basePrice: state.servisUcreti, distanceKm: sampleDistance1);
-    final fee2 = state.calculateTotalQuote(basePrice: 950.0, distanceKm: 4.8);
+    if (state.pendingCalls.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B).withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF334155).withValues(alpha: 0.6)),
+        ),
+        child: const Center(
+          child: Column(
+            children: [
+              Icon(Icons.radar_rounded, size: 36, color: AppTheme.ustaPrimary),
+              SizedBox(height: 10),
+              Text(
+                'Bekleyen Yeni Çağrı Bulunmuyor',
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Bölgenizdeki müşterilerden arıza veya hizmet talebi geldiğinde çağrılar anında burada listelenir.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Column(
-      children: [
-        _buildCallItem(
-          title: 'Sigorta Panosu Sürekli Atıyor & Koku Var',
-          customer: 'Kerem T.',
-          address: 'Göztepe Mah. Bağdat Cad. No:114 D:6, Kadıköy',
-          distance: '1.2 km',
-          fee: '${fee1.toStringAsFixed(0)} ₺',
-          note: 'Daire 6 • Sigorta kutusundan ses geliyor.',
-          onAccept: () async {
-            const callId = 'demo-cagri-sigorta';
-            final demoCall = CagriModel(
-              id: callId,
-              musteriId: 'musteri-kerem-1',
-              ustaId: controller.currentUserId ?? 'demo-usta',
-              musteriLat: state.ustaLat + 0.0075,
-              musteriLng: state.ustaLng + 0.0055,
-              adresTarifi:
-                  'Göztepe Mah. Bağdat Cad. No:114 D:6, Kadıköy (Daire 6 • Sigorta kutusundan ses geliyor)',
-              durum: CagriDurumu.bekliyor,
-              ustaHakedis: fee1,
-              komisyonTutari: fee1 * 0.15,
-              toplamTutar: fee1 * 1.15,
-              createdAt: DateTime.now(),
-              musteriFullName: 'Kerem T.',
-              musteriPhone: '+90 532 555 10 20',
-            );
-            DemoCallRepository.save(demoCall);
+      children: state.pendingCalls.map((call) {
+        final meters = call.distanceInMetersFrom(state.ustaLat, state.ustaLng);
+        final distanceText = meters < 1000
+            ? '${meters.round()} m'
+            : '${(meters / 1000).toStringAsFixed(1)} km';
 
-            final success = await controller.acceptIncomingCall(callId);
-            if (mounted && success) {
-              context.push('/usta/active-job/$callId');
-            }
-          },
-        ),
-        const SizedBox(height: 10),
-        _buildCallItem(
-          title: 'Avize & Aydınlatma Montajı (2 Adet)',
-          customer: 'Selin D.',
-          address: 'Moda Sahil Sk. No:8 D:3, Kadıköy',
-          distance: '4.8 km',
-          fee: '${fee2.toStringAsFixed(0)} ₺',
-          note: 'Tavan yüksek, merdiven ve dübel gerekebilir.',
-          onAccept: () async {
-            const callId = 'demo-cagri-avize';
-            final demoCall = CagriModel(
-              id: callId,
-              musteriId: 'musteri-selin-2',
-              ustaId: controller.currentUserId ?? 'demo-usta',
-              musteriLat: state.ustaLat + 0.0140,
-              musteriLng: state.ustaLng - 0.0080,
-              adresTarifi:
-                  'Moda Sahil Sk. No:8 D:3, Kadıköy (Tavan yüksek, merdiven ve dübel gerekebilir)',
-              durum: CagriDurumu.bekliyor,
-              ustaHakedis: fee2,
-              komisyonTutari: fee2 * 0.15,
-              toplamTutar: fee2 * 1.15,
-              createdAt: DateTime.now(),
-              musteriFullName: 'Selin D.',
-              musteriPhone: '+90 533 444 80 90',
-            );
-            DemoCallRepository.save(demoCall);
+        final rawAdres = call.adresTarifi ?? 'Acil Servis Talebi';
+        final title = rawAdres.contains('•')
+            ? rawAdres.split('•').first.trim()
+            : (rawAdres.isNotEmpty ? rawAdres : 'Acil Hizmet Talebi');
+        final address = rawAdres.contains('•')
+            ? rawAdres.split('•').last.trim()
+            : rawAdres;
+        final fee = call.ustaHakedis ?? state.servisUcreti;
 
-            final success = await controller.acceptIncomingCall(callId);
-            if (mounted && success) {
-              context.push('/usta/active-job/$callId');
-            }
-          },
-        ),
-      ],
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _buildCallItem(
+            title: title,
+            customer: call.musteriFullName?.isNotEmpty == true
+                ? call.musteriFullName!
+                : 'Müşteri',
+            address: address,
+            distance: distanceText,
+            fee: '${fee.toStringAsFixed(0)} ₺',
+            note: rawAdres,
+            onAccept: () async {
+              final success = await controller.acceptIncomingCall(call.id);
+              if (mounted && success) {
+                context.push('/usta/active-job/${call.id}');
+              }
+            },
+          ),
+        );
+      }).toList(),
     );
   }
 
