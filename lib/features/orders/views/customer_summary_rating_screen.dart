@@ -125,7 +125,7 @@ class _CustomerSummaryRatingScreenState
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
-          onPressed: () => context.go('/customer/map'),
+          onPressed: () => context.go('/customer/home'),
         ),
       ),
       body: SingleChildScrollView(
@@ -590,9 +590,9 @@ class _CustomerSummaryRatingScreenState
                     ),
                     const SizedBox(height: 8),
                     TextButton(
-                      onPressed: () => context.go('/customer/map'),
+                      onPressed: () => context.go('/customer/home'),
                       child: const Text(
-                        'Şimdilik Atla ve Haritaya Dön',
+                        'Şimdilik Atla ve Ana Sayfaya Dön',
                         style: TextStyle(color: AppTheme.customerTextMuted),
                       ),
                     ),
@@ -628,9 +628,9 @@ class _CustomerSummaryRatingScreenState
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
-                      onPressed: () => context.go('/customer/map'),
-                      icon: const Icon(Icons.map_rounded),
-                      label: const Text('Haritaya Dön'),
+                      onPressed: () => context.go('/customer/home'),
+                      icon: const Icon(Icons.home_rounded),
+                      label: const Text('Ana Sayfaya Dön'),
                     ),
                   ],
                 ],

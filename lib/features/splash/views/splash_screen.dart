@@ -133,7 +133,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     } else if (authState.role == UserRole.usta) {
       context.go('/usta/orders');
     } else {
-      context.go('/customer/map');
+      context.go('/customer/home');
     }
   }
 

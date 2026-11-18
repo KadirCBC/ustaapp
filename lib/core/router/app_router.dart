@@ -5,6 +5,7 @@ import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/features/admin/views/admin_dashboard_screen.dart';
 import 'package:ustaapp/features/auth/models/user_role.dart';
 import 'package:ustaapp/features/auth/views/phone_auth_screen.dart';
+import 'package:ustaapp/features/home/views/customer_home_screen.dart';
 import 'package:ustaapp/features/map/views/customer_map_screen.dart';
 import 'package:ustaapp/features/orders/views/customer_active_call_screen.dart';
 import 'package:ustaapp/features/orders/views/customer_on_the_way_screen.dart';
@@ -64,7 +65,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         if (authState.role == UserRole.usta) {
           return '/usta/orders';
         } else {
-          return '/customer/map';
+          return '/customer/home';
         }
       }
 
@@ -86,6 +87,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/auth',
         name: 'auth',
         builder: (context, state) => const PhoneAuthScreen(),
+      ),
+      GoRoute(
+        path: '/customer/home',
+        name: 'customerHome',
+        builder: (context, state) => const CustomerHomeScreen(),
       ),
       GoRoute(
         path: '/customer/map',

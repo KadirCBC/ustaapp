@@ -20,7 +20,7 @@ class PhoneAuthScreen extends ConsumerWidget {
         if (next.selectedRole == UserRole.usta) {
           context.go('/usta/orders');
         } else {
-          context.go('/customer/map');
+          context.go('/customer/home');
         }
       }
     });

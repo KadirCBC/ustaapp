@@ -1510,6 +1510,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
               child: FloatingTopNav(
                 addressLabel: mapState.currentAddressLabel,
                 selectedCategory: mapState.selectedCategory,
+                onListingsTap: () => context.go('/customer/home'),
                 onChangeAddressTap: () => _showAddressChangeDialog(
                   mapState.currentAddressLabel,
                   mapNotifier,
@@ -1580,30 +1581,72 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(right: 16, bottom: 12),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                  padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      _MapCircleControlButton(
-                        icon: Icons.add_rounded,
-                        tooltip: 'Yakınlaştır',
-                        onTap: () => _zoomBy(1.2),
-                      ),
-                      const SizedBox(height: 8),
-                      _MapCircleControlButton(
-                        icon: Icons.remove_rounded,
-                        tooltip: 'Uzaklaştır',
-                        onTap: () => _zoomBy(-1.2),
-                      ),
-                      const SizedBox(height: 10),
-                      _MapCircleControlButton(
-                        icon: Icons.my_location_rounded,
-                        iconColor: AppTheme.customerPrimary,
-                        tooltip: 'Konumuma Git',
-                        onTap: () => _animateToCustomerLocation(
-                          mapState,
-                          mapNotifier,
+                      // Sol: İlan Listesi Hızlı Dönüş Butonu
+                      InkWell(
+                        onTap: () => context.go('/customer/home'),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.grid_view_rounded, size: 18, color: AppTheme.customerPrimary),
+                              SizedBox(width: 6),
+                              Text(
+                                'İlan Listesi',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.customerTextDark,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                      ),
+
+                      // Sağ: Harita Kontrolleri
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _MapCircleControlButton(
+                            icon: Icons.add_rounded,
+                            tooltip: 'Yakınlaştır',
+                            onTap: () => _zoomBy(1.2),
+                          ),
+                          const SizedBox(height: 8),
+                          _MapCircleControlButton(
+                            icon: Icons.remove_rounded,
+                            tooltip: 'Uzaklaştır',
+                            onTap: () => _zoomBy(-1.2),
+                          ),
+                          const SizedBox(height: 10),
+                          _MapCircleControlButton(
+                            icon: Icons.my_location_rounded,
+                            iconColor: AppTheme.customerPrimary,
+                            tooltip: 'Konumuma Git',
+                            onTap: () => _animateToCustomerLocation(
+                              mapState,
+                              mapNotifier,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

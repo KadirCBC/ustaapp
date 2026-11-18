@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ustaapp/core/services/location_lookup_service.dart';
+import 'package:ustaapp/features/home/views/customer_home_screen.dart';
 import 'package:ustaapp/features/map/controllers/map_controller.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:ustaapp/features/map/views/widgets/category_filter_bar.dart';
@@ -213,7 +214,44 @@ void main() {
       expect(find.text('Usta Kontrol Paneli'), findsOneWidget);
       expect(find.text('Hizmet & İlan Tarifem'), findsOneWidget);
     });
+    testWidgets('CustomerHomeScreen renders listings and map search button without crash', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            customerMapControllerProvider.overrideWith((ref) {
+              return _MockCustomerMapController();
+            }),
+          ],
+          child: const MaterialApp(
+            home: CustomerHomeScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Harita Üzerinde Usta Ara'), findsOneWidget);
+      expect(find.text('Hizmet Konumu'), findsOneWidget);
+      expect(find.text('Tüm İlanlar'), findsOneWidget);
+    });
   });
+}
+
+class _MockCustomerMapController extends StateNotifier<CustomerMapState>
+    implements CustomerMapController {
+  _MockCustomerMapController()
+      : super(const CustomerMapState(
+          currentAddressLabel: 'Sandıklı, Afyonkarahisar',
+          selectedCategory: 'tum',
+        ));
+
+  @override
+  Future<void> fetchNearbyUstalar() async {}
+
+  @override
+  Future<void> fetchIsletmeler() async {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _MockUstaDashboardController extends StateNotifier<UstaDashboardState>

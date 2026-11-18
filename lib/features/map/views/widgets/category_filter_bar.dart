@@ -23,6 +23,7 @@ class FloatingTopNav extends StatelessWidget {
   final VoidCallback onChangeAddressTap;
   final VoidCallback onNotificationTap;
   final VoidCallback onProfileTap;
+  final VoidCallback? onListingsTap;
   final ValueChanged<String> onCategorySelected;
 
   const FloatingTopNav({
@@ -32,6 +33,7 @@ class FloatingTopNav extends StatelessWidget {
     required this.onChangeAddressTap,
     required this.onNotificationTap,
     required this.onProfileTap,
+    this.onListingsTap,
     required this.onCategorySelected,
   });
 
@@ -143,7 +145,15 @@ class FloatingTopNav extends StatelessWidget {
 
                     const SizedBox(width: 8),
 
-                    // Sağ: Bildirim & Profil İkonları
+                    // Sağ: İlanlar, Bildirim & Profil İkonları
+                    if (onListingsTap != null) ...[
+                      _GlassIconButton(
+                        icon: Icons.grid_view_rounded,
+                        tooltip: 'İlanlar / Liste Görünümü',
+                        onTap: onListingsTap!,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     _GlassIconButton(
                       icon: Icons.notifications_none_rounded,
                       showDot: true,
