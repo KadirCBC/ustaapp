@@ -8,8 +8,11 @@ import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:ustaapp/features/map/views/widgets/category_filter_bar.dart';
 import 'package:ustaapp/features/map/views/widgets/custom_marker.dart';
 import 'package:ustaapp/features/orders/controllers/usta_dashboard_controller.dart';
+import 'package:ustaapp/core/services/supabase_service.dart';
+import 'package:ustaapp/features/auth/models/user_role.dart';
 import 'package:ustaapp/features/orders/models/cagri_model.dart';
 import 'package:ustaapp/features/orders/views/usta_orders_screen.dart';
+import 'package:ustaapp/features/profile/views/profile_screen.dart';
 
 void main() {
   group('CagriDurumu & CagriModel Tests', () {
@@ -233,7 +236,42 @@ void main() {
       expect(find.text('Hizmet Konumu'), findsOneWidget);
       expect(find.text('Tüm İlanlar'), findsOneWidget);
     });
+
+    testWidgets('ProfileScreen renders rich account details and actions', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authStateProvider.overrideWith((ref) => _MockAuthNotifier()),
+          ],
+          child: const MaterialApp(
+            home: ProfileScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Profil & Hesap Yönetimi'), findsOneWidget);
+      expect(find.text('HESAP VE ADRESLERİM'), findsOneWidget);
+      expect(find.text('Kayıtlı Hizmet Adreslerim'), findsOneWidget);
+      expect(find.text('Geçmiş Çağrılarım ve Servisler'), findsOneWidget);
+      expect(find.text('Oturumu Kapat'), findsOneWidget);
+    });
   });
+}
+
+class _MockAuthNotifier extends StateNotifier<AppAuthState> implements AuthNotifier {
+  _MockAuthNotifier()
+      : super(const AppAuthState(
+          fullName: 'Ahmet Mehmet',
+          phone: '5524342068',
+          role: UserRole.musteri,
+          isDemo: true,
+          isLoading: false,
+        ));
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _MockCustomerMapController extends StateNotifier<CustomerMapState>
