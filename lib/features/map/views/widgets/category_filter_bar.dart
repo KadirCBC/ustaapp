@@ -51,7 +51,8 @@ class FloatingTopNav extends StatelessWidget {
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.86),
                   borderRadius: BorderRadius.circular(20),
@@ -81,7 +82,8 @@ class FloatingTopNav extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.all(7),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.customerPrimary.withValues(alpha: 0.1),
+                                  color: AppTheme.customerPrimary
+                                      .withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: const Icon(
@@ -251,7 +253,8 @@ class CategoryFilterBar extends StatelessWidget {
   static const List<CategoryItem> _categories = [
     CategoryItem(key: 'tum', label: 'Tümü', icon: Icons.apps_rounded),
     CategoryItem(key: 'elektrik', label: 'Elektrik', icon: Icons.bolt_rounded),
-    CategoryItem(key: 'cilingir', label: 'Çilingir', icon: Icons.vpn_key_rounded),
+    CategoryItem(
+        key: 'cilingir', label: 'Çilingir', icon: Icons.vpn_key_rounded),
     CategoryItem(key: 'tesisat', label: 'Tesisat', icon: Icons.build_rounded),
     CategoryItem(
       key: 'tedarikciler',
@@ -278,7 +281,8 @@ class CategoryFilterBar extends StatelessWidget {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 220),
                   curve: Curves.easeOutCubic,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? AppTheme.customerPrimary
@@ -306,7 +310,9 @@ class CategoryFilterBar extends StatelessWidget {
                       Icon(
                         cat.icon,
                         size: 16,
-                        color: isSelected ? Colors.white : AppTheme.customerPrimary,
+                        color: isSelected
+                            ? Colors.white
+                            : AppTheme.customerPrimary,
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -314,7 +320,9 @@ class CategoryFilterBar extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color: isSelected ? Colors.white : AppTheme.customerTextDark,
+                          color: isSelected
+                              ? Colors.white
+                              : AppTheme.customerTextDark,
                         ),
                       ),
                     ],

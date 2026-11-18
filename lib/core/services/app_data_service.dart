@@ -355,26 +355,31 @@ class AppDataService {
 
       double lat = (job['latitude'] as num?)?.toDouble() ?? 0.0;
       double lng = (job['longitude'] as num?)?.toDouble() ?? 0.0;
+      String district = (job['district'] ?? job['address'] ?? job['konum'] ?? 'Sandıklı').toString();
 
-      final district = (job['district'] ?? job['address'] ?? job['konum'] ?? 'Sandıklı').toString();
-      if (lat == 0.0 && lng == 0.0) {
+      // Ustanın canlı yayınlanan gerçek konumu ve çalışma bölgesi statik ilan verisinden her zaman üstündür!
+      final ustaId = (job['usta_id'] ?? '').toString();
+      final ustaPhone = normalizePhone((job['customer_phone'] ?? job['usta_phone'] ?? '').toString());
+      final matchingUsta = allKnownUstalar.cast<NearbyUstaModel?>().firstWhere(
+        (u) => (u != null && (
+          (ustaId.isNotEmpty && u.ustaId == ustaId) ||
+          (ustaPhone.isNotEmpty && normalizePhone(u.phone) == ustaPhone)
+        )),
+        orElse: () => null,
+      );
+
+      if (matchingUsta != null && matchingUsta.latitude != 0.0 && matchingUsta.longitude != 0.0) {
+        lat = matchingUsta.latitude;
+        lng = matchingUsta.longitude;
+        if (matchingUsta.uzmanlikBasligi.isNotEmpty) {
+          district = matchingUsta.uzmanlikBasligi;
+        }
+      } else if (lat == 0.0 && lng == 0.0) {
         // Fallback 1: Adresi yerel konum sözlüğünden çözümle
         final match = LocationLookupService.resolveSync(district);
         if (match != null) {
           lat = match.lat;
           lng = match.lng;
-        } else {
-          // Fallback 2: İlanın sahibinin (usta) koordinatlarına bak
-          final ustaId = (job['usta_id'] ?? '').toString();
-          final ustaPhone = (job['customer_phone'] ?? job['usta_phone'] ?? '').toString();
-          final usta = allKnownUstalar.cast<NearbyUstaModel?>().firstWhere(
-            (u) => (u != null && (u.ustaId == ustaId || u.phone == ustaPhone)),
-            orElse: () => null,
-          );
-          if (usta != null && usta.latitude != 0.0) {
-            lat = usta.latitude;
-            lng = usta.longitude;
-          }
         }
       }
       if (lat == 0.0 && lng == 0.0) continue;
@@ -961,23 +966,79 @@ class AppDataService {
     _changesStreamController.add(null);
   }
 
-  /// Ustanın çalışma konumunu ve koordinatlarını günceller
+  /// Ustanın çalışma konumunu ve koordinatlarını günceller (Tüm ilanlar ve harita pinleri dahil anında senkronize olur)
   Future<void> updateUstaLocation({
     required String ustaId,
+    String? phone,
     required String address,
     required double lat,
     required double lng,
   }) async {
+    final norm = phone != null && phone.isNotEmpty ? normalizePhone(phone) : '';
+
+    // 1. Ustalar listesini ve ustanın kendi alt ilanlarını güncelle
     final ustalar = await getUstalar();
-    final idx = ustalar.indexWhere((u) => u.ustaId == ustaId);
-    if (idx >= 0) {
-      ustalar[idx] = ustalar[idx].copyWith(
-        uzmanlikBasligi: address,
-        latitude: lat,
-        longitude: lng,
-      );
+    bool ustaUpdated = false;
+    for (int i = 0; i < ustalar.length; i++) {
+      final u = ustalar[i];
+      final match = u.ustaId == ustaId || (norm.isNotEmpty && normalizePhone(u.phone) == norm);
+      if (match) {
+        final updatedIlanlar = u.ilanlar.map((il) => il.copyWith(
+          konum: address,
+          lat: lat,
+          lng: lng,
+        )).toList();
+        ustalar[i] = u.copyWith(
+          uzmanlikBasligi: address,
+          latitude: lat,
+          longitude: lng,
+          ilanlar: updatedIlanlar,
+        );
+        ustaUpdated = true;
+      }
+    }
+    if (ustaUpdated) {
       await saveUstalar(ustalar);
     }
+
+    // 2. Jobs listesindeki bu ustaya ait tüm aktif ilanların konumunu ve koordinatını canlı güncelle
+    final jobs = await getActiveJobs();
+    bool jobsUpdated = false;
+    for (int i = 0; i < jobs.length; i++) {
+      final j = jobs[i];
+      final jUstaId = (j['usta_id'] ?? '').toString();
+      final jPhone = normalizePhone((j['customer_phone'] ?? j['usta_phone'] ?? '').toString());
+      if (jUstaId == ustaId || (norm.isNotEmpty && jPhone == norm)) {
+        jobs[i] = Map<String, dynamic>.from(j);
+        jobs[i]['district'] = address;
+        jobs[i]['address'] = address;
+        jobs[i]['latitude'] = lat;
+        jobs[i]['longitude'] = lng;
+        jobsUpdated = true;
+      }
+    }
+    if (jobsUpdated) {
+      await saveActiveJobs(jobs);
+    }
+
+    // 3. SharedPreferences ve Active Session güncelle
+    try {
+      final session = await getActiveSession();
+      if (session != null && (session['phone'] == norm || session['full_name'] != null)) {
+        session['city_district'] = address;
+        session['address'] = address;
+        session['latitude'] = lat;
+        session['longitude'] = lng;
+        await saveActiveSession(
+          phone: session['phone']?.toString() ?? norm,
+          fullName: session['full_name']?.toString() ?? 'Usta',
+          role: 'usta',
+          extra: session,
+        );
+      }
+    } catch (_) {}
+
+    _changesStreamController.add(null);
   }
 
   // ==========================================

@@ -50,6 +50,32 @@ class UstaHizmetIlan {
     if (lat != null) 'lat': lat,
     if (lng != null) 'lng': lng,
   };
+
+  UstaHizmetIlan copyWith({
+    String? id,
+    String? baslik,
+    String? aciklama,
+    double? fiyat,
+    String? tahminiSure,
+    String? ikon,
+    bool? isDefault,
+    String? konum,
+    double? lat,
+    double? lng,
+  }) {
+    return UstaHizmetIlan(
+      id: id ?? this.id,
+      baslik: baslik ?? this.baslik,
+      aciklama: aciklama ?? this.aciklama,
+      fiyat: fiyat ?? this.fiyat,
+      tahminiSure: tahminiSure ?? this.tahminiSure,
+      ikon: ikon ?? this.ikon,
+      isDefault: isDefault ?? this.isDefault,
+      konum: konum ?? this.konum,
+      lat: lat ?? this.lat,
+      lng: lng ?? this.lng,
+    );
+  }
 }
 
 class NearbyUstaModel {

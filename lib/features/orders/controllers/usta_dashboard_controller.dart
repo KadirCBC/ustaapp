@@ -398,11 +398,29 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
         } catch (_) {}
       }
 
+      final resolvedAddress = (matchedUsta?.uzmanlikBasligi != null && matchedUsta!.uzmanlikBasligi.isNotEmpty)
+          ? matchedUsta.uzmanlikBasligi
+          : (session?['address'] ?? session?['city_district'] ?? state.ustaLocationAddress);
+      final resolvedLat = (matchedUsta != null && matchedUsta.latitude != 0.0)
+          ? matchedUsta.latitude
+          : state.ustaLat;
+      final resolvedLng = (matchedUsta != null && matchedUsta.longitude != 0.0)
+          ? matchedUsta.longitude
+          : state.ustaLng;
+
+      // Ustanın hizmetlerinin konumunu da canlı yayın konumuyla eşitle
+      final syncedHizmetler = realHizmetler.map((h) {
+        if (h.konum == null || h.konum!.isEmpty || h.konum != resolvedAddress) {
+          return h.copyWith(konum: resolvedAddress, lat: resolvedLat, lng: resolvedLng);
+        }
+        return h;
+      }).toList();
+
       state = state.copyWith(
         isLoading: false,
         isOnline: isOnline,
         servisUcreti: resolvedServisUcreti,
-        hizmetler: realHizmetler,
+        hizmetler: syncedHizmetler,
         pendingCalls: pendingCalls,
         dailyCompletedJobs: completedToday,
         dailyEarnings: dailyEarnings,
@@ -412,15 +430,9 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
         activeUstaId: matchedUsta?.ustaId ?? (normPhone.isNotEmpty ? 'usta-$normPhone' : 'usta-default'),
         activeUstaName: matchedUsta?.fullName ?? (sessionFullName.isNotEmpty ? sessionFullName : 'Usta'),
         activeUstaPhone: normPhone,
-        ustaLocationAddress: (matchedUsta?.uzmanlikBasligi != null && matchedUsta!.uzmanlikBasligi.isNotEmpty)
-            ? matchedUsta.uzmanlikBasligi
-            : (session?['address'] ?? session?['city_district'] ?? state.ustaLocationAddress),
-        ustaLat: (matchedUsta != null && matchedUsta.latitude != 0.0)
-            ? matchedUsta.latitude
-            : state.ustaLat,
-        ustaLng: (matchedUsta != null && matchedUsta.longitude != 0.0)
-            ? matchedUsta.longitude
-            : state.ustaLng,
+        ustaLocationAddress: resolvedAddress,
+        ustaLat: resolvedLat,
+        ustaLng: resolvedLng,
       );
 
       // Supabase Realtime Stream dinlemesini başlat
@@ -555,16 +567,32 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       }
     }
 
+    final updatedHizmetler = state.hizmetler.map((h) {
+      return h.copyWith(
+        konum: resolvedAddress,
+        lat: resolvedLat,
+        lng: resolvedLng,
+      );
+    }).toList();
+
     state = state.copyWith(
       ustaLocationAddress: resolvedAddress,
       ustaLat: resolvedLat,
       ustaLng: resolvedLng,
+      hizmetler: updatedHizmetler,
       successMessage: 'Çalışma bölgeniz "$resolvedAddress" olarak güncellendi.',
     );
 
-    final ustaId = state.activeUstaId ?? currentUserId ?? 'usta-default';
+    final normPhone = AppDataService.normalizePhone(state.activeUstaPhone ?? '');
+    final ustaId = state.activeUstaId ?? (normPhone.isNotEmpty ? 'usta-$normPhone' : 'usta-default');
+
+    if (normPhone.isNotEmpty) {
+      await _appDataService.saveUstaHizmetleri(normPhone, updatedHizmetler);
+    }
+
     await _appDataService.updateUstaLocation(
       ustaId: ustaId,
+      phone: normPhone,
       address: resolvedAddress,
       lat: resolvedLat,
       lng: resolvedLng,
