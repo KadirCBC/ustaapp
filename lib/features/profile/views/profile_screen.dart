@@ -470,7 +470,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF0F172A), Color(0xFF1E3A8A)],
+                    colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -741,8 +741,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const Divider(height: 1, indent: 56),
                     _buildMenuItem(
                       icon: Icons.verified_user_rounded,
-                      iconBg: const Color(0xFFEFF6FF),
-                      iconColor: const Color(0xFF2563EB),
+                      iconBg: const Color(0xFFECFDF5),
+                      iconColor: const Color(0xFF10B981),
                       title: 'İyzico Güvenlik ve KVKK Gizlilik Politikası',
                       subtitle: 'Kart saklama ve kullanıcı koruma sözleşmesi',
                       onTap: () {
@@ -807,7 +807,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         gradient: LinearGradient(
           colors: isUsta
               ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
-              : [const Color(0xFF0F172A), const Color(0xFF1E3A8A)],
+              : [const Color(0xFF0F172A), const Color(0xFF1E293B)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -829,7 +829,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                   CircleAvatar(
                     radius: 36,
-                    backgroundColor: isUsta ? AppTheme.ustaPrimary : const Color(0xFF2563EB),
+                    backgroundColor: AppTheme.customerPrimary,
                     child: Text(
                       fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U',
                       style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white),
@@ -1055,10 +1055,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               children: [
                 Text(
                   isUsta ? 'Müşteri Moduna Geç' : 'Usta Olarak Hizmet Ver',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w800,
-                    color: isUsta ? const Color(0xFF1E3A8A) : const Color(0xFF9A3412),
+                    color: Color(0xFF9A3412),
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -1066,9 +1066,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   isUsta
                       ? 'Harita ve usta ilanlarını görmek için geçiş yapın.'
                       : 'Kendi hizmetlerinizi ekleyin ve çağrılardan kazanın.',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 11,
-                    color: isUsta ? const Color(0xFF3B82F6) : const Color(0xFFC2410C),
+                    color: Color(0xFFC2410C),
                   ),
                 ),
               ],

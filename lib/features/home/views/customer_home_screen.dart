@@ -330,7 +330,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                               color: AppTheme.customerPrimary,
                             ),
                           ),
-                          backgroundColor: const Color(0xFFEEF2FF),
+                          backgroundColor: const Color(0xFFFFF7ED),
+                          side: const BorderSide(color: Color(0xFFFED7AA)),
                           onPressed: () => Navigator.of(ctx).pop('__USE_GPS__'),
                         ),
                         ...presetDistricts.map((district) {
@@ -712,11 +713,21 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                  color: isSelected ? AppTheme.customerPrimary : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+                    color: isSelected ? AppTheme.customerPrimary : const Color(0xFFE2E8F0),
+                    width: isSelected ? 1.4 : 1.0,
                   ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppTheme.customerPrimary.withValues(alpha: 0.24),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -751,16 +762,16 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
+          colors: [Color(0xFFEA580C), Color(0xFFF97316)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x261E3A8A),
-            blurRadius: 12,
-            offset: Offset(0, 4),
+            color: const Color(0xFFEA580C).withValues(alpha: 0.28),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -1156,7 +1167,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                           const Icon(
                             Icons.check_circle_rounded,
                             size: 13,
-                            color: Color(0xFF3B82F6),
+                            color: Color(0xFF10B981),
                           ),
                         ],
                       ),
@@ -1376,7 +1387,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                             ),
                           ),
                           const SizedBox(width: 4),
-                          const Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF3B82F6)),
+                          const Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF10B981)),
                         ],
                       ),
                       const SizedBox(height: 2),
@@ -1692,7 +1703,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 child: const Icon(
                   Icons.map_rounded,
                   size: 20,
-                  color: Color(0xFF38BDF8),
+                  color: Color(0xFFFF6B00),
                 ),
               ),
               const SizedBox(width: 10),

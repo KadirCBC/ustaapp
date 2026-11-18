@@ -305,7 +305,7 @@ class CategoryFilterBar extends StatelessWidget {
                       Icon(
                         cat.icon,
                         size: 16,
-                        color: isSelected ? Colors.amber.shade300 : AppTheme.customerPrimary,
+                        color: isSelected ? Colors.white : AppTheme.customerPrimary,
                       ),
                       const SizedBox(width: 6),
                       Text(

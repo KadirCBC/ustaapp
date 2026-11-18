@@ -1280,7 +1280,8 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
                               color: AppTheme.customerPrimary,
                             ),
                           ),
-                          backgroundColor: const Color(0xFFEEF2FF),
+                          backgroundColor: const Color(0xFFFFF7ED),
+                          side: const BorderSide(color: Color(0xFFFED7AA)),
                           onPressed: () => Navigator.of(ctx).pop('__USE_GPS__'),
                         ),
                         ...presetDistricts.map((district) {

@@ -570,13 +570,13 @@ class _UstaRegisterFormState extends ConsumerState<UstaRegisterForm> {
             Center(
               child: TextButton.icon(
                 onPressed: widget.onSwitchToCustomer,
-                icon: const Icon(Icons.person_search_rounded, size: 16, color: Color(0xFF1E3A8A)),
+                icon: const Icon(Icons.person_search_rounded, size: 16, color: Color(0xFF0F172A)),
                 label: const Text(
                   'Müşteriyim, Hizmet Almak İstiyorum →',
                   style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E3A8A),
+                    color: Color(0xFF0F172A),
                   ),
                 ),
               ),

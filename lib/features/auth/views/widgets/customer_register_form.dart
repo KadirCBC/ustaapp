@@ -131,7 +131,7 @@ class _CustomerRegisterFormState extends ConsumerState<CustomerRegisterForm> {
                   ),
                   child: const Icon(
                     Icons.person_add_alt_1_rounded,
-                    color: Color(0xFF1E3A8A),
+                    color: Color(0xFFEA580C),
                     size: 24,
                   ),
                 ),
@@ -271,11 +271,11 @@ class _CustomerRegisterFormState extends ConsumerState<CustomerRegisterForm> {
                     selected: isSelected,
                     selectedColor: const Color(0xFFDBEAFE),
                     backgroundColor: const Color(0xFFF1F5F9),
-                    checkmarkColor: const Color(0xFF1E3A8A),
+                    checkmarkColor: const Color(0xFFEA580C),
                     labelStyle: TextStyle(
                       fontSize: 12,
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected ? const Color(0xFF1E3A8A) : const Color(0xFF475569),
+                      color: isSelected ? const Color(0xFFEA580C) : const Color(0xFF475569),
                     ),
                     onSelected: (_) => setState(() => _selectedAddressTitle = title),
                   ),
@@ -358,7 +358,7 @@ class _CustomerRegisterFormState extends ConsumerState<CustomerRegisterForm> {
                   height: 24,
                   child: Checkbox(
                     value: _kvkkAccepted,
-                    activeColor: const Color(0xFF1E3A8A),
+                    activeColor: const Color(0xFFEA580C),
                     onChanged: (val) => setState(() => _kvkkAccepted = val ?? true),
                   ),
                 ),
@@ -370,7 +370,7 @@ class _CustomerRegisterFormState extends ConsumerState<CustomerRegisterForm> {
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF1E3A8A),
+                        color: Color(0xFFEA580C),
                       ),
                       children: const [
                         TextSpan(
@@ -430,7 +430,7 @@ class _CustomerRegisterFormState extends ConsumerState<CustomerRegisterForm> {
               child: ElevatedButton(
                 onPressed: state.isLoading ? null : _handleSubmit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E3A8A),
+                  backgroundColor: const Color(0xFFEA580C),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -482,7 +482,7 @@ class _CustomerRegisterFormState extends ConsumerState<CustomerRegisterForm> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E3A8A),
+                      color: Color(0xFFEA580C),
                     ),
                   ),
                 ),
@@ -550,7 +550,7 @@ class _CustomerRegisterFormState extends ConsumerState<CustomerRegisterForm> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 1.8),
+        borderSide: const BorderSide(color: Color(0xFFEA580C), width: 1.8),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),

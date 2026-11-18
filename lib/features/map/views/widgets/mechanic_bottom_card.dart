@@ -497,8 +497,9 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFDBEAFE),
+                              color: const Color(0xFFFFF7ED),
                               borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFFED7AA)),
                             ),
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
@@ -689,8 +690,9 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE0E7FF),
+                          color: const Color(0xFFFFF7ED),
                           borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFFED7AA)),
                         ),
                         child: Text(
                           '${usta.ilanlar.length} Hizmet',
@@ -732,7 +734,7 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFFEEF2FF) : Colors.white,
+                            color: isSelected ? const Color(0xFFFFF7ED) : Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: isSelected
@@ -873,8 +875,9 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
+                      color: const Color(0xFFFFF7ED),
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFFED7AA)),
                     ),
                     child: Row(
                       children: [

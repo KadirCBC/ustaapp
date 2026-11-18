@@ -310,8 +310,8 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                           title: 'Müşteri Kaydı',
                           subtitle: 'Hizmet almak için hemen üye olun!',
                           icon: Icons.people_alt_rounded,
-                          iconBgColor: const Color(0xFFEFF6FF),
-                          iconColor: const Color(0xFF1E3A8A),
+                          iconBgColor: const Color(0xFFF1F5F9),
+                          iconColor: const Color(0xFF0F172A),
                           hasBorder: false,
                           onTap: () {
                             HapticFeedback.selectionClick();

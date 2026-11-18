@@ -43,8 +43,8 @@ class _RoleSelectionStepState extends ConsumerState<RoleSelectionStep> {
               gradient: LinearGradient(
                 colors: [
                   Color(0xFF0F172A),
-                  Color(0xFF1E3A8A),
-                  Color(0xFF2563EB),
+                  Color(0xFF1E293B),
+                  Color(0xFF2E190E),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -156,7 +156,7 @@ class _RoleSelectionStepState extends ConsumerState<RoleSelectionStep> {
                           decoration: InputDecoration(
                             hintText: 'Örn: Ahmet Yılmaz',
                             hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.normal),
-                            prefixIcon: const Icon(Icons.person_rounded, color: Color(0xFF2563EB)),
+                            prefixIcon: const Icon(Icons.person_rounded, color: Color(0xFFEA580C)),
                             filled: true,
                             fillColor: const Color(0xFFF8FAFC),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -170,7 +170,7 @@ class _RoleSelectionStepState extends ConsumerState<RoleSelectionStep> {
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2),
+                              borderSide: const BorderSide(color: Color(0xFFEA580C), width: 2),
                             ),
                           ),
                           onChanged: (val) => controller.setFullName(val),
@@ -200,7 +200,7 @@ class _RoleSelectionStepState extends ConsumerState<RoleSelectionStep> {
                     icon: Icons.home_repair_service_rounded,
                     features: const ['Canlı haritada en yakın usta', 'Kartla güvenli provizyon', '15 dk ortalama varış'],
                     isSelected: state.selectedRole == UserRole.musteri,
-                    selectedColor: const Color(0xFF1E3A8A),
+                    selectedColor: const Color(0xFFEA580C),
                     onTap: () => controller.selectRole(UserRole.musteri),
                   ),
 
@@ -248,18 +248,13 @@ class _RoleSelectionStepState extends ConsumerState<RoleSelectionStep> {
                   Container(
                     height: 52,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: state.selectedRole == UserRole.usta
-                            ? [const Color(0xFFEA580C), const Color(0xFFF97316)]
-                            : [const Color(0xFF1E3A8A), const Color(0xFF2563EB)],
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFEA580C), Color(0xFFF97316)],
                       ),
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: (state.selectedRole == UserRole.usta
-                                  ? const Color(0xFFEA580C)
-                                  : const Color(0xFF2563EB))
-                              .withValues(alpha: 0.35),
+                          color: const Color(0xFFEA580C).withValues(alpha: 0.35),
                           blurRadius: 14,
                           offset: const Offset(0, 4),
                         ),

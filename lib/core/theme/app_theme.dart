@@ -3,12 +3,12 @@ import 'package:ustaapp/features/auth/models/user_role.dart';
 
 class AppTheme {
   // ===========================================================================
-  // MÜŞTERİ TEMASI (Modern Lacivert / Temiz Beyaz)
+  // MÜŞTERİ TEMASI (Giriş Ekranıyla Uyumlu Canlı Turuncu & Arduvaz Paleti)
   // ===========================================================================
-  static const Color customerPrimary = Color(0xFF1E3A8A); // Deep Navy
-  static const Color customerSecondary = Color(0xFF3B82F6); // Vibrant Blue
-  static const Color customerAccent = Color(0xFF0284C7); // Sky Blue
-  static const Color customerBackground = Color(0xFFF8FAFC); // Clean Slate-50
+  static const Color customerPrimary = Color(0xFFEA580C); // Login ekranı ile tam uyumlu ana marka turuncusu
+  static const Color customerSecondary = Color(0xFFF97316); // Parlak turuncu
+  static const Color customerAccent = Color(0xFFFF6B00); // Amber alevi
+  static const Color customerBackground = Color(0xFFFAFCFF); // Giriş ekranı zemin tonu
   static const Color customerSurface = Colors.white;
   static const Color customerTextDark = Color(0xFF0F172A); // Slate-900
   static const Color customerTextMuted = Color(0xFF64748B); // Slate-500
