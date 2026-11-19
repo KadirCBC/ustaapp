@@ -70,17 +70,21 @@ class LocationService {
         distanceFilter: 25,
       );
 
-      _positionStreamSub = Geolocator.getPositionStream(
-        locationSettings: locationSettings,
-      ).listen(
-        (Position position) async {
-          debugPrint('Yeni konum alındı (25m mesafe): ${position.latitude}, ${position.longitude}');
-          await _syncLocationToSupabase(ustaId, position);
-        },
-        onError: (e) {
-          debugPrint('Konum dinleme hatası: $e');
-        },
-      );
+      try {
+        _positionStreamSub = Geolocator.getPositionStream(
+          locationSettings: locationSettings,
+        ).listen(
+          (Position position) async {
+            debugPrint('Yeni konum alındı (25m mesafe): ${position.latitude}, ${position.longitude}');
+            await _syncLocationToSupabase(ustaId, position);
+          },
+          onError: (e) {
+            debugPrint('Konum dinleme hatası: $e');
+          },
+        );
+      } catch (e) {
+        debugPrint('getPositionStream atlandı (emülatör fallback): $e');
+      }
 
       // Her 30 saniyede bir ustanın hala aynı yerde olup olmadığını kontrol edip senkronize tut
       _periodicTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
