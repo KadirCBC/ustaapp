@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -54,6 +55,8 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
   final Map<String, NearbyUstaModel> _annotationIdToUsta = {};
   final Map<String, IsletmeModel> _annotationIdToIsletme = {};
   Uint8List? _customerPinBytes;
+  ui.Image? _ustaPinImage;
+  ui.Image? _isletmePinImage;
 
   bool _isSyncingAnnotations = false;
   bool _needsResync = false;
@@ -64,7 +67,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
   void initState() {
     super.initState();
     MapboxOptions.setAccessToken(AppConstants.mapboxAccessToken);
-    _initCustomerIcon();
+    _initPinAssets();
   }
 
   @override
@@ -73,8 +76,27 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
     super.dispose();
   }
 
-  Future<void> _initCustomerIcon() async {
-    _customerPinBytes = await _createCustomerLocationBytes();
+  Future<ui.Image> _loadUiImage(String assetPath, {int? targetWidth, int? targetHeight}) async {
+    final ByteData data = await rootBundle.load(assetPath);
+    final ui.Codec codec = await ui.instantiateImageCodec(
+      data.buffer.asUint8List(),
+      targetWidth: targetWidth,
+      targetHeight: targetHeight,
+    );
+    final ui.FrameInfo fi = await codec.getNextFrame();
+    return fi.image;
+  }
+
+  Future<void> _initPinAssets() async {
+    try {
+      _customerPinBytes = await _createCustomerLocationBytes();
+      if (!kIsWeb) {
+        _ustaPinImage ??= await _loadUiImage('assets/images/pin_usta.png', targetWidth: 140);
+        _isletmePinImage ??= await _loadUiImage('assets/images/pin_isletme.png', targetWidth: 140);
+      }
+    } catch (e) {
+      debugPrint('>>> [_initPinAssets] Error loading pin assets: $e');
+    }
     final state = _latestMapState;
     if (mounted && state != null && _pointAnnotationManager != null) {
       await _syncAnnotations(state, force: true);
@@ -406,22 +428,29 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
     return data!.buffer.asUint8List();
   }
 
-  /// Usta Pin Rozeti - Profesyonel Modern Usta Rozeti
-  /// (Sol amblemde zümrüt yeşili vektörel Icons.handyman_rounded, sağda usta adı, puan ve nane yeşili fiyat hapı)
+  /// Usta Pin Rozeti - 3D Usta Harita Pini & Bilgi Rozeti
   Future<Uint8List> _createUstaBadgeBytes({
     required NearbyUstaModel usta,
     required bool isSelected,
   }) async {
-    const double scale = 2.6;
+    const double scale = 2.4;
 
-    // Renk Teması: Modern Zümrüt Yeşili & Kurumsal Arduvaz
-    const Color emeraldPrimary = Color(0xFF059669);
-    const Color emeraldGradientDark = Color(0xFF047857);
+    if (_ustaPinImage == null) {
+      try {
+        _ustaPinImage = await _loadUiImage(
+          'assets/images/pin_usta.png',
+          targetWidth: (48 * scale).toInt(),
+        );
+      } catch (e) {
+        debugPrint('>>> [_createUstaBadgeBytes] lazy load pin error: $e');
+      }
+    }
+
     final Color bgColor = isSelected ? const Color(0xFF0F172A) : Colors.white;
     final Color textColor = isSelected ? Colors.white : const Color(0xFF0F172A);
     final Color borderColor = isSelected
-        ? const Color(0xFF10B981)
-        : const Color(0xFFE2E8F0);
+        ? const Color(0xFFF97316)
+        : const Color(0xFFCBD5E1);
 
     // Üst Satır: Usta Adı + ★ Puan
     final topTextPainter = TextPainter(
@@ -433,7 +462,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
           TextSpan(
             text: usta.shortDisplayName,
             style: TextStyle(
-              fontSize: 12.5 * scale,
+              fontSize: 12.0 * scale,
               fontWeight: FontWeight.w800,
               color: textColor,
               letterSpacing: -0.2,
@@ -442,17 +471,17 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
           TextSpan(
             text: ' ★ ${usta.puan.toStringAsFixed(1)}',
             style: TextStyle(
-              fontSize: 11.5 * scale,
+              fontSize: 11.0 * scale,
               fontWeight: FontWeight.w800,
               color: isSelected ? const Color(0xFFFDE68A) : const Color(0xFFD97706),
             ),
           ),
         ],
       ),
-    )..layout(maxWidth: 165 * scale);
+    )..layout(maxWidth: 160 * scale);
 
     // Alt Satır: Fiyat ve Taban Bilgisi
-    final priceLabel = '${usta.formattedPrice} Taban Fiyat';
+    final priceLabel = '${usta.formattedPrice} Taban';
     final pricePainter = TextPainter(
       textDirection: TextDirection.ltr,
       maxLines: 1,
@@ -466,120 +495,83 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
           letterSpacing: 0.1,
         ),
       ),
-    )..layout(maxWidth: 165 * scale);
+    )..layout(maxWidth: 160 * scale);
 
-    // Dinamik Genişlik: Sol amblem (42) + en geniş metin + sağ dolgu (18)
     final double maxTextWidth = math.max(topTextPainter.width, pricePainter.width);
-    final double width = math.max(148 * scale, maxTextWidth + 60 * scale);
-    const double badgeHeight = 48 * scale;
-    const double pointerHeight = 8 * scale;
-    const double totalHeight = badgeHeight + pointerHeight + 10 * scale;
+    final double cardPaddingH = 12 * scale;
+    final double cardPaddingV = 6 * scale;
+    final double cardWidth = math.max(100 * scale, maxTextWidth + cardPaddingH * 2);
+    final double cardHeight = topTextPainter.height + pricePainter.height + 4 * scale + cardPaddingV * 2;
+
+    const double pointerHeight = 6 * scale;
+    const double pinWidth = 48 * scale;
+    const double pinHeight = 48 * scale;
+
+    final double totalWidth = math.max(cardWidth, pinWidth) + 16 * scale;
+    final double totalHeight = cardHeight + pointerHeight + pinHeight + 6 * scale;
 
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
-    // Kart RRect
-    final badgeRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(8 * scale, 4 * scale, width - 16 * scale, badgeHeight),
-      const Radius.circular(14 * scale),
+    final double cardLeft = (totalWidth - cardWidth) / 2;
+    const double cardTop = 3 * scale;
+
+    final cardRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(cardLeft, cardTop, cardWidth, cardHeight),
+      const Radius.circular(12 * scale),
     );
 
-    // Yumuşak Profesyonel Drop Shadow
-    if (isSelected) {
-      canvas.drawRRect(
-        badgeRect.shift(const Offset(0, 4 * scale)),
-        Paint()
-          ..color = emeraldPrimary.withValues(alpha: 0.35)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12 * scale),
-      );
-    } else {
-      canvas.drawRRect(
-        badgeRect.shift(const Offset(0, 3 * scale)),
-        Paint()
-          ..color = Colors.black.withValues(alpha: 0.16)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8 * scale),
-      );
-    }
-
-    // Gövde Arka Planı
-    canvas.drawRRect(badgeRect, Paint()..color = bgColor);
-
-    // İnce / Şık Kenarlık
+    // Drop shadow
     canvas.drawRRect(
-      badgeRect,
+      cardRect.shift(const Offset(0, 3 * scale)),
+      Paint()
+        ..color = isSelected
+            ? const Color(0xFFF97316).withValues(alpha: 0.35)
+            : Colors.black.withValues(alpha: 0.15)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8 * scale),
+    );
+
+    // Card background
+    canvas.drawRRect(cardRect, Paint()..color = bgColor);
+
+    // Card border
+    canvas.drawRRect(
+      cardRect,
       Paint()
         ..color = borderColor
         ..style = PaintingStyle.stroke
-        ..strokeWidth = (isSelected ? 2.4 : 1.2) * scale,
+        ..strokeWidth = (isSelected ? 2.2 : 1.2) * scale,
     );
 
-    // SOL AMBLEM: Gradyanlı Zümrüt Yeşili Daire + Vektörel Icons.handyman_rounded
-    const double emblemRadius = 16 * scale;
-    const Offset emblemCenter = Offset(8 * scale + 18 * scale, 4 * scale + badgeHeight / 2);
+    // Paint Texts
+    final double textX = cardLeft + (cardWidth - topTextPainter.width) / 2;
+    topTextPainter.paint(canvas, Offset(textX, cardTop + cardPaddingV));
 
-    final emblemGradient = ui.Gradient.linear(
-      Offset(emblemCenter.dx - emblemRadius, emblemCenter.dy - emblemRadius),
-      Offset(emblemCenter.dx + emblemRadius, emblemCenter.dy + emblemRadius),
-      [const Color(0xFF10B981), emeraldGradientDark],
-    );
-
-    canvas.drawCircle(
-      emblemCenter,
-      emblemRadius,
-      Paint()..shader = emblemGradient,
-    );
-
-    // Usta Vektör Simgesi (Material Icons: handyman_rounded)
-    final iconPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-      text: TextSpan(
-        text: String.fromCharCode(Icons.handyman_rounded.codePoint),
-        style: TextStyle(
-          fontSize: 17 * scale,
-          fontFamily: Icons.handyman_rounded.fontFamily,
-          package: Icons.handyman_rounded.fontPackage,
-          color: Colors.white,
-        ),
-      ),
-    )..layout();
-
-    iconPainter.paint(
-      canvas,
-      Offset(
-        emblemCenter.dx - iconPainter.width / 2,
-        emblemCenter.dy - iconPainter.height / 2,
-      ),
-    );
-
-    // SAĞ İÇERİK: Usta Adı (Üst) ve Fiyat Hapı (Alt)
-    const double textLeft = 8 * scale + 38 * scale;
-    topTextPainter.paint(canvas, const Offset(textLeft, 4 * scale + 9 * scale));
-
-    // Nane Yeşili Fiyat Rozet Çipi
-    final double chipW = pricePainter.width + 10 * scale;
-    final double chipH = pricePainter.height + 4 * scale;
-    const double chipTop = 4 * scale + 27 * scale;
+    final double chipTop = cardTop + cardPaddingV + topTextPainter.height + 3 * scale;
+    final double chipW = pricePainter.width + 8 * scale;
+    final double chipH = pricePainter.height + 3 * scale;
+    final double chipX = cardLeft + (cardWidth - chipW) / 2;
 
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(textLeft, chipTop, chipW, chipH),
-        const Radius.circular(5 * scale),
+        Rect.fromLTWH(chipX, chipTop, chipW, chipH),
+        const Radius.circular(4 * scale),
       ),
       Paint()..color = isSelected ? const Color(0xFF1E293B) : const Color(0xFFECFDF5),
     );
 
     pricePainter.paint(
       canvas,
-      const Offset(textLeft + 5 * scale, chipTop + 2 * scale),
+      Offset(chipX + 4 * scale, chipTop + 1.5 * scale),
     );
 
-    // ALT ÜÇGEN OK (Mükemmel sivri uç ile haritadaki konuma işaret eder)
-    final double pointerCenterX = width / 2;
-    const double pointerTop = 4 * scale + badgeHeight - 1 * scale;
+    // Pointer
+    final double pointerCenterX = totalWidth / 2;
+    final double pointerTop = cardTop + cardHeight - 0.5 * scale;
     final trianglePath = Path()
-      ..moveTo(pointerCenterX - 6 * scale, pointerTop)
+      ..moveTo(pointerCenterX - 5 * scale, pointerTop)
       ..lineTo(pointerCenterX, pointerTop + pointerHeight)
-      ..lineTo(pointerCenterX + 6 * scale, pointerTop)
+      ..lineTo(pointerCenterX + 5 * scale, pointerTop)
       ..close();
 
     canvas.drawPath(trianglePath, Paint()..color = bgColor);
@@ -588,56 +580,103 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
       Paint()
         ..color = borderColor
         ..style = PaintingStyle.stroke
-        ..strokeWidth = (isSelected ? 2.2 : 1.2) * scale,
+        ..strokeWidth = (isSelected ? 2.0 : 1.2) * scale,
     );
+
+    // 3D Usta Harita Pini
+    final double pinLeft = (totalWidth - pinWidth) / 2;
+    final double pinTop = pointerTop + pointerHeight - 1 * scale;
+
+    if (_ustaPinImage != null) {
+      final src = Rect.fromLTWH(
+        0,
+        0,
+        _ustaPinImage!.width.toDouble(),
+        _ustaPinImage!.height.toDouble(),
+      );
+      final dst = Rect.fromLTWH(pinLeft, pinTop, pinWidth, pinHeight);
+
+      // Contact shadow
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(totalWidth / 2, pinTop + pinHeight - 1 * scale),
+          width: pinWidth * 0.45,
+          height: 5 * scale,
+        ),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.28)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3 * scale),
+      );
+
+      canvas.drawImageRect(_ustaPinImage!, src, dst, Paint()..filterQuality = FilterQuality.high);
+    }
 
     final image = await recorder
         .endRecording()
-        .toImage(width.toInt(), totalHeight.toInt());
+        .toImage(totalWidth.toInt(), totalHeight.toInt());
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     return byteData!.buffer.asUint8List();
   }
 
-  /// İşletme / Tedarikçi Pin Rozeti - Profesyonel Modern Mağaza Tasarımı
-  /// (Sol amblemde vektörel mağaza simgesi, sağda yüksek kontrastlı dükkan adı & kategori rozeti)
+  /// İşletme / Tedarikçi Pin Rozeti - 3D İşletme Harita Pini & Bilgi Rozeti
   Future<Uint8List> _createIsletmeBadgeBytes({
     required IsletmeModel isletme,
     required bool isSelected,
   }) async {
-    const double scale = 2.6;
+    const double scale = 2.4;
     final bool isSponsored = isletme.isSponsored;
 
-    // Renk paleti - Modern Kurumsal Tasarım
-    final Color amberPrimary = isSponsored ? const Color(0xFFD97706) : const Color(0xFFF59E0B);
-    final Color amberGradientDark = isSponsored ? const Color(0xFFB45309) : const Color(0xFFD97706);
+    if (_isletmePinImage == null) {
+      try {
+        _isletmePinImage = await _loadUiImage(
+          'assets/images/pin_isletme.png',
+          targetWidth: (48 * scale).toInt(),
+        );
+      } catch (e) {
+        debugPrint('>>> [_createIsletmeBadgeBytes] lazy load pin error: $e');
+      }
+    }
+
     final Color bgColor = isSelected ? const Color(0xFF0F172A) : Colors.white;
     final Color textColor = isSelected ? Colors.white : const Color(0xFF0F172A);
-    final Color subTextColor = isSelected ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
     final Color borderColor = isSelected
         ? const Color(0xFFF59E0B)
-        : (isSponsored ? const Color(0xFFF59E0B) : const Color(0xFFE2E8F0));
+        : (isSponsored ? const Color(0xFFF59E0B) : const Color(0xFFCBD5E1));
 
-    // Dükkan Adı Metin Ölçümü (Dinamik ve profesyonel genişlik)
-    final namePainter = TextPainter(
+    // Üst Satır: İşletme Adı + (Öne Çıkan)
+    final topTextPainter = TextPainter(
       textDirection: TextDirection.ltr,
       maxLines: 1,
       ellipsis: '…',
       text: TextSpan(
-        text: isletme.ad,
-        style: TextStyle(
-          fontSize: 12.5 * scale,
-          fontWeight: FontWeight.w800,
-          color: textColor,
-          letterSpacing: -0.2,
-        ),
+        children: [
+          TextSpan(
+            text: isletme.ad,
+            style: TextStyle(
+              fontSize: 12.0 * scale,
+              fontWeight: FontWeight.w800,
+              color: textColor,
+              letterSpacing: -0.2,
+            ),
+          ),
+          if (isSponsored)
+            const TextSpan(
+              text: ' ★',
+              style: TextStyle(
+                fontSize: 12.0 * scale,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFFF59E0B),
+              ),
+            ),
+        ],
       ),
-    )..layout(maxWidth: 165 * scale);
+    )..layout(maxWidth: 160 * scale);
 
-    // Alt Rozet / Kategori Metin Ölçümü
-    final String subLabel = isSponsored
-        ? 'ÖNE ÇIKAN DÜKKAN'
-        : (isletme.kategori.isNotEmpty ? isletme.kategori : 'Tedarikçi / Mağaza');
-    final subPainter = TextPainter(
+    // Alt Satır: Kategori
+    final subLabel = isSponsored
+        ? 'Öne Çıkan Mağaza'
+        : (isletme.kategori.isNotEmpty ? isletme.kategori : 'Tedarikçi');
+    final subTextPainter = TextPainter(
       textDirection: TextDirection.ltr,
       maxLines: 1,
       ellipsis: '…',
@@ -646,133 +685,72 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
         style: TextStyle(
           fontSize: 9.5 * scale,
           fontWeight: FontWeight.w700,
-          color: isSelected
-              ? const Color(0xFFFDE68A)
-              : (isSponsored ? const Color(0xFFB45309) : subTextColor),
+          color: isSponsored
+              ? const Color(0xFFD97706)
+              : (isSelected ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
           letterSpacing: 0.1,
         ),
       ),
-    )..layout(maxWidth: 165 * scale);
+    )..layout(maxWidth: 160 * scale);
 
-    // Dinamik Genişlik: Sol amblem (42) + en geniş metin + sağ dolgu (18)
-    final double maxTextWidth = math.max(namePainter.width, subPainter.width);
-    final double width = math.max(148 * scale, maxTextWidth + 60 * scale);
-    const double badgeHeight = 48 * scale;
-    const double pointerHeight = 8 * scale;
-    const double totalHeight = badgeHeight + pointerHeight + 10 * scale;
+    final double maxTextWidth = math.max(topTextPainter.width, subTextPainter.width);
+    final double cardPaddingH = 12 * scale;
+    final double cardPaddingV = 6 * scale;
+    final double cardWidth = math.max(100 * scale, maxTextWidth + cardPaddingH * 2);
+    final double cardHeight = topTextPainter.height + subTextPainter.height + 4 * scale + cardPaddingV * 2;
+
+    const double pointerHeight = 6 * scale;
+    const double pinWidth = 48 * scale;
+    const double pinHeight = 48 * scale;
+
+    final double totalWidth = math.max(cardWidth, pinWidth) + 16 * scale;
+    final double totalHeight = cardHeight + pointerHeight + pinHeight + 6 * scale;
 
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
-    // Kart RRect
-    final badgeRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(8 * scale, 4 * scale, width - 16 * scale, badgeHeight),
-      const Radius.circular(14 * scale),
+    final double cardLeft = (totalWidth - cardWidth) / 2;
+    const double cardTop = 3 * scale;
+
+    final cardRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(cardLeft, cardTop, cardWidth, cardHeight),
+      const Radius.circular(12 * scale),
     );
 
-    // Yumuşak Profesyonel Drop Shadow
-    if (isSponsored) {
-      canvas.drawRRect(
-        badgeRect.shift(const Offset(0, 4 * scale)),
-        Paint()
-          ..color = const Color(0xFFF59E0B).withValues(alpha: 0.32)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12 * scale),
-      );
-    } else {
-      canvas.drawRRect(
-        badgeRect.shift(const Offset(0, 3 * scale)),
-        Paint()
-          ..color = Colors.black.withValues(alpha: 0.16)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8 * scale),
-      );
-    }
-
-    // Gövde Arka Planı
-    canvas.drawRRect(badgeRect, Paint()..color = bgColor);
-
-    // İnce / Şık Kenarlık
+    // Drop shadow
     canvas.drawRRect(
-      badgeRect,
+      cardRect.shift(const Offset(0, 3 * scale)),
+      Paint()
+        ..color = isSponsored
+            ? const Color(0xFFF59E0B).withValues(alpha: 0.35)
+            : Colors.black.withValues(alpha: 0.15)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8 * scale),
+    );
+
+    canvas.drawRRect(cardRect, Paint()..color = bgColor);
+
+    canvas.drawRRect(
+      cardRect,
       Paint()
         ..color = borderColor
         ..style = PaintingStyle.stroke
-        ..strokeWidth = (isSelected ? 2.4 : (isSponsored ? 2.0 : 1.2)) * scale,
+        ..strokeWidth = (isSelected ? 2.2 : (isSponsored ? 1.8 : 1.2)) * scale,
     );
 
-    // SOL AMBLEM: Gradyanlı Turuncu / Altın Daire + Vektörel Mağaza Simgesi
-    const double emblemRadius = 16 * scale;
-    const Offset emblemCenter = Offset(8 * scale + 18 * scale, 4 * scale + badgeHeight / 2);
+    final double textX = cardLeft + (cardWidth - topTextPainter.width) / 2;
+    topTextPainter.paint(canvas, Offset(textX, cardTop + cardPaddingV));
 
-    final emblemGradient = ui.Gradient.linear(
-      Offset(emblemCenter.dx - emblemRadius, emblemCenter.dy - emblemRadius),
-      Offset(emblemCenter.dx + emblemRadius, emblemCenter.dy + emblemRadius),
-      [amberPrimary, amberGradientDark],
-    );
+    final double subX = cardLeft + (cardWidth - subTextPainter.width) / 2;
+    final double subY = cardTop + cardPaddingV + topTextPainter.height + 3 * scale;
+    subTextPainter.paint(canvas, Offset(subX, subY));
 
-    canvas.drawCircle(
-      emblemCenter,
-      emblemRadius,
-      Paint()..shader = emblemGradient,
-    );
-
-    // Mağaza Vektör Simgesi (Material Icons: storefront_rounded veya stars_rounded)
-    final iconPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-      text: TextSpan(
-        text: String.fromCharCode(
-          isSponsored ? Icons.stars_rounded.codePoint : Icons.storefront_rounded.codePoint,
-        ),
-        style: TextStyle(
-          fontSize: 18 * scale,
-          fontFamily: Icons.storefront_rounded.fontFamily,
-          package: Icons.storefront_rounded.fontPackage,
-          color: Colors.white,
-        ),
-      ),
-    )..layout();
-
-    iconPainter.paint(
-      canvas,
-      Offset(
-        emblemCenter.dx - iconPainter.width / 2,
-        emblemCenter.dy - iconPainter.height / 2,
-      ),
-    );
-
-    // SAĞ İÇERİK: Dükkan Adı (Üst) ve Kategori / Sponsor Rozeti (Alt)
-    const double textLeft = 8 * scale + 38 * scale;
-    namePainter.paint(canvas, const Offset(textLeft, 4 * scale + 9 * scale));
-
-    if (isSponsored) {
-      // Sponsorlu Dükkan için Altın Rozet Çipi
-      final double chipW = subPainter.width + 10 * scale;
-      final double chipH = subPainter.height + 4 * scale;
-      const double chipTop = 4 * scale + 27 * scale;
-
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(textLeft, chipTop, chipW, chipH),
-          const Radius.circular(5 * scale),
-        ),
-        Paint()..color = isSelected ? const Color(0xFF334155) : const Color(0xFFFEF3C7),
-      );
-
-      subPainter.paint(
-        canvas,
-        const Offset(textLeft + 5 * scale, chipTop + 2 * scale),
-      );
-    } else {
-      // Normal Kategori / Dükkan Alt Başlığı
-      subPainter.paint(canvas, const Offset(textLeft, 4 * scale + 28 * scale));
-    }
-
-    // ALT ÜÇGEN OK (Mükemmel sivri uç ile haritadaki konuma işaret eder)
-    final double pointerCenterX = width / 2;
-    const double pointerTop = 4 * scale + badgeHeight - 1 * scale;
+    // Pointer
+    final double pointerCenterX = totalWidth / 2;
+    final double pointerTop = cardTop + cardHeight - 0.5 * scale;
     final trianglePath = Path()
-      ..moveTo(pointerCenterX - 6 * scale, pointerTop)
+      ..moveTo(pointerCenterX - 5 * scale, pointerTop)
       ..lineTo(pointerCenterX, pointerTop + pointerHeight)
-      ..lineTo(pointerCenterX + 6 * scale, pointerTop)
+      ..lineTo(pointerCenterX + 5 * scale, pointerTop)
       ..close();
 
     canvas.drawPath(trianglePath, Paint()..color = bgColor);
@@ -781,14 +759,43 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
       Paint()
         ..color = borderColor
         ..style = PaintingStyle.stroke
-        ..strokeWidth = (isSelected ? 2.2 : (isSponsored ? 1.8 : 1.2)) * scale,
+        ..strokeWidth = (isSelected ? 2.0 : 1.2) * scale,
     );
+
+    // 3D İşletme Harita Pini
+    final double pinLeft = (totalWidth - pinWidth) / 2;
+    final double pinTop = pointerTop + pointerHeight - 1 * scale;
+
+    if (_isletmePinImage != null) {
+      final src = Rect.fromLTWH(
+        0,
+        0,
+        _isletmePinImage!.width.toDouble(),
+        _isletmePinImage!.height.toDouble(),
+      );
+      final dst = Rect.fromLTWH(pinLeft, pinTop, pinWidth, pinHeight);
+
+      // Contact shadow
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(totalWidth / 2, pinTop + pinHeight - 1 * scale),
+          width: pinWidth * 0.45,
+          height: 5 * scale,
+        ),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.28)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3 * scale),
+      );
+
+      canvas.drawImageRect(_isletmePinImage!, src, dst, Paint()..filterQuality = FilterQuality.high);
+    }
 
     final image = await recorder
         .endRecording()
-        .toImage(width.toInt(), totalHeight.toInt());
+        .toImage(totalWidth.toInt(), totalHeight.toInt());
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     return byteData!.buffer.asUint8List();
+  }
   }
 
   void _selectAndFocusUsta(

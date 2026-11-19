@@ -198,12 +198,42 @@ class AppDataService {
           }
           _changesStreamController.add(null);
         }
-      } else if (event == 'ustalar_updated' && data is List) {
-        _cachedUstalar = data
-            .map((item) => NearbyUstaModel.fromJson(Map<String, dynamic>.from(item)))
-            .toList();
-        _persistUstalarToPrefs(_cachedUstalar!);
-        _changesStreamController.add(null);
+      } else if (event == 'ustalar_updated') {
+        if (data is List) {
+          _cachedUstalar = data
+              .map((item) => NearbyUstaModel.fromJson(Map<String, dynamic>.from(item)))
+              .toList();
+          _persistUstalarToPrefs(_cachedUstalar!);
+          _changesStreamController.add(null);
+        } else if (data is Map) {
+          final ustaId = data['usta_id']?.toString() ?? '';
+          final phone = (data['phone'] ?? '').toString();
+          final isOnline = data['is_online'] as bool? ?? data['isOnline'] as bool? ?? true;
+          if (_cachedUstalar != null) {
+            for (int i = 0; i < _cachedUstalar!.length; i++) {
+              final u = _cachedUstalar![i];
+              if ((ustaId.isNotEmpty && u.ustaId == ustaId) ||
+                  (phone.isNotEmpty && normalizePhone(u.phone) == normalizePhone(phone))) {
+                _cachedUstalar![i] = u.copyWith(isOnline: isOnline);
+              }
+            }
+            _persistUstalarToPrefs(_cachedUstalar!);
+          }
+          if (_cachedJobs != null) {
+            for (int i = 0; i < _cachedJobs!.length; i++) {
+              final j = _cachedJobs![i];
+              final jUstaId = (j['usta_id'] ?? '').toString();
+              final jPhone = normalizePhone((j['customer_phone'] ?? j['usta_phone'] ?? '').toString());
+              if ((ustaId.isNotEmpty && jUstaId == ustaId) || (phone.isNotEmpty && jPhone == normalizePhone(phone))) {
+                _cachedJobs![i] = Map<String, dynamic>.from(j);
+                _cachedJobs![i]['is_online'] = isOnline;
+                _cachedJobs![i]['isOnline'] = isOnline;
+              }
+            }
+            _persistJobsToPrefs(_cachedJobs!);
+          }
+          _changesStreamController.add(null);
+        }
       } else if (event == 'jobs_updated' && data is List) {
         _cachedJobs = List<Map<String, dynamic>>.from(data);
         _persistJobsToPrefs(_cachedJobs!);
@@ -437,6 +467,10 @@ class AppDataService {
       // Sadece 'Aktif' durumundaki ilanlar haritada pin olarak yer alır
       if (status != 'Aktif') continue;
 
+      // Usta çevrimdışı (meşgul) ise harita pininde ve aramada ASLA gösterilmez!
+      final jobIsOnline = job['is_online'] as bool? ?? job['isOnline'] as bool? ?? true;
+      if (!jobIsOnline) continue;
+
       double lat = (job['latitude'] as num?)?.toDouble() ?? 0.0;
       double lng = (job['longitude'] as num?)?.toDouble() ?? 0.0;
       String district = (job['district'] ?? job['address'] ?? job['konum'] ?? 'Sandıklı').toString();
@@ -452,11 +486,17 @@ class AppDataService {
         orElse: () => null,
       );
 
-      if (matchingUsta != null && matchingUsta.latitude != 0.0 && matchingUsta.longitude != 0.0) {
-        lat = matchingUsta.latitude;
-        lng = matchingUsta.longitude;
-        if (matchingUsta.uzmanlikBasligi.isNotEmpty) {
-          district = matchingUsta.uzmanlikBasligi;
+      if (matchingUsta != null) {
+        if (!matchingUsta.isOnline) {
+          // Usta meşgul/çevrimdışı yapıldığında ilanı haritadan anında yok olur!
+          continue;
+        }
+        if (matchingUsta.latitude != 0.0 && matchingUsta.longitude != 0.0) {
+          lat = matchingUsta.latitude;
+          lng = matchingUsta.longitude;
+          if (matchingUsta.uzmanlikBasligi.isNotEmpty) {
+            district = matchingUsta.uzmanlikBasligi;
+          }
         }
       } else if (lat == 0.0 && lng == 0.0) {
         // Fallback 1: Adresi yerel konum sözlüğünden çözümle
@@ -560,6 +600,7 @@ class AppDataService {
     // 2. Sistemdeki kayıtlı ustalardan henüz haritada aktif bir ilanı bulunmayanlar (varsa)
     final allUstalar = await getUstalar();
     for (final u in allUstalar) {
+      if (!u.isOnline) continue; // Çevrimdışı usta haritada kesinlikle gösterilmez!
       if (u.ilanlar.isEmpty) continue;
       bool alreadyRepresented = result.any((r) => r.phone == u.phone && r.fullName == u.fullName);
       if (!alreadyRepresented && seenPinIds.add(u.ustaId)) {
@@ -1113,6 +1154,68 @@ class AppDataService {
         session['address'] = address;
         session['latitude'] = lat;
         session['longitude'] = lng;
+        await saveActiveSession(
+          phone: session['phone']?.toString() ?? norm,
+          fullName: session['full_name']?.toString() ?? 'Usta',
+          role: 'usta',
+          extra: session,
+        );
+      }
+    } catch (_) {}
+
+    _changesStreamController.add(null);
+  }
+
+  /// Ustanın çevrimiçi (müsait) veya çevrimdışı (meşgul) durumunu günceller.
+  /// Usta çevrimdışı olduğunda haritadaki pinleri anında yok olur;
+  /// usta çevrimiçi olduğunda haritada anında yeniden belirir.
+  Future<void> updateUstaOnlineStatus({
+    required String ustaId,
+    String? phone,
+    required bool isOnline,
+  }) async {
+    final norm = phone != null && phone.isNotEmpty ? normalizePhone(phone) : '';
+
+    // 1. Ustalar listesini güncelle
+    final ustalar = await getUstalar();
+    bool ustaUpdated = false;
+    for (int i = 0; i < ustalar.length; i++) {
+      final u = ustalar[i];
+      final match = (ustaId.isNotEmpty && u.ustaId == ustaId) ||
+          (norm.isNotEmpty && normalizePhone(u.phone) == norm);
+      if (match) {
+        ustalar[i] = u.copyWith(isOnline: isOnline);
+        ustaUpdated = true;
+      }
+    }
+    if (ustaUpdated) {
+      await saveUstalar(ustalar);
+    }
+
+    // 2. Jobs listesindeki bu ustaya ait tüm ilanların çevrimiçi durumunu canlı güncelle
+    final jobs = await getActiveJobs();
+    bool jobsUpdated = false;
+    for (int i = 0; i < jobs.length; i++) {
+      final j = jobs[i];
+      final jUstaId = (j['usta_id'] ?? '').toString();
+      final jPhone = normalizePhone((j['customer_phone'] ?? j['usta_phone'] ?? '').toString());
+      if ((ustaId.isNotEmpty && jUstaId == ustaId) || (norm.isNotEmpty && jPhone == norm)) {
+        jobs[i] = Map<String, dynamic>.from(j);
+        jobs[i]['is_online'] = isOnline;
+        jobs[i]['isOnline'] = isOnline;
+        jobsUpdated = true;
+      }
+    }
+    if (jobsUpdated) {
+      await saveActiveJobs(jobs);
+    }
+
+    // 3. Aktif oturumdaki usta nesnesine de kaydet
+    try {
+      final session = await getActiveSession();
+      if (session != null && (session['phone'] == norm || session['full_name'] != null)) {
+        session['is_online'] = isOnline;
+        session['isOnline'] = isOnline;
         await saveActiveSession(
           phone: session['phone']?.toString() ?? norm,
           fullName: session['full_name']?.toString() ?? 'Usta',

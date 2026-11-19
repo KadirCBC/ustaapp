@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
 import 'package:ustaapp/core/services/app_data_service.dart';
@@ -382,8 +383,23 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
           ? matchedUsta.servisUcreti
           : ((session?['base_service_fee'] as num?)?.toDouble() ?? 750.0);
 
-      // Supabase veritabanı kontrolü (giriş yapılmışsa)
+      // Kalıcı çevrimiçi/çevrimdışı (müsait/meşgul) tercihi kontrolü
       bool isOnline = state.isOnline;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final savedPref = (normPhone.isNotEmpty)
+            ? (prefs.getBool('usta_is_online_$normPhone') ?? prefs.getBool('usta_is_online'))
+            : prefs.getBool('usta_is_online');
+        if (savedPref != null) {
+          isOnline = savedPref;
+        } else if (matchedUsta != null) {
+          isOnline = matchedUsta.isOnline;
+        } else if (session != null && (session['is_online'] != null || session['isOnline'] != null)) {
+          isOnline = (session['is_online'] ?? session['isOnline']) as bool? ?? isOnline;
+        }
+      } catch (_) {}
+
+      // Supabase veritabanı kontrolü (giriş yapılmışsa)
       if (uid != null) {
         try {
           final ustaData = await _supabase
@@ -392,8 +408,8 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
               .eq('id', uid)
               .maybeSingle()
               .timeout(const Duration(seconds: 2));
-          if (ustaData != null) {
-            isOnline = ustaData['is_online'] as bool? ?? isOnline;
+          if (ustaData != null && ustaData['is_online'] != null) {
+            isOnline = ustaData['is_online'] as bool;
           }
         } catch (_) {}
       }
@@ -866,68 +882,71 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     state = state.copyWith(clearIncomingCall: true);
   }
 
-  /// Müsaitim (Online) / Meşgulüm (Offline) durumunu değiştirir
+  /// Müsaitim (Online) / Meşgulüm (Offline) durumunu değiştirir.
+  /// Usta durumu değiştirdiğinde tekrar kendisi değiştirene kadar kalıcı olarak o durumda kalır.
+  /// Çevrimdışı yapıldığında ustanın pinleri müşterinin haritasından ANINDA yok olur;
+  /// Çevrimiçi yapıldığında ustanın pinleri müşterinin haritasında ANINDA belirir.
   Future<void> toggleOnlineStatus(bool targetStatus) async {
-    final uid = currentUserId;
-    if (uid == null) {
-      // Demo modunda toggle işlemi
-      state = state.copyWith(
-        isOnline: targetStatus,
-        successMessage: targetStatus
-            ? 'Çevrimiçi moddasınız. Yeni çağrılar için hazırsınız!'
-            : 'Çevrimdışı moddasınız. Konum takibi durduruldu.',
-      );
-      if (targetStatus) {
-        unawaited(_checkIncomingCallsFromSyncService());
-      } else {
-        state = state.copyWith(clearIncomingCall: true);
-      }
-      return;
-    }
+    final phone = state.activeUstaPhone ?? '';
+    final ustaId = state.activeUstaId ?? (phone.isNotEmpty ? 'usta-$phone' : '');
 
+    // 1. State'i derhal güncelle (UI anında renk değiştirir)
     state = state.copyWith(
       isOnline: targetStatus,
       errorMessage: null,
-      successMessage: null,
+      successMessage: targetStatus
+          ? 'Müsait moddasınız. Müşteriler haritada sizi görebilir!'
+          : 'Meşgul moddasınız. Haritadan gizlendiniz, yeni çağrı alınmayacak.',
+      clearIncomingCall: !targetStatus,
     );
 
+    // 2. Kalıcı olarak SharedPreferences'a kaydet (Uygulama kapansa bile tekrar açana kadar meşgul, kapatana kadar müsait kalır)
     try {
-      if (targetStatus) {
-        final started = await _locationService.startTracking(uid);
-        if (!started) {
-          state = state.copyWith(
-            isOnline: false,
-            errorMessage: 'Konum izni verilmediği için çevrimiçi olamazsınız.',
-          );
-          await _supabase
-              .from(AppConstants.ustalarTable)
-              .update({'is_online': false})
-              .eq('id', uid);
-          return;
-        }
-        _subscribeToIncomingCallsStream(uid);
-      } else {
-        await _locationService.stopTracking();
-        await _incomingCallsStreamSub?.cancel();
-        _incomingCallsStreamSub = null;
+      final prefs = await SharedPreferences.getInstance();
+      if (phone.isNotEmpty) {
+        await prefs.setBool('usta_is_online_$phone', targetStatus);
       }
+      await prefs.setBool('usta_is_online', targetStatus);
+    } catch (e) {
+      debugPrint('toggleOnlineStatus SharedPreferences kaydetme hatası: $e');
+    }
 
-      await _supabase
-          .from(AppConstants.ustalarTable)
-          .update({'is_online': targetStatus})
-          .eq('id', uid);
-
-      state = state.copyWith(
-        successMessage: targetStatus
-            ? 'Çevrimiçi moddasınız. Yeni çağrılar için hazırsınız!'
-            : 'Çevrimdışı moddasınız. Konum takibi durduruldu.',
+    // 3. AppDataService üzerinden sync server ve yerel belleği canlı güncelle (Harita pini WebSocket ile anında yok olur/belirir)
+    try {
+      await _appDataService.updateUstaOnlineStatus(
+        ustaId: ustaId,
+        phone: phone,
+        isOnline: targetStatus,
       );
     } catch (e) {
-      debugPrint('toggleOnlineStatus hatası: $e');
-      state = state.copyWith(
-        isOnline: !targetStatus,
-        errorMessage: 'Durum güncellenemedi: $e',
-      );
+      debugPrint('toggleOnlineStatus AppDataService güncelleme hatası: $e');
+    }
+
+    // 4. Konum servisi ve akışları güncelle
+    final uid = currentUserId;
+    if (uid != null) {
+      try {
+        if (targetStatus) {
+          unawaited(_locationService.startTracking(uid));
+          _subscribeToIncomingCallsStream(uid);
+        } else {
+          await _locationService.stopTracking();
+          await _incomingCallsStreamSub?.cancel();
+          _incomingCallsStreamSub = null;
+        }
+
+        unawaited(_supabase
+            .from(AppConstants.ustalarTable)
+            .update({'is_online': targetStatus})
+            .eq('id', uid)
+            .timeout(const Duration(seconds: 2))
+            .catchError((_) {}));
+      } catch (_) {}
+    } else {
+      // Demo modunda çağrı dinleme kontrolü
+      if (targetStatus) {
+        unawaited(_checkIncomingCallsFromSyncService());
+      }
     }
   }
 

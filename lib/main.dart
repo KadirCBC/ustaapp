@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,13 +15,17 @@ import 'package:ustaapp/core/theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 0. Bildirim servisini ve arka plan kalıcı dinleyici servisini başlat
+  // 0. Bildirim servisini başlat (Hızlı UI açılışı için ana akışta)
   try {
     await NotificationService.instance.initialize();
-    await AppBackgroundService.instance.initialize();
   } catch (e) {
-    debugPrint('Bildirim / Arka plan servisi başlatılırken hata: $e');
+    debugPrint('Bildirim servisi başlatılırken hata: $e');
   }
+
+  // Arka plan kalıcı dinleyici servisini arayüzü (runApp) BLOKE ETMEDEN asenkron başlat
+  unawaited(AppBackgroundService.instance.initialize().catchError((e) {
+    debugPrint('Arka plan servisi başlatma uyarısı: $e');
+  }));
 
   // Mapbox Public Token yapılandırması
   MapboxOptions.setAccessToken(AppConstants.mapboxAccessToken);

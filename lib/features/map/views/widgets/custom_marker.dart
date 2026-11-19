@@ -66,12 +66,10 @@ class CustomMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color emeraldPrimary = Color(0xFF059669);
-    const Color emeraldGradientDark = Color(0xFF047857);
     final Color bgColor = isSelected ? const Color(0xFF0F172A) : Colors.white;
     final Color textColor = isSelected ? Colors.white : const Color(0xFF0F172A);
     final Color borderColor =
-        isSelected ? const Color(0xFF10B981) : const Color(0xFFE2E8F0);
+        isSelected ? const Color(0xFFF97316) : const Color(0xFFE2E8F0);
 
     return GestureDetector(
       onTap: onTap,
@@ -85,117 +83,101 @@ class CustomMarker extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // Bilgi Rozeti (Usta Adı, Puan ve Fiyat)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: bgColor,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: borderColor,
-                  width: isSelected ? 2.2 : 1.2,
+                  width: isSelected ? 2.0 : 1.2,
                 ),
                 boxShadow: [
                   BoxShadow(
                     color: isSelected
-                        ? emeraldPrimary.withValues(alpha: 0.35)
+                        ? const Color(0xFFF97316).withValues(alpha: 0.35)
                         : Colors.black.withValues(alpha: 0.16),
-                    blurRadius: isSelected ? 14 : 8,
-                    offset: const Offset(0, 4),
+                    blurRadius: isSelected ? 12 : 6,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
-              child: Row(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Sol Embiye
-                  Container(
-                    width: 30,
-                    height: 30,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF10B981), emeraldGradientDark],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.handyman_rounded,
-                      size: 16,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Sağ Metinler
-                  Column(
+                  Row(
                     mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 110),
-                            child: Text(
-                              usta.shortDisplayName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                color: textColor,
-                                letterSpacing: -0.2,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '★ ${usta.puan.toStringAsFixed(1)}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: isSelected
-                                  ? const Color(0xFFFDE68A)
-                                  : const Color(0xFFD97706),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 3),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 1.5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xFF1E293B)
-                              : const Color(0xFFECFDF5),
-                          borderRadius: BorderRadius.circular(5),
-                        ),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 110),
                         child: Text(
-                          usta.formattedPrice,
+                          usta.shortDisplayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: isSelected
-                                ? const Color(0xFFA7F3D0)
-                                : const Color(0xFF047857),
-                            letterSpacing: 0.1,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: textColor,
+                            letterSpacing: -0.2,
                           ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '★ ${usta.puan.toStringAsFixed(1)}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: isSelected
+                              ? const Color(0xFFFDE68A)
+                              : const Color(0xFFD97706),
                         ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 2),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 1.5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${usta.formattedPrice} Taban',
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: isSelected
+                            ? const Color(0xFFA7F3D0)
+                            : const Color(0xFF047857),
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
+            // Bağlantı Üçgeni
             CustomPaint(
-              size: const Size(12, 6),
+              size: const Size(10, 5),
               painter: _MarkerTrianglePainter(
                 color: bgColor,
                 borderColor: borderColor,
               ),
+            ),
+            // 3D Usta Harita Pini
+            Image.asset(
+              'assets/images/pin_usta.png',
+              width: 46,
+              height: 46,
+              fit: BoxFit.contain,
             ),
           ],
         ),
@@ -220,18 +202,16 @@ class CustomIsletmeMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isSponsored = isletme.isSponsored;
-    final Color amberPrimary =
-        isSponsored ? const Color(0xFFD97706) : const Color(0xFFF59E0B);
-    final Color amberGradientDark =
-        isSponsored ? const Color(0xFFB45309) : const Color(0xFFD97706);
     final Color bgColor = isSelected ? const Color(0xFF0F172A) : Colors.white;
     final Color textColor = isSelected ? Colors.white : const Color(0xFF0F172A);
+    final Color subTextColor =
+        isSelected ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
     final Color borderColor = isSelected
         ? const Color(0xFFF59E0B)
-        : (isSponsored ? const Color(0xFFF59E0B) : const Color(0xFFE2E8F0));
+        : (isSponsored ? const Color(0xFFF59E0B) : const Color(0xFFCBD5E1));
 
     final String subLabel = isSponsored
-        ? 'ÖNE ÇIKAN DÜKKAN'
+        ? 'Öne Çıkan Mağaza'
         : (isletme.kategori.isNotEmpty
             ? isletme.kategori
             : 'Tedarikçi / Mağaza');
@@ -248,107 +228,75 @@ class CustomIsletmeMarker extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // Bilgi Rozeti
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: bgColor,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: borderColor,
-                  width: isSelected ? 2.2 : (isSponsored ? 1.8 : 1.2),
+                  width: isSelected ? 2.0 : (isSponsored ? 1.6 : 1.2),
                 ),
                 boxShadow: [
                   BoxShadow(
                     color: isSponsored
-                        ? const Color(0xFFF59E0B).withValues(alpha: 0.32)
+                        ? const Color(0xFFF59E0B).withValues(alpha: 0.35)
                         : Colors.black.withValues(alpha: 0.16),
-                    blurRadius: isSelected ? 14 : 8,
-                    offset: const Offset(0, 4),
+                    blurRadius: isSelected ? 12 : 6,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
-              child: Row(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Sol Embiye
-                  Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [amberPrimary, amberGradientDark],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 120),
+                    child: Text(
+                      isletme.ad,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: textColor,
+                        letterSpacing: -0.2,
                       ),
-                    ),
-                    child: Icon(
-                      isSponsored
-                          ? Icons.stars_rounded
-                          : Icons.storefront_rounded,
-                      size: 17,
-                      color: Colors.white,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  // Sağ Metinler
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 120),
-                        child: Text(
-                          isletme.ad,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: textColor,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 1.5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xFF334155)
-                              : (isSponsored
-                                  ? const Color(0xFFFEF3C7)
-                                  : const Color(0xFFF1F5F9)),
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Text(
-                          subLabel,
-                          style: TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w700,
-                            color: isSelected
-                                ? const Color(0xFFFDE68A)
-                                : (isSponsored
-                                    ? const Color(0xFFB45309)
-                                    : const Color(0xFF64748B)),
-                            letterSpacing: 0.1,
-                          ),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 2),
+                  Text(
+                    subLabel,
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      color: isSponsored
+                          ? const Color(0xFFD97706)
+                          : (isSelected
+                              ? const Color(0xFFFDE68A)
+                              : subTextColor),
+                      letterSpacing: 0.1,
+                    ),
                   ),
                 ],
               ),
             ),
+            // Bağlantı Üçgeni
             CustomPaint(
-              size: const Size(12, 6),
+              size: const Size(10, 5),
               painter: _MarkerTrianglePainter(
                 color: bgColor,
                 borderColor: borderColor,
               ),
+            ),
+            // 3D İşletme Harita Pini
+            Image.asset(
+              'assets/images/pin_isletme.png',
+              width: 46,
+              height: 46,
+              fit: BoxFit.contain,
             ),
           ],
         ),

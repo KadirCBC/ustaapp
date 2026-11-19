@@ -169,6 +169,7 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
 
     final filtered = <NearbyUstaModel>[];
     for (final u in list) {
+      if (!u.isOnline) continue; // Çevrimdışı (meşgul) usta haritada ASLA gösterilmez!
       final dist = Geolocator.distanceBetween(
         state.currentLat,
         state.currentLng,

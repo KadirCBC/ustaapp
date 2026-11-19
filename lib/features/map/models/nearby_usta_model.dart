@@ -98,6 +98,7 @@ class NearbyUstaModel {
   final String uzmanlikBasligi;
   final List<String> guvenceler;
   final List<UstaHizmetIlan> ilanlar;
+  final bool isOnline;
 
   NearbyUstaModel({
     required this.ustaId,
@@ -123,6 +124,7 @@ class NearbyUstaModel {
       'MYK Belgeli',
     ],
     this.ilanlar = const [],
+    this.isOnline = true,
   });
 
   factory NearbyUstaModel.fromJson(Map<String, dynamic> json) {
@@ -189,6 +191,7 @@ class NearbyUstaModel {
           (json['uzmanlik_basligi'] ?? json['uzmanlikBasligi'] ?? json['location'] ?? 'Onaylı Uzman Usta').toString(),
       guvenceler: parsedGuvenceler,
       ilanlar: parsedIlanlar,
+      isOnline: json['is_online'] as bool? ?? json['isOnline'] as bool? ?? true,
     );
   }
 
@@ -242,6 +245,8 @@ class NearbyUstaModel {
     'uzmanlik_basligi': uzmanlikBasligi,
     'guvenceler': guvenceler,
     'ilanlar': ilanlar.map((e) => e.toJson()).toList(),
+    'is_online': isOnline,
+    'isOnline': isOnline,
   };
 
   NearbyUstaModel copyWith({
@@ -264,6 +269,7 @@ class NearbyUstaModel {
     String? uzmanlikBasligi,
     List<String>? guvenceler,
     List<UstaHizmetIlan>? ilanlar,
+    bool? isOnline,
   }) {
     return NearbyUstaModel(
       ustaId: ustaId ?? this.ustaId,
@@ -285,6 +291,7 @@ class NearbyUstaModel {
       uzmanlikBasligi: uzmanlikBasligi ?? this.uzmanlikBasligi,
       guvenceler: guvenceler ?? this.guvenceler,
       ilanlar: ilanlar ?? this.ilanlar,
+      isOnline: isOnline ?? this.isOnline,
     );
   }
 }

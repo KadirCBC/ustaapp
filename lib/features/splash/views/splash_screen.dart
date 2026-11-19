@@ -42,10 +42,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       ),
     );
 
-    // Ana açılış süresi (2.2 saniye)
+    // Hızlı ve akıcı açılış süresi (850 milisaniye)
     _mainController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2200),
+      duration: const Duration(milliseconds: 850),
     );
 
     // Dairesel radar dalgası
@@ -149,9 +149,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
+      body: GestureDetector(
+        onTap: _checkAuthAndNavigate,
+        behavior: HitTestBehavior.opaque,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
           // 0. Temel Degrade Arka Plan
           Container(
             decoration: const BoxDecoration(
@@ -167,17 +170,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             ),
           ),
 
-          // 1. 3D Usta & Servis Arka Plan Kahraman Görseli
+          // 1. 3D Usta & Servis Arka Plan Kahraman Görseli (Alt boşluksuz, kenara sıfır oturan)
           Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            top: 50,
+            left: -20,
+            right: -20,
+            bottom: -32,
+            top: 60,
             child: Opacity(
-              opacity: 0.40,
+              opacity: 0.42,
               child: Image.asset(
                 'assets/images/splash_hero_bg.png',
-                fit: BoxFit.contain,
+                fit: BoxFit.fitWidth,
                 alignment: Alignment.bottomCenter,
               ),
             ),
@@ -389,7 +392,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         ),
       ],
     ),
-  );
+  ),
+);
   }
 }
 
