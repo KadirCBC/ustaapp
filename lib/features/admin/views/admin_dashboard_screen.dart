@@ -3274,6 +3274,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     title: 'Özet Ekranı',
                   ),
                   _buildSidebarItem(
+                    index: 9,
+                    icon: Icons.notifications_active_rounded,
+                    title: 'Bildirim & Duyuru Masası',
+                    badgeText: 'Canlı Push',
+                    badgeColor: const Color(0xFFF97316),
+                  ),
+                  _buildSidebarItem(
                     index: 1,
                     icon: Icons.campaign_rounded,
                     title: 'Aktif İlanlar & Çağrılar',
@@ -3328,13 +3335,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     index: 8,
                     icon: Icons.monetization_on_rounded,
                     title: 'Finansal Raporlar & Hizmet Akışı',
-                  ),
-                  _buildSidebarItem(
-                    index: 9,
-                    icon: Icons.notifications_active_rounded,
-                    title: 'Bildirim & Duyuru Masası',
-                    badgeText: 'Canlı Push',
-                    badgeColor: const Color(0xFFF97316),
                   ),
                 ],
               ),
@@ -3557,6 +3557,44 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ),
           Row(
             children: [
+              // Hızlı Canlı Bildirim Gönder Butonu
+              InkWell(
+                onTap: () => setState(() => _selectedMenuIndex = 9),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFF97316), Color(0xFFEA580C)],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFF97316).withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.campaign_rounded, color: Colors.white, size: 16),
+                      SizedBox(width: 6),
+                      Text(
+                        '📢 Canlı Bildirim Gönder',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+
               // Dual-Segmented Tema Değiştirici [ ☀️ Açık | 🌙 Koyu ]
               Container(
                 padding: const EdgeInsets.all(3),
@@ -3967,6 +4005,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 ),
               ),
               const SizedBox(width: 16),
+              ElevatedButton.icon(
+                onPressed: () => setState(() => _selectedMenuIndex = 9),
+                icon: const Icon(Icons.campaign_rounded, size: 16),
+                label: const Text('📢 Canlı Bildirim Gönder'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF97316),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(width: 10),
               ElevatedButton.icon(
                 onPressed: () => setState(() => _selectedMenuIndex = 2),
                 icon: const Icon(Icons.arrow_forward_rounded, size: 16),
