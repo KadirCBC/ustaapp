@@ -132,6 +132,58 @@ Future<void> _handleRequest(HttpRequest request) async {
   response.headers.contentType = ContentType.json;
 
   if (request.method == 'GET') {
+    if (path == '/' || path == '/indir') {
+      response.headers.contentType = ContentType.html;
+      response.write('''
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UstamBurada - APK İndir</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0F172A; color: #FFF; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+    .card { background: #1E293B; border-radius: 24px; padding: 32px 24px; max-width: 400px; width: 100%; text-align: center; border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
+    .icon { font-size: 54px; margin-bottom: 12px; }
+    h1 { font-size: 22px; margin: 0 0 8px; color: #F97316; }
+    p { font-size: 14px; color: #94A3B8; margin: 0 0 24px; line-height: 1.5; }
+    .btn { display: inline-block; background: #EA580C; color: #FFF; text-decoration: none; font-weight: 700; font-size: 16px; padding: 16px 24px; border-radius: 14px; width: 85%; box-shadow: 0 10px 15px -3px rgba(234, 88, 12, 0.4); }
+    .badge { margin-top: 18px; display: inline-block; background: rgba(56, 189, 248, 0.12); color: #38BDF8; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🛠️</div>
+    <h1>UstamBurada Test Sürümü</h1>
+    <p>Aynı Wi-Fi ağındaki tüm Android cihazlarda canlı senkronizasyon ile test etmek için indirin.</p>
+    <a href="/app.apk" class="btn">📲 UstamBurada APK İndir</a>
+    <br>
+    <span class="badge">🌐 Canlı Sunucu: 192.168.1.101:8090</span>
+  </div>
+</body>
+</html>
+''');
+      await response.close();
+      return;
+    }
+
+    if (path == '/app.apk' || path == '/download') {
+      final apkFile = File('build/app/outputs/flutter-apk/app-debug.apk');
+      if (await apkFile.exists()) {
+        response.headers.contentType = ContentType('application', 'vnd.android.package-archive');
+        response.headers.set('Content-Disposition', 'attachment; filename="UstamBurada-Test.apk"');
+        await response.addStream(apkFile.openRead());
+        await response.close();
+        return;
+      } else {
+        response.statusCode = HttpStatus.notFound;
+        response.headers.contentType = ContentType.text;
+        response.write('APK henüz derlenmedi. Lütfen derleme işlemi tamamlanana kadar bekleyin.');
+        await response.close();
+        return;
+      }
+    }
+
     if (path == '/api/data') {
       response.write(jsonEncode(_data));
       await response.close();

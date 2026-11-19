@@ -44,14 +44,27 @@ class AppDataService {
   Timer? _reconnectTimer;
   bool _isSyncInitialized = false;
 
+  static String? _manualSyncHost;
+  static const String _kCustomHostKey = 'app_custom_sync_host';
+
+  static void setManualSyncHost(String host) {
+    _manualSyncHost = host.trim();
+    SharedPreferences.getInstance().then((p) => p.setString(_kCustomHostKey, host.trim()));
+  }
+
+  static String get activeSyncHost => _manualSyncHost ?? (defaultTargetPlatform == TargetPlatform.android ? '192.168.1.101' : 'localhost');
+
   String get _syncHost {
+    if (_manualSyncHost != null && _manualSyncHost!.isNotEmpty) {
+      return _manualSyncHost!;
+    }
     if (kIsWeb) {
       final host = Uri.base.host;
       return (host.isNotEmpty && host != '0.0.0.0') ? host : 'localhost';
     }
-    // Android emülatöründe host makine 10.0.2.2'dir
+    // Fiziksel telefonlar aynı Wi-Fi ağındaki ana makineye (192.168.1.101) bağlanır
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return '10.0.2.2';
+      return '192.168.1.101';
     }
     return '127.0.0.1';
   }
@@ -66,8 +79,17 @@ class AppDataService {
   void initRealtimeSync() {
     if (_isSyncInitialized) return;
     _isSyncInitialized = true;
-    _connectWebSocket();
-    _fetchServerData();
+    SharedPreferences.getInstance().then((p) {
+      final savedHost = p.getString(_kCustomHostKey);
+      if (savedHost != null && savedHost.isNotEmpty) {
+        _manualSyncHost = savedHost;
+      }
+      _connectWebSocket();
+      _fetchServerData();
+    }).catchError((_) {
+      _connectWebSocket();
+      _fetchServerData();
+    });
   }
 
   void _connectWebSocket() {
