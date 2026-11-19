@@ -9,6 +9,7 @@
       "dependencies": [
         "cupertino_icons",
         "flutter",
+        "flutter_background_service",
         "flutter_dotenv",
         "flutter_local_notifications",
         "flutter_riverpod",
@@ -85,6 +86,16 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "flutter_background_service",
+      "version": "5.1.0",
+      "dependencies": [
+        "flutter",
+        "flutter_background_service_android",
+        "flutter_background_service_ios",
+        "flutter_background_service_platform_interface"
       ]
     },
     {
@@ -379,6 +390,31 @@
         "stream_channel",
         "string_scanner",
         "term_glyph"
+      ]
+    },
+    {
+      "name": "flutter_background_service_ios",
+      "version": "5.0.3",
+      "dependencies": [
+        "flutter",
+        "flutter_background_service_platform_interface"
+      ]
+    },
+    {
+      "name": "flutter_background_service_android",
+      "version": "6.3.1",
+      "dependencies": [
+        "flutter",
+        "flutter_background_service_platform_interface"
+      ]
+    },
+    {
+      "name": "flutter_background_service_platform_interface",
+      "version": "5.1.2",
+      "dependencies": [
+        "flutter",
+        "platform",
+        "plugin_platform_interface"
       ]
     },
     {
@@ -889,6 +925,13 @@
       ]
     },
     {
+      "name": "platform",
+      "version": "3.2.0",
+      "dependencies": [
+        "meta"
+      ]
+    },
+    {
       "name": "xml",
       "version": "7.0.1",
       "dependencies": [
@@ -1163,13 +1206,6 @@
       "name": "args",
       "version": "2.7.0",
       "dependencies": []
-    },
-    {
-      "name": "platform",
-      "version": "3.2.0",
-      "dependencies": [
-        "meta"
-      ]
     },
     {
       "name": "package_config",
