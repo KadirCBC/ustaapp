@@ -399,7 +399,22 @@ Future<void> _handleRequest(HttpRequest request) async {
         _data['notifications'] = [];
         await _saveDataToFile();
         _broadcast('notifications_cleared', {});
+        stdout.writeln('[Sync Server] 🗑️ Tüm bildirimler temizlendi.');
         response.write(jsonEncode({'status': 'ok', 'message': 'Notifications cleared'}));
+        await response.close();
+        return;
+      }
+
+      if (path == '/api/notifications/delete') {
+        final id = (body is Map ? body['id'] : null)?.toString() ?? '';
+        _data['notifications'] ??= [];
+        final notifList = List<Map<String, dynamic>>.from(_data['notifications'] as List);
+        notifList.removeWhere((item) => (item['id'] ?? '').toString() == id);
+        _data['notifications'] = notifList;
+        await _saveDataToFile();
+        _broadcast('notifications_updated', notifList);
+        stdout.writeln('[Sync Server] 🗑️ Bildirim silindi: $id');
+        response.write(jsonEncode({'status': 'ok', 'message': 'Notification deleted', 'remaining': notifList.length}));
         await response.close();
         return;
       }

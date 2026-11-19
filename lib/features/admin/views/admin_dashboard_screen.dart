@@ -9068,12 +9068,51 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ),
               if (_adminSentNotifications.isNotEmpty)
                 TextButton.icon(
-                  onPressed: () async {
-                    await _appDataService.clearAll();
-                    setState(() {
-                      _adminSentNotifications = [];
-                    });
-                    _showSuccessToast('Bildirim geçmişi temizlendi.');
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: _bgSurface,
+                        title: Row(
+                          children: [
+                            const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent),
+                            const SizedBox(width: 10),
+                            Text('Bildirim Geçmişini Temizle', style: TextStyle(color: _textPrimary, fontSize: 16)),
+                          ],
+                        ),
+                        content: Text(
+                          'Sunucuda kayıtlı ${_adminSentNotifications.length} bildirimin tamamı kalıcı olarak silinecektir. Emin misiniz?',
+                          style: TextStyle(color: _textSecondary, fontSize: 13),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text('Vazgeç', style: TextStyle(color: _textMuted)),
+                          ),
+                          ElevatedButton(
+                            onPressed: () async {
+                              Navigator.pop(ctx);
+                              final ok = await _appDataService.clearServerNotifications();
+                              if (mounted) {
+                                setState(() {
+                                  _adminSentNotifications = [];
+                                });
+                                if (ok) {
+                                  _showSuccessToast('✓ Tüm bildirim geçmişi kalıcı olarak temizlendi.');
+                                } else {
+                                  _showSuccessToast('Bildirimler silinirken hata oluştu.', isError: true);
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.redAccent,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Evet, Hepsini Sil'),
+                          ),
+                        ],
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.redAccent),
                   label: const Text(
@@ -9243,21 +9282,41 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ],
             ),
           ),
-          const SizedBox(width: 6),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, size: 18),
-            tooltip: 'Tekrar Gönder',
-            color: _textMuted,
-            onPressed: () {
-              _notifTitleController.text = notif.title;
-              _notifMessageController.text = notif.message;
-              setState(() {
-                _notifType = notif.type;
-                _notifTarget = notif.target;
-                _notifIsUrgent = notif.isUrgent;
-              });
-              _showSuccessToast('Bildirim formu dolduruldu.');
-            },
+          const SizedBox(width: 4),
+          Column(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                tooltip: 'Tekrar Gönder',
+                color: _textMuted,
+                onPressed: () {
+                  _notifTitleController.text = notif.title;
+                  _notifMessageController.text = notif.message;
+                  setState(() {
+                    _notifType = notif.type;
+                    _notifTarget = notif.target;
+                    _notifIsUrgent = notif.isUrgent;
+                  });
+                  _showSuccessToast('Bildirim formu dolduruldu.');
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                tooltip: 'Bu Bildirimi Sil',
+                color: Colors.redAccent.withValues(alpha: 0.8),
+                onPressed: () async {
+                  final ok = await _appDataService.deleteServerNotification(notif.id);
+                  if (mounted) {
+                    setState(() {
+                      _adminSentNotifications.removeWhere((item) => item.id == notif.id);
+                    });
+                    if (ok) {
+                      _showSuccessToast('Bildirim silindi.');
+                    }
+                  }
+                },
+              ),
+            ],
           ),
         ],
       ),

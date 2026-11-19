@@ -1967,6 +1967,43 @@ class AppDataService {
     return [];
   }
 
+  /// Sunucudaki tüm bildirimleri kalıcı olarak siler
+  Future<bool> clearServerNotifications() async {
+    try {
+      final res = await http.post(
+        Uri.parse('$_syncBaseUrl/api/notifications/clear'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({}),
+      ).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        await NotificationService.instance.clearAll();
+        _changesStreamController.add(null);
+        return true;
+      }
+    } catch (e) {
+      debugPrint('[AppDataService] Bildirimleri temizleme hatası: $e');
+    }
+    return false;
+  }
+
+  /// Sunucudan tekil bir bildirimi siler
+  Future<bool> deleteServerNotification(String id) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$_syncBaseUrl/api/notifications/delete'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'id': id}),
+      ).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        _changesStreamController.add(null);
+        return true;
+      }
+    } catch (e) {
+      debugPrint('[AppDataService] Tekil bildirim silme hatası: $e');
+    }
+    return false;
+  }
+
   Future<void> clearAll() async {
     _cachedUstalar = [];
     _cachedJobs = [];
