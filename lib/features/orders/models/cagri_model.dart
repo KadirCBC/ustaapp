@@ -86,6 +86,8 @@ class CagriModel {
   final String? completionNote;
   final bool ustaArrived;
   final bool completionRequested;
+  final double? ustaLat;
+  final double? ustaLng;
 
   CagriModel({
     required this.id,
@@ -108,6 +110,8 @@ class CagriModel {
     this.completionNote,
     this.ustaArrived = false,
     this.completionRequested = false,
+    this.ustaLat,
+    this.ustaLng,
   });
 
   factory CagriModel.fromJson(Map<String, dynamic> json) {
@@ -163,6 +167,8 @@ class CagriModel {
       completionNote: json['completion_note'] as String?,
       ustaArrived: (json['usta_arrived'] as bool?) ?? false,
       completionRequested: (json['completion_requested'] as bool?) ?? false,
+      ustaLat: (json['usta_lat'] as num?)?.toDouble(),
+      ustaLng: (json['usta_lng'] as num?)?.toDouble(),
     );
   }
 
@@ -189,6 +195,8 @@ class CagriModel {
       'completion_note': completionNote,
       'usta_arrived': ustaArrived,
       'completion_requested': completionRequested,
+      if (ustaLat != null) 'usta_lat': ustaLat,
+      if (ustaLng != null) 'usta_lng': ustaLng,
     };
   }
 
@@ -220,6 +228,8 @@ class CagriModel {
     String? completionNote,
     bool? ustaArrived,
     bool? completionRequested,
+    double? ustaLat,
+    double? ustaLng,
   }) {
     return CagriModel(
       id: id ?? this.id,
@@ -242,6 +252,8 @@ class CagriModel {
       completionNote: completionNote ?? this.completionNote,
       ustaArrived: ustaArrived ?? this.ustaArrived,
       completionRequested: completionRequested ?? this.completionRequested,
+      ustaLat: ustaLat ?? this.ustaLat,
+      ustaLng: ustaLng ?? this.ustaLng,
     );
   }
 

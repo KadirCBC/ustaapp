@@ -540,6 +540,46 @@ class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        if (state.isSimulatingDrive) {
+                          controller.stopDrivingSimulation();
+                        } else {
+                          controller.startDrivingSimulation();
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF38BDF8),
+                        side: BorderSide(
+                          color: state.isSimulatingDrive
+                              ? Colors.amberAccent
+                              : const Color(0xFF0284C7),
+                          width: 1.2,
+                        ),
+                        minimumSize: const Size.fromHeight(46),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: Icon(
+                        state.isSimulatingDrive
+                            ? Icons.pause_circle_filled_rounded
+                            : Icons.play_circle_fill_rounded,
+                        size: 18,
+                        color: state.isSimulatingDrive ? Colors.amberAccent : const Color(0xFF38BDF8),
+                      ),
+                      label: Text(
+                        state.isSimulatingDrive
+                            ? 'Sürüş Simülasyonunu Durdur'
+                            : '🚗 Canlı Sürüş & Harita Takibini Simüle Et',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: state.isSimulatingDrive ? Colors.amberAccent : const Color(0xFF38BDF8),
+                        ),
+                      ),
+                    ),
                   ] else if (!cagri.isCompleted && (state.ustaArrived || cagri.isAtAddress)) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

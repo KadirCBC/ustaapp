@@ -308,6 +308,60 @@ class _CustomerOnTheWayScreenState extends ConsumerState<CustomerOnTheWayScreen>
               children: [
                 // 3 Aşamalı Durum İlerleme Çubuğu (Hazırlanıyor -> Yolda -> Adreste)
                 _buildProgressTimeline(cagri, state),
+                if (!state.ustaArrived && !cagri.isAtAddress) ...[
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () {
+                      if (state.isSimulatingDrive) {
+                        controller.stopDrivingSimulation();
+                      } else {
+                        controller.startDrivingSimulation();
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: state.isSimulatingDrive
+                            ? const Color(0xFF0284C7).withValues(alpha: 0.12)
+                            : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: state.isSimulatingDrive
+                              ? const Color(0xFF0284C7)
+                              : const Color(0xFFCBD5E1),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            state.isSimulatingDrive
+                                ? Icons.pause_circle_filled_rounded
+                                : Icons.play_circle_fill_rounded,
+                            size: 18,
+                            color: state.isSimulatingDrive
+                                ? const Color(0xFF0284C7)
+                                : AppTheme.customerPrimary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            state.isSimulatingDrive
+                                ? 'Canlı Takip Simülasyonu Aktif (Durdur)'
+                                : '🚗 Canlı Takip & İlerlemeyi Simüle Et',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: state.isSimulatingDrive
+                                  ? const Color(0xFF0284C7)
+                                  : AppTheme.customerPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 Row(
                   children: [

@@ -24,6 +24,7 @@ class ActiveOrderState {
   final String? reportedIssue;
   final String? receiptId;
   final SplitPaymentResult? paymentResult;
+  final bool isSimulatingDrive;
   final String? errorMessage;
   final String? successMessage;
 
@@ -43,6 +44,7 @@ class ActiveOrderState {
     this.reportedIssue,
     this.receiptId,
     this.paymentResult,
+    this.isSimulatingDrive = false,
     this.errorMessage,
     this.successMessage,
   });
@@ -64,6 +66,7 @@ class ActiveOrderState {
     bool clearReportedIssue = false,
     String? receiptId,
     SplitPaymentResult? paymentResult,
+    bool? isSimulatingDrive,
     String? errorMessage,
     String? successMessage,
   }) {
@@ -85,6 +88,7 @@ class ActiveOrderState {
           clearReportedIssue ? null : (reportedIssue ?? this.reportedIssue),
       receiptId: receiptId ?? this.receiptId,
       paymentResult: paymentResult ?? this.paymentResult,
+      isSimulatingDrive: isSimulatingDrive ?? this.isSimulatingDrive,
       errorMessage: errorMessage,
       successMessage: successMessage,
     );
@@ -110,6 +114,7 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
   RealtimeChannel? _workflowChannel;
   Timer? _pendingTimer;
   Timer? _demoAutoAcceptTimer;
+  Timer? _simulationTimer;
   StreamSubscription<void>? _appDataSubscription;
 
   ActiveOrderController(this._supabase, this._paymentService, this._appDataService, this._cagriId)
@@ -183,8 +188,10 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
       final arrivalChanged = state.ustaArrived != synced.ustaArrived;
       final completionChanged = state.completionRequested != synced.completionRequested;
       final photoChanged = state.completionPhotoUrl != synced.completionPhotoUrl;
+      final coordsChanged = synced.ustaLat != null &&
+          (state.ustaLat != synced.ustaLat || state.ustaLng != synced.ustaLng);
 
-      if (durumChanged || arrivalChanged || completionChanged || photoChanged) {
+      if (durumChanged || arrivalChanged || completionChanged || photoChanged || coordsChanged) {
         debugPrint(
           '>>> [ActiveOrderController] Çağrı senkronize edildi: id=${synced.id}, durum=${synced.durum}, ustaArrived=${synced.ustaArrived}, completionReq=${synced.completionRequested}',
         );
@@ -194,6 +201,8 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
           _demoAutoAcceptTimer?.cancel();
           state = state.copyWith(
             cagri: synced,
+            ustaLat: synced.ustaLat ?? state.ustaLat,
+            ustaLng: synced.ustaLng ?? state.ustaLng,
             ustaArrived: synced.isAtAddress,
             completionRequested: synced.completionRequested,
             completionPhotoUrl: synced.completionPhotoUrl,
@@ -211,6 +220,8 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
           _demoAutoAcceptTimer?.cancel();
           state = state.copyWith(
             cagri: synced,
+            ustaLat: synced.ustaLat ?? state.ustaLat,
+            ustaLng: synced.ustaLng ?? state.ustaLng,
             ustaArrived: synced.ustaArrived,
             completionRequested: synced.completionRequested,
             errorMessage: 'Usta çağrıyı kabul etmedi veya süre doldu.',
@@ -218,6 +229,8 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
         } else {
           state = state.copyWith(
             cagri: synced,
+            ustaLat: synced.ustaLat ?? state.ustaLat,
+            ustaLng: synced.ustaLng ?? state.ustaLng,
             ustaArrived: synced.ustaArrived,
             completionRequested: synced.completionRequested,
             completionPhotoUrl: synced.completionPhotoUrl,
@@ -984,8 +997,86 @@ class ActiveOrderController extends StateNotifier<ActiveOrderState> {
     }
   }
 
+  /// USTA / MÜŞTERİ: Canlı Sürüş & Haritada İlerleme Simülatörü
+  /// Ustanın mevcut konumundan müşterinin kapısına kadar gerçek zamanlı adım adım ilerlemesini sağlar
+  void startDrivingSimulation() {
+    if (state.isSimulatingDrive) return;
+    final cagri = state.cagri;
+    if (cagri == null) return;
+
+    // Eğer henüz yola çıkılmadıysa otomatik olarak yola çıkış durumuna geçir
+    if (!cagri.isOnTheWay && !cagri.isAtAddress) {
+      startTripToCustomer();
+    }
+
+    final startLat = state.ustaLat ?? cagri.ustaLat ?? (cagri.musteriLat + 0.0055);
+    final startLng = state.ustaLng ?? cagri.ustaLng ?? (cagri.musteriLng + 0.0045);
+    final targetLat = cagri.musteriLat;
+    final targetLng = cagri.musteriLng;
+
+    int currentStep = 0;
+    const totalSteps = 8; // 8 adımda akıcı sürüş ve mesafe düşüşü
+
+    state = state.copyWith(
+      isSimulatingDrive: true,
+      ustaLat: startLat,
+      ustaLng: startLng,
+      successMessage: 'Canlı sürüş simülasyonu aktif! Usta haritada ilerliyor...',
+    );
+
+    _simulationTimer?.cancel();
+    _simulationTimer = Timer.periodic(const Duration(milliseconds: 1400), (timer) async {
+      currentStep++;
+      final ratio = currentStep / totalSteps;
+
+      if (currentStep >= totalSteps) {
+        timer.cancel();
+        state = state.copyWith(
+          isSimulatingDrive: false,
+          ustaLat: targetLat,
+          ustaLng: targetLng,
+        );
+        final finalCagri = state.cagri?.copyWith(
+          ustaLat: targetLat,
+          ustaLng: targetLng,
+        );
+        if (finalCagri != null) {
+          await _appDataService.saveOrUpdateCagri(finalCagri);
+        }
+        await markUstaArrived();
+      } else {
+        // İki nokta arasında sokak kıvrımını simüle eden hafif yay eğrisi
+        final curveOffset = (1 - (2 * ratio - 1).abs()) * 0.0006;
+        final currentLat = startLat + (targetLat - startLat) * ratio + curveOffset;
+        final currentLng = startLng + (targetLng - startLng) * ratio - curveOffset;
+
+        state = state.copyWith(
+          ustaLat: currentLat,
+          ustaLng: currentLng,
+        );
+
+        final updatedCagri = state.cagri?.copyWith(
+          ustaLat: currentLat,
+          ustaLng: currentLng,
+        );
+        if (updatedCagri != null) {
+          await _appDataService.saveOrUpdateCagri(updatedCagri);
+        }
+      }
+    });
+  }
+
+  void stopDrivingSimulation() {
+    _simulationTimer?.cancel();
+    state = state.copyWith(
+      isSimulatingDrive: false,
+      successMessage: 'Sürüş simülasyonu duraklatıldı.',
+    );
+  }
+
   @override
   void dispose() {
+    _simulationTimer?.cancel();
     _appDataSubscription?.cancel();
     _cagriStreamSub?.cancel();
     _ustaLocationStreamSub?.cancel();
