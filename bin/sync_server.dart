@@ -168,10 +168,21 @@ Future<void> _handleRequest(HttpRequest request) async {
     }
 
     if (path == '/app.apk' || path == '/download') {
-      final apkFile = File('build/app/outputs/flutter-apk/app-debug.apk');
-      if (await apkFile.exists()) {
+      final candidates = [
+        File('build/app/outputs/flutter-apk/app-debug.apk'),
+        File('c:/Users/taner/Documents/GitHub/ustaapp/build/app/outputs/flutter-apk/app-debug.apk'),
+      ];
+      File? apkFile;
+      for (final f in candidates) {
+        if (await f.exists()) {
+          apkFile = f;
+          break;
+        }
+      }
+      if (apkFile != null) {
         response.headers.contentType = ContentType('application', 'vnd.android.package-archive');
         response.headers.set('Content-Disposition', 'attachment; filename="UstamBurada-Test.apk"');
+        response.headers.contentLength = await apkFile.length();
         await response.addStream(apkFile.openRead());
         await response.close();
         return;
