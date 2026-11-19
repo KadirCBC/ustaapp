@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
+import 'package:ustaapp/core/models/app_notification_model.dart';
 import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
@@ -99,6 +101,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   String? _adminLoginErrorMessage;
   bool _isAdminLoggingIn = false;
 
+  // 9. Canlı Bildirim & Push Duyuru Yönetimi
+  final _notifTitleController = TextEditingController();
+  final _notifMessageController = TextEditingController();
+  final _notifCustomPhoneController = TextEditingController();
+  String _notifTarget = 'all'; // 'all', 'ustalar', 'musteriler', 'user'
+  String _notifType = 'update'; // 'update', 'feature', 'warning', 'pricing', 'general'
+  bool _notifIsUrgent = true;
+  bool _isSendingNotif = false;
+  List<AppNotificationModel> _adminSentNotifications = [];
+
   final List<String> _businessCategories = [
     'Elektrik Malzemesi & Toptan',
     'Sıhhi Tesisat & Su Armatürleri',
@@ -134,6 +146,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       offset: const Offset(0, 4),
     ),
   ];
+
+  AppDataService get _appDataService => ref.read(appDataServiceProvider);
+  Color get _cardBg => _bgSurface;
+  Color get _surfaceBg => _bgSurfaceElevated;
 
   Future<void> _loadThemePreference() async {
     try {
@@ -303,8 +319,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       } catch (_) {}
     }
 
+    final notifs = await _appDataService.fetchServerNotifications();
     if (mounted) {
       setState(() {
+        _adminSentNotifications = notifs;
         _recalculateMetrics();
         _isLoadingData = false;
       });
@@ -3156,8 +3174,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // Üst 4'lü Metrik Kartı (Finansal Masada kendi 5'li KPI kartları olduğu için tekrarlanmaz)
-                              if (_selectedMenuIndex != 8) ...[
+                              // Üst 4'lü Metrik Kartı (Finansal Masa ve Bildirim Masasında tekrarlanmaz)
+                              if (_selectedMenuIndex != 8 && _selectedMenuIndex != 9) ...[
                                 _buildMetricCardsRow(),
                                 const SizedBox(height: 24),
                               ],
@@ -3172,6 +3190,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               if (_selectedMenuIndex == 6) _buildMapPinsTab(),
                               if (_selectedMenuIndex == 7) _buildCategoriesTab(),
                               if (_selectedMenuIndex == 8) _buildFinancialReportsTab(),
+                              if (_selectedMenuIndex == 9) _buildNotificationsManagementTab(),
                             ],
                           ),
                         ),
@@ -3309,6 +3328,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     index: 8,
                     icon: Icons.monetization_on_rounded,
                     title: 'Finansal Raporlar & Hizmet Akışı',
+                  ),
+                  _buildSidebarItem(
+                    index: 9,
+                    icon: Icons.notifications_active_rounded,
+                    title: 'Bildirim & Duyuru Masası',
+                    badgeText: 'Canlı Push',
+                    badgeColor: const Color(0xFFF97316),
                   ),
                 ],
               ),
@@ -3713,6 +3739,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         return 'Hizmet & İşletme Kategori Yönetimi';
       case 8:
         return 'Platform Finans & Hakediş Raporları';
+      case 9:
+        return 'Canlı Bildirim & Push Duyuru Merkezi';
       default:
         return 'Yönetim Paneli';
     }
@@ -8566,6 +8594,753 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ),
       ),
     );
+  }
+
+  // ==========================================
+  // CANLI BİLDİRİM & PUSH DUYURU YÖNETİMİ TABI
+  // ==========================================
+
+  Widget _buildNotificationsManagementTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Üst Bilgilendirme Banner'ı
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFFF97316).withValues(alpha: 0.15),
+                const Color(0xFFEA580C).withValues(alpha: 0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFFF97316).withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF97316),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.campaign_rounded, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Canlı Bildirim ve Push Duyuru Merkezi',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: _textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Aynı Wi-Fi ağındaki veya internetteki tüm bağlı Android telefonlara (Usta, Müşteri veya Belirli Kişi) anında kilit ekranı, sesli alarm ve başlık bildirimi gönderin.',
+                      style: TextStyle(fontSize: 13, color: _textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.wifi_tethering_rounded, color: Color(0xFF10B981), size: 16),
+                    SizedBox(width: 6),
+                    Text(
+                      'WebSocket Canlı: 192.168.1.101:8090',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF10B981),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // İki Kolonlu Panel: Sol: Bildirim Gönderme Formu, Sağ: Gönderilen Bildirim Geçmişi
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isDesktop = constraints.maxWidth > 950;
+            if (isDesktop) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 5, child: _buildNotificationComposerCard()),
+                  const SizedBox(width: 24),
+                  Expanded(flex: 5, child: _buildSentNotificationsHistoryCard()),
+                ],
+              );
+            } else {
+              return Column(
+                children: [
+                  _buildNotificationComposerCard(),
+                  const SizedBox(height: 24),
+                  _buildSentNotificationsHistoryCard(),
+                ],
+              );
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNotificationComposerCard() {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _borderPrimary),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.send_rounded, color: Color(0xFFF97316), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Yeni Bildirim & Duyuru Oluştur',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: _textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+
+          // 1. Hedef Kitle Seçimi
+          Text(
+            'HEDEF KİTLE',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _textMuted),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildNotifTargetChip('all', '👥 Herkes (Tüm Cihazlar)'),
+              _buildNotifTargetChip('ustalar', '🛠️ Sadece Ustalar'),
+              _buildNotifTargetChip('musteriler', '👤 Sadece Müşteriler'),
+              _buildNotifTargetChip('user', '📱 Belirli Kullanıcı'),
+            ],
+          ),
+
+          if (_notifTarget == 'user') ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _notifCustomPhoneController,
+              style: TextStyle(color: _textPrimary, fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Hedef Telefon No (Örn: 5524342069)',
+                hintStyle: TextStyle(color: _textMuted),
+                prefixIcon: const Icon(Icons.phone_rounded, size: 18, color: Color(0xFFF97316)),
+                filled: true,
+                fillColor: _surfaceBg,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: _borderSecondary),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: _borderSecondary),
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 18),
+
+          // 2. Bildirim Türü
+          Text(
+            'BİLDİRİM TÜRÜ',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _textMuted),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildNotifTypeChip('update', '🚀 Sistem Güncellemesi', const Color(0xFF0284C7)),
+              _buildNotifTypeChip('feature', '💡 Yeni Geliştirme', const Color(0xFFD97706)),
+              _buildNotifTypeChip('warning', '⚠️ Önemli Uyarı', const Color(0xFFEA580C)),
+              _buildNotifTypeChip('pricing', '🏷️ Tarife & Düzenleme', const Color(0xFF16A34A)),
+              _buildNotifTypeChip('general', '📢 Genel Duyuru', const Color(0xFF6366F1)),
+              _buildNotifTypeChip('arrived', '🚨 Usta Kapıda Testi', const Color(0xFFDC2626)),
+            ],
+          ),
+
+          const SizedBox(height: 18),
+
+          // 3. Hazır Şablonlar
+          Text(
+            'HIZLI ŞABLONLAR',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _textMuted),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildTemplateButton(
+                label: '🚀 Yeni Sürüm',
+                title: 'UstamBurada v1.2 Güncellemesi Yayında! 🎉',
+                body: 'Canlı sürüş takibi, kilit ekranı usta varış bildirimleri ve performans geliştirmeleri eklendi.',
+                type: 'update',
+                target: 'all',
+              ),
+              _buildTemplateButton(
+                label: '🛠️ Usta Takip',
+                title: 'Usta Canlı Sürüş Takip Sistemi Devrede 🚗',
+                body: 'Tüm ustalarımız müşteri adresine giderken canlı harita rotası ve anlık varış süresi artık aktif.',
+                type: 'feature',
+                target: 'ustalar',
+              ),
+              _buildTemplateButton(
+                label: '⚡ Sistem Bakımı',
+                title: 'Planlı Sistem Altyapı Bakımı Uyarısı ⚡',
+                body: 'Sunucu altyapımızı güçlendiriyoruz. Kısa süreli bakım çalışması 02:00-02:30 arasında yapılacaktır.',
+                type: 'warning',
+                target: 'all',
+              ),
+              _buildTemplateButton(
+                label: '🚨 Kapı Alarmı Testi',
+                title: '🚨 USTANIZ KAPIDA!',
+                body: 'Ustanız adresinize ulaştı! Lütfen kapıyı açınız, usta kapıda beklemesin.',
+                type: 'arrived',
+                target: 'musteriler',
+                isUrgent: true,
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 18),
+
+          // 4. Başlık
+          Text(
+            'BİLDİRİM BAŞLIĞI',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _textMuted),
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _notifTitleController,
+            style: TextStyle(color: _textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+            decoration: InputDecoration(
+              hintText: 'Örn: Önemli Sistem Güncellemesi v1.2',
+              hintStyle: TextStyle(color: _textMuted),
+              filled: true,
+              fillColor: _surfaceBg,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: _borderSecondary),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: _borderSecondary),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // 5. Mesaj İçeriği
+          Text(
+            'BİLDİRİM METNİ',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _textMuted),
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _notifMessageController,
+            maxLines: 3,
+            style: TextStyle(color: _textPrimary, fontSize: 13),
+            decoration: InputDecoration(
+              hintText: 'Kullanıcılara iletilecek duyuru veya bilgilendirme metni...',
+              hintStyle: TextStyle(color: _textMuted),
+              filled: true,
+              fillColor: _surfaceBg,
+              contentPadding: const EdgeInsets.all(14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: _borderSecondary),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: _borderSecondary),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // 6. Öncelik ve Ses Ayarları
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: _surfaceBg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _borderSecondary),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.volume_up_rounded, color: Color(0xFFF97316), size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Sesli & Titreşimli Alarm (Kilit Ekranında Öncelikli)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: _textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Ekran kilitliyken telefonun uyanmasını ve yüksek sesle çalmasını sağlar.',
+                        style: TextStyle(fontSize: 11, color: _textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: _notifIsUrgent,
+                  activeColor: const Color(0xFFF97316),
+                  onChanged: (val) => setState(() => _notifIsUrgent = val),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // 7. Gönder Butonu
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: _isSendingNotif ? null : _handleSendBroadcastNotification,
+              icon: _isSendingNotif
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.send_rounded, size: 20),
+              label: Text(
+                _isSendingNotif ? 'İletiliyor...' : '📲 Bildirimi Canlı Gönder (Push)',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF97316),
+                foregroundColor: Colors.white,
+                elevation: 3,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSentNotificationsHistoryCard() {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _borderPrimary),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.history_rounded, color: Color(0xFF0284C7), size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Gönderilen Bildirim Geçmişi',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${_adminSentNotifications.length} Bildirim',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0284C7),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (_adminSentNotifications.isNotEmpty)
+                TextButton.icon(
+                  onPressed: () async {
+                    await _appDataService.clearAll();
+                    setState(() {
+                      _adminSentNotifications = [];
+                    });
+                    _showSuccessToast('Bildirim geçmişi temizlendi.');
+                  },
+                  icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.redAccent),
+                  label: const Text(
+                    'Temizle',
+                    style: TextStyle(fontSize: 12, color: Colors.redAccent),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          if (_adminSentNotifications.isEmpty) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              alignment: Alignment.center,
+              child: Column(
+                children: [
+                  Icon(Icons.mark_chat_read_outlined, size: 48, color: _textMuted.withValues(alpha: 0.5)),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Henüz gönderilmiş bir bildirim bulunmuyor.',
+                    style: TextStyle(fontSize: 14, color: _textMuted),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Sol taraftaki formu kullanarak tüm telefonlara anında duyuru gönderebilirsiniz.',
+                    style: TextStyle(fontSize: 12, color: _textMuted),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _adminSentNotifications.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final notif = _adminSentNotifications[index];
+                return _buildAdminNotificationItem(notif);
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminNotificationItem(AppNotificationModel notif) {
+    Color badgeColor;
+    IconData icon;
+
+    switch (notif.type) {
+      case 'arrived':
+        badgeColor = const Color(0xFFDC2626);
+        icon = Icons.doorbell_rounded;
+        break;
+      case 'update':
+        badgeColor = const Color(0xFF0284C7);
+        icon = Icons.rocket_launch_rounded;
+        break;
+      case 'feature':
+        badgeColor = const Color(0xFFD97706);
+        icon = Icons.lightbulb_rounded;
+        break;
+      case 'warning':
+        badgeColor = const Color(0xFFEA580C);
+        icon = Icons.warning_rounded;
+        break;
+      case 'pricing':
+        badgeColor = const Color(0xFF16A34A);
+        icon = Icons.sell_rounded;
+        break;
+      default:
+        badgeColor = const Color(0xFF6366F1);
+        icon = Icons.campaign_rounded;
+    }
+
+    final timeStr = DateFormat('dd.MM HH:mm').format(notif.createdAt);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _surfaceBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _borderSecondary),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: badgeColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: badgeColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        notif.title,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: _textPrimary,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'İletildi ✓',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF10B981),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  notif.message,
+                  style: TextStyle(fontSize: 12, color: _textSecondary),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Hedef: ${_getTargetDisplay(notif.target)}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: badgeColor,
+                          ),
+                        ),
+                        if (notif.isUrgent) ...[
+                          const SizedBox(width: 8),
+                          const Text(
+                            '🔊 Sesli Alarm',
+                            style: TextStyle(fontSize: 10, color: Colors.redAccent, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ],
+                    ),
+                    Text(
+                      timeStr,
+                      style: TextStyle(fontSize: 11, color: _textMuted),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            tooltip: 'Tekrar Gönder',
+            color: _textMuted,
+            onPressed: () {
+              _notifTitleController.text = notif.title;
+              _notifMessageController.text = notif.message;
+              setState(() {
+                _notifType = notif.type;
+                _notifTarget = notif.target;
+                _notifIsUrgent = notif.isUrgent;
+              });
+              _showSuccessToast('Bildirim formu dolduruldu.');
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotifTargetChip(String target, String label) {
+    final isSelected = _notifTarget == target;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (val) {
+        if (val) setState(() => _notifTarget = target);
+      },
+      selectedColor: const Color(0xFFF97316),
+      labelStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+        color: isSelected ? Colors.white : _textPrimary,
+      ),
+      backgroundColor: _surfaceBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: isSelected ? const Color(0xFFF97316) : _borderSecondary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotifTypeChip(String type, String label, Color color) {
+    final isSelected = _notifType == type;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (val) {
+        if (val) setState(() => _notifType = type);
+      },
+      selectedColor: color,
+      labelStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+        color: isSelected ? Colors.white : _textPrimary,
+      ),
+      backgroundColor: _surfaceBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: isSelected ? color : _borderSecondary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTemplateButton({
+    required String label,
+    required String title,
+    required String body,
+    required String type,
+    required String target,
+    bool isUrgent = false,
+  }) {
+    return ActionChip(
+      label: Text(label),
+      onPressed: () {
+        _notifTitleController.text = title;
+        _notifMessageController.text = body;
+        setState(() {
+          _notifType = type;
+          _notifTarget = target;
+          _notifIsUrgent = isUrgent;
+        });
+      },
+      avatar: const Icon(Icons.flash_on_rounded, size: 14, color: Color(0xFFF97316)),
+      backgroundColor: _surfaceBg,
+      labelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _textPrimary),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: _borderSecondary),
+      ),
+    );
+  }
+
+  String _getTargetDisplay(String target) {
+    switch (target) {
+      case 'ustalar':
+        return '🛠️ Ustalar';
+      case 'musteriler':
+        return '👤 Müşteriler';
+      case 'user':
+        return '📱 Özel Kullanıcı';
+      default:
+        return '🌐 Herkes';
+    }
+  }
+
+  Future<void> _handleSendBroadcastNotification() async {
+    final title = _notifTitleController.text.trim();
+    final message = _notifMessageController.text.trim();
+
+    if (title.isEmpty || message.isEmpty) {
+      _showSuccessToast('Lütfen başlık ve mesaj alanlarını doldurunuz.', isError: true);
+      return;
+    }
+
+    setState(() => _isSendingNotif = true);
+
+    final notif = AppNotificationModel(
+      id: 'admin_notif_${DateTime.now().millisecondsSinceEpoch}',
+      title: title,
+      message: message,
+      type: _notifType,
+      target: _notifTarget,
+      targetPhone: _notifTarget == 'user' ? _notifCustomPhoneController.text.trim() : null,
+      createdAt: DateTime.now(),
+      isUrgent: _notifIsUrgent,
+    );
+
+    final ok = await _appDataService.sendAdminNotification(notif);
+
+    if (!mounted) return;
+    setState(() {
+      _isSendingNotif = false;
+      if (ok) {
+        _adminSentNotifications.insert(0, notif);
+      }
+    });
+
+    if (ok) {
+      _showSuccessToast('✓ Bildirim başarıyla yayınlandı! Tüm telefonlara canlı iletildi.');
+    } else {
+      _showSuccessToast('Bildirim gönderilirken sunucu bağlantı hatası oluştu.', isError: true);
+    }
   }
 
   // ==========================================

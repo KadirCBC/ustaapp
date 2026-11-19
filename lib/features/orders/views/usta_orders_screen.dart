@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ustaapp/core/models/app_notification_model.dart';
 import 'package:ustaapp/core/services/location_lookup_service.dart';
+import 'package:ustaapp/core/services/notification_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
+import 'package:ustaapp/core/widgets/notification_sheet.dart';
 import 'package:ustaapp/features/auth/controllers/auth_controller.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:ustaapp/features/orders/controllers/usta_dashboard_controller.dart';
@@ -542,6 +545,35 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
               )
             : null,
         actions: [
+          ValueListenableBuilder<List<AppNotificationModel>>(
+            valueListenable: NotificationService.instance.notificationsNotifier,
+            builder: (context, notifs, _) {
+              final unread = notifs.any((n) => !n.isRead);
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_none_rounded),
+                    tooltip: 'Bildirimler',
+                    onPressed: () => NotificationSheet.show(context),
+                  ),
+                  if (unread)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Yenile',

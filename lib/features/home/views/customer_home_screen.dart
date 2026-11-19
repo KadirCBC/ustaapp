@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:ustaapp/core/models/app_notification_model.dart';
 import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/location_lookup_service.dart';
+import 'package:ustaapp/core/services/notification_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
+import 'package:ustaapp/core/widgets/notification_sheet.dart';
 import 'package:ustaapp/features/map/controllers/map_controller.dart';
 import 'package:ustaapp/features/map/models/isletme_model.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
@@ -585,16 +588,16 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           ),
           const SizedBox(width: 10),
 
-          // Bildirim Butonu
-          _buildCircleIconButton(
-            icon: Icons.notifications_none_rounded,
-            tooltip: 'Bildirimler',
-            hasBadge: true,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Tüm çağrılarınız İyzico güvencesi altında. Yeni bildiriminiz yok.'),
-                ),
+          // Bildirim Butonu (Canlı Sayaç ve Bildirim Merkezi)
+          ValueListenableBuilder<List<AppNotificationModel>>(
+            valueListenable: NotificationService.instance.notificationsNotifier,
+            builder: (context, notifs, _) {
+              final unread = notifs.any((n) => !n.isRead);
+              return _buildCircleIconButton(
+                icon: Icons.notifications_none_rounded,
+                tooltip: 'Bildirimler',
+                hasBadge: unread,
+                onTap: () => NotificationSheet.show(context),
               );
             },
           ),

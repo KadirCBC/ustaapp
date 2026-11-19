@@ -27,6 +27,7 @@ Future<void> _loadDataFromFile() async {
       _data = jsonDecode(content) as Map<String, dynamic>;
       _data['financial_transactions'] ??= [];
       _data['cagrilar'] ??= [];
+      _data['notifications'] ??= [];
       stdout.writeln('[Sync Server] Mevcut veriler dosyadan yüklendi.');
       return;
     } catch (e) {
@@ -44,6 +45,7 @@ Future<void> _loadDataFromFile() async {
     'pending_ustalar': [],
     'tedarikciler': [],
     'financial_transactions': [],
+    'notifications': [],
     'initialized': true,
   };
   await _saveDataToFile();
@@ -131,9 +133,14 @@ Future<void> _handleRequest(HttpRequest request) async {
   // 2. REST API Yolları
   response.headers.contentType = ContentType.json;
 
-  if (request.method == 'GET') {
+  if (request.method == 'GET' || request.method == 'HEAD') {
     if (path == '/' || path == '/indir') {
       response.headers.contentType = ContentType.html;
+      if (request.method == 'HEAD') {
+        response.statusCode = HttpStatus.ok;
+        await response.close();
+        return;
+      }
       response.write('''
 <!DOCTYPE html>
 <html lang="tr">
@@ -142,23 +149,35 @@ Future<void> _handleRequest(HttpRequest request) async {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>UstamBurada - APK İndir</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0F172A; color: #FFF; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
-    .card { background: #1E293B; border-radius: 24px; padding: 32px 24px; max-width: 400px; width: 100%; text-align: center; border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0F172A; color: #FFF; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+    .card { background: #1E293B; border-radius: 24px; padding: 32px 24px; max-width: 440px; width: 100%; text-align: center; border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
     .icon { font-size: 54px; margin-bottom: 12px; }
-    h1 { font-size: 22px; margin: 0 0 8px; color: #F97316; }
-    p { font-size: 14px; color: #94A3B8; margin: 0 0 24px; line-height: 1.5; }
-    .btn { display: inline-block; background: #EA580C; color: #FFF; text-decoration: none; font-weight: 700; font-size: 16px; padding: 16px 24px; border-radius: 14px; width: 85%; box-shadow: 0 10px 15px -3px rgba(234, 88, 12, 0.4); }
-    .badge { margin-top: 18px; display: inline-block; background: rgba(56, 189, 248, 0.12); color: #38BDF8; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    h1 { font-size: 24px; margin: 0 0 8px; color: #F97316; font-weight: 800; }
+    p { font-size: 15px; color: #94A3B8; margin: 0 0 24px; line-height: 1.5; }
+    .btn { display: block; background: linear-gradient(135deg, #F97316, #EA580C); color: #FFF; text-decoration: none; font-weight: 700; font-size: 17px; padding: 18px 24px; border-radius: 16px; box-shadow: 0 10px 20px -3px rgba(234, 88, 12, 0.4); margin: 0 auto 16px; }
+    .btn:hover { background: linear-gradient(135deg, #EA580C, #C2410C); }
+    .badge { display: inline-block; background: rgba(56, 189, 248, 0.12); color: #38BDF8; padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 600; border: 1px solid rgba(56, 189, 248, 0.2); }
+    .steps { text-align: left; background: #0F172A; border-radius: 16px; padding: 16px 20px; margin-top: 24px; font-size: 13px; color: #CBD5E1; line-height: 1.6; border: 1px solid #1E293B; }
+    .steps ol { margin: 8px 0 0; padding-left: 20px; }
+    .steps li { margin-bottom: 6px; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="icon">🛠️</div>
-    <h1>UstamBurada Test Sürümü</h1>
-    <p>Aynı Wi-Fi ağındaki tüm Android cihazlarda canlı senkronizasyon ile test etmek için indirin.</p>
-    <a href="/app.apk" class="btn">📲 UstamBurada APK İndir</a>
-    <br>
+    <h1>UstamBurada Canlı Test</h1>
+    <p>Aynı Wi-Fi ağındaki tüm Android cihazlarda anlık konum ve senkronizasyon ile test edin.</p>
+    <a href="/app.apk" class="btn">📲 UstamBurada APK İndir (~242 MB)</a>
     <span class="badge">🌐 Canlı Sunucu: 192.168.1.101:8090</span>
+    <div class="steps">
+      <strong>Hızlı Test Adımları:</strong>
+      <ol>
+        <li>APK'yı indirip telefonunuza kurun (Bilinmeyen kaynaklara izin verin).</li>
+        <li>1 telefonda <b>Usta</b> olarak giriş yapın (Örn: 5524342069).</li>
+        <li>Diğer telefonlarda <b>Müşteri</b> olarak giriş yapın.</li>
+        <li>Hizmet çağrısı oluşturduğunuzda usta telefonuna anında bildirim düşer ve harita canlı güncellenir!</li>
+      </ol>
+    </div>
   </div>
 </body>
 </html>
@@ -171,6 +190,7 @@ Future<void> _handleRequest(HttpRequest request) async {
       final candidates = [
         File('build/app/outputs/flutter-apk/app-debug.apk'),
         File('c:/Users/taner/Documents/GitHub/ustaapp/build/app/outputs/flutter-apk/app-debug.apk'),
+        File(r'c:\Users\taner\Documents\GitHub\ustaapp\build\app\outputs\flutter-apk\app-debug.apk'),
       ];
       File? apkFile;
       for (final f in candidates) {
@@ -182,7 +202,13 @@ Future<void> _handleRequest(HttpRequest request) async {
       if (apkFile != null) {
         response.headers.contentType = ContentType('application', 'vnd.android.package-archive');
         response.headers.set('Content-Disposition', 'attachment; filename="UstamBurada-Test.apk"');
-        response.headers.contentLength = await apkFile.length();
+        final fileLength = await apkFile.length();
+        response.headers.contentLength = fileLength;
+        if (request.method == 'HEAD') {
+          response.statusCode = HttpStatus.ok;
+          await response.close();
+          return;
+        }
         await response.addStream(apkFile.openRead());
         await response.close();
         return;
@@ -217,6 +243,11 @@ Future<void> _handleRequest(HttpRequest request) async {
     }
     if (path == '/api/cagrilar') {
       response.write(jsonEncode(_data['cagrilar'] ?? []));
+      await response.close();
+      return;
+    }
+    if (path == '/api/notifications') {
+      response.write(jsonEncode(_data['notifications'] ?? []));
       await response.close();
       return;
     }
@@ -325,7 +356,50 @@ Future<void> _handleRequest(HttpRequest request) async {
         await _saveDataToFile();
         _broadcast('cagri_updated', cagriMap);
         _broadcast('cagrilar_updated', list);
+
+        // Usta adrese vardığında özel bildirim event'i yayınla
+        final isAdreste = (cagriMap['durum'] == 'adreste' || cagriMap['usta_arrived'] == true);
+        if (isAdreste) {
+          final arrivalPayload = {
+            'cagri_id': id,
+            'usta_name': cagriMap['usta_name'] ?? cagriMap['ustaName'] ?? 'Ustanız',
+            'musteri_phone': cagriMap['musteri_phone'] ?? cagriMap['musteriPhone'] ?? '',
+            'musteri_name': cagriMap['musteri_name'] ?? cagriMap['musteriName'] ?? '',
+            'address': cagriMap['address'] ?? '',
+            'timestamp': DateTime.now().millisecondsSinceEpoch,
+          };
+          _broadcast('usta_arrived', arrivalPayload);
+          stdout.writeln('[Sync Server] 🚨 Usta varış eventi yayınlandı: $arrivalPayload');
+        }
+
         response.write(jsonEncode({'status': 'ok', 'cagri': cagriMap}));
+        await response.close();
+        return;
+      }
+
+      if (path == '/api/notifications') {
+        _data['notifications'] ??= [];
+        final notifList = List<Map<String, dynamic>>.from(_data['notifications'] as List);
+        final notifMap = Map<String, dynamic>.from(body as Map);
+        if (notifMap['id'] == null || notifMap['id'].toString().isEmpty) {
+          notifMap['id'] = 'notif_${DateTime.now().millisecondsSinceEpoch}';
+        }
+        notifMap['created_at'] ??= DateTime.now().toIso8601String();
+        notifList.insert(0, notifMap);
+        _data['notifications'] = notifList;
+        await _saveDataToFile();
+        _broadcast('system_notification', notifMap);
+        stdout.writeln('[Sync Server] 📢 Sistem bildirimi yayınlandı: ${notifMap['title']} -> Hedef: ${notifMap['target']}');
+        response.write(jsonEncode({'status': 'ok', 'notification': notifMap}));
+        await response.close();
+        return;
+      }
+
+      if (path == '/api/notifications/clear') {
+        _data['notifications'] = [];
+        await _saveDataToFile();
+        _broadcast('notifications_cleared', {});
+        response.write(jsonEncode({'status': 'ok', 'message': 'Notifications cleared'}));
         await response.close();
         return;
       }

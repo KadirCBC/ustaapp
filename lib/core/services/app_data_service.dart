@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ustaapp/core/models/app_notification_model.dart';
 import 'package:ustaapp/core/services/location_lookup_service.dart';
+import 'package:ustaapp/core/services/notification_service.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:ustaapp/features/orders/models/cagri_model.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -43,6 +45,7 @@ class AppDataService {
   bool _isConnectingWs = false;
   Timer? _reconnectTimer;
   bool _isSyncInitialized = false;
+  final Set<String> _notifiedArrivalCagriIds = {};
 
   static String? _manualSyncHost;
   static const String _kCustomHostKey = 'app_custom_sync_host';
@@ -242,7 +245,66 @@ class AppDataService {
           final model = CagriModel.fromJson(cagriMap);
           DemoCallRepository.save(model);
         } catch (_) {}
+
+        // Usta adrese vardığında (adreste veya usta_arrived == true) kilit ekranında ve sesli bildirim göster
+        final isAdreste = cagriMap['durum'] == 'adreste' || cagriMap['usta_arrived'] == true;
+        if (isAdreste && !_notifiedArrivalCagriIds.contains(id)) {
+          _notifiedArrivalCagriIds.add(id);
+          final currentRole = _cachedActiveSession?['role']?.toString().toLowerCase();
+          // Müşteri ekranında veya rol seçilmemişken bildirim ver
+          if (currentRole != 'usta') {
+            final ustaName = cagriMap['usta_name'] ?? cagriMap['ustaName'] ?? 'Ustanız';
+            NotificationService.instance.showUstaArrived(
+              ustaName: ustaName.toString(),
+              cagriId: id,
+              address: cagriMap['address']?.toString(),
+            );
+          }
+        }
         _changesStreamController.add(null);
+      } else if (event == 'usta_arrived' && data is Map) {
+        final arrivalData = Map<String, dynamic>.from(data);
+        final cid = arrivalData['cagri_id']?.toString() ?? '';
+        if (cid.isNotEmpty && !_notifiedArrivalCagriIds.contains(cid)) {
+          _notifiedArrivalCagriIds.add(cid);
+          final currentRole = _cachedActiveSession?['role']?.toString().toLowerCase();
+          if (currentRole != 'usta') {
+            final ustaName = arrivalData['usta_name']?.toString() ?? 'Ustanız';
+            NotificationService.instance.showUstaArrived(
+              ustaName: ustaName,
+              cagriId: cid,
+              address: arrivalData['address']?.toString(),
+            );
+          }
+        }
+      } else if (event == 'system_notification' && data is Map) {
+        try {
+          final notifMap = Map<String, dynamic>.from(data);
+          final notif = AppNotificationModel.fromJson(notifMap);
+          final currentRole = _cachedActiveSession?['role']?.toString().toLowerCase();
+          final currentPhone = normalizePhone(_cachedActiveSession?['phone']?.toString() ?? '');
+
+          bool isTargeted = false;
+          if (notif.target == 'all') {
+            isTargeted = true;
+          } else if (notif.target == 'ustalar' && currentRole == 'usta') {
+            isTargeted = true;
+          } else if (notif.target == 'musteriler' && currentRole != 'usta') {
+            isTargeted = true;
+          } else if (notif.target == 'user' &&
+              notif.targetPhone != null &&
+              normalizePhone(notif.targetPhone!) == currentPhone) {
+            isTargeted = true;
+          }
+
+          if (isTargeted) {
+            NotificationService.instance.showBroadcastNotification(notif);
+          }
+        } catch (e) {
+          debugPrint('[AppDataService] system_notification işleme hatası: $e');
+        }
+      } else if (event == 'notifications_cleared') {
+        NotificationService.instance.clearAll();
       } else if (event == 'all_cleared') {
         _cachedUstalar = [];
         _cachedJobs = [];
@@ -1870,6 +1932,39 @@ class AppDataService {
     } else {
       DemoCallRepository.updateStatus(cagriId, newStatus);
     }
+  }
+
+  /// Admin panelinden canlı push/duyuru bildirimi gönderir
+  Future<bool> sendAdminNotification(AppNotificationModel notif) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$_syncBaseUrl/api/notifications'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(notif.toJson()),
+      ).timeout(const Duration(seconds: 4));
+      return res.statusCode == 200;
+    } catch (e) {
+      debugPrint('[AppDataService] Bildirim gönderme hatası: $e');
+      return false;
+    }
+  }
+
+  /// Sunucudaki geçmiş bildirimleri listeler
+  Future<List<AppNotificationModel>> fetchServerNotifications() async {
+    try {
+      final res = await http.get(
+        Uri.parse('$_syncBaseUrl/api/notifications'),
+      ).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        final decoded = jsonDecode(res.body) as List;
+        return decoded
+            .map((item) => AppNotificationModel.fromJson(Map<String, dynamic>.from(item)))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('[AppDataService] Bildirimleri çekme hatası: $e');
+    }
+    return [];
   }
 
   Future<void> clearAll() async {

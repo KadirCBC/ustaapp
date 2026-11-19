@@ -6,11 +6,19 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
 import 'package:ustaapp/core/constants/env_config.dart';
 import 'package:ustaapp/core/router/app_router.dart';
+import 'package:ustaapp/core/services/notification_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 0. Bildirim servisini başlat (Android 13+ izinleri ve kanalları)
+  try {
+    await NotificationService.instance.initialize();
+  } catch (e) {
+    debugPrint('Bildirim servisi başlatılırken hata: $e');
+  }
 
   // Mapbox Public Token yapılandırması
   MapboxOptions.setAccessToken(AppConstants.mapboxAccessToken);

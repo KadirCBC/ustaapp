@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
 import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
+import 'package:ustaapp/core/widgets/notification_sheet.dart';
 import 'package:ustaapp/features/map/controllers/map_controller.dart';
 import 'package:ustaapp/features/map/models/isletme_model.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
@@ -1369,11 +1370,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
   }
 
   void _showNotificationsSheet() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Tüm çağrılarınız İyzico güvencesi altında. Yeni bildirim yok.'),
-      ),
-    );
+    NotificationSheet.show(context);
   }
 
   @override
