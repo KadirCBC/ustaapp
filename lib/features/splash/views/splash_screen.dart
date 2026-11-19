@@ -149,22 +149,59 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFFFFF),
-              Color(0xFFF8FAFC),
-              Color(0xFFEFF6FF),
-            ],
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 0. Temel Degrade Arka Plan
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFFFFFFFF),
+                  Color(0xFFF8FAFC),
+                  Color(0xFFEFF6FF),
+                ],
+              ),
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
+
+          // 1. 3D Usta & Servis Arka Plan Kahraman Görseli
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            top: 50,
+            child: Opacity(
+              opacity: 0.40,
+              child: Image.asset(
+                'assets/images/splash_hero_bg.png',
+                fit: BoxFit.contain,
+                alignment: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+
+          // 2. Okunurluk ve Yumuşak Işık Katmanı
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.white.withValues(alpha: 0.85),
+                  Colors.white.withValues(alpha: 0.20),
+                  Colors.white.withValues(alpha: 0.75),
+                ],
+                stops: const [0.0, 0.45, 1.0],
+              ),
+            ),
+          ),
+
+          // 3. Ön Plan İçerikleri
+          SafeArea(
+            child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(flex: 3),
@@ -350,8 +387,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             ],
           ),
         ),
-      ),
-    );
+      ],
+    ),
+  );
   }
 }
 

@@ -30,7 +30,9 @@ class AppBackgroundService {
           serviceChannelId,
           serviceChannelName,
           description: 'Uygulama kapalıyken usta varış ve anlık bildirimleri dinler.',
-          importance: Importance.low,
+          importance: Importance.min,
+          playSound: false,
+          enableVibration: false,
           showBadge: false,
         );
 
