@@ -796,7 +796,6 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     return byteData!.buffer.asUint8List();
   }
-  }
 
   void _selectAndFocusUsta(
     NearbyUstaModel usta,

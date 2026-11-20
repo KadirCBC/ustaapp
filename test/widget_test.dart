@@ -16,7 +16,8 @@ import 'package:ustaapp/features/profile/views/profile_screen.dart';
 
 void main() {
   group('CagriDurumu & CagriModel Tests', () {
-    test('DB string conversions map bekliyor, kabul_edildi and iptal correctly', () {
+    test('DB string conversions map bekliyor, kabul_edildi and iptal correctly',
+        () {
       expect(CagriDurumu.fromDbValue('bekliyor'), CagriDurumu.bekliyor);
       expect(CagriDurumu.fromDbValue('kabul_edildi'), CagriDurumu.kabulEdildi);
       expect(CagriDurumu.fromDbValue('yolda'), CagriDurumu.yolda);
@@ -55,7 +56,8 @@ void main() {
       expect(model.formattedDistanceFrom(41.0200, 28.9900), contains('km'));
     });
 
-    test('DemoCallRepository handles accept and reject/timeout transitions', () {
+    test('DemoCallRepository handles accept and reject/timeout transitions',
+        () {
       final call = CagriModel(
         id: 'demo-cagri-1',
         musteriId: 'musteri-demo',
@@ -69,7 +71,8 @@ void main() {
       );
 
       DemoCallRepository.save(call);
-      expect(DemoCallRepository.get('demo-cagri-1')?.durum, CagriDurumu.bekliyor);
+      expect(
+          DemoCallRepository.get('demo-cagri-1')?.durum, CagriDurumu.bekliyor);
 
       DemoCallRepository.updateStatus('demo-cagri-1', CagriDurumu.kabulEdildi);
       expect(DemoCallRepository.get('demo-cagri-1')?.isAccepted, isTrue);
@@ -78,7 +81,9 @@ void main() {
       expect(DemoCallRepository.get('demo-cagri-1')?.isCancelled, isTrue);
     });
 
-    test('DemoWorkflowState tracks arrival, completion request, receipt and rating', () {
+    test(
+        'DemoWorkflowState tracks arrival, completion request, receipt and rating',
+        () {
       const cagriId = 'demo-workflow-1';
       DemoCallRepository.saveWorkflow(
         cagriId,
@@ -170,14 +175,16 @@ void main() {
       expect(selected, 'tesisat');
     });
 
-    test('resolveKnownLocation resolves Turkish districts with normalization', () {
-      final sandikli =
-          CustomerMapController.resolveKnownLocation('Sandıklı, Afyonkarahisar');
+    test('resolveKnownLocation resolves Turkish districts with normalization',
+        () {
+      final sandikli = CustomerMapController.resolveKnownLocation(
+          'Sandıklı, Afyonkarahisar');
       expect(sandikli, isNotNull);
       expect(sandikli!.lat, closeTo(38.4647, 0.001));
       expect(sandikli.lng, closeTo(30.2719, 0.001));
 
-      final asciiSandikli = CustomerMapController.resolveKnownLocation('sandikli');
+      final asciiSandikli =
+          CustomerMapController.resolveKnownLocation('sandikli');
       expect(asciiSandikli, isNotNull);
       expect(asciiSandikli!.label, 'Sandıklı, Afyonkarahisar');
 
@@ -187,19 +194,23 @@ void main() {
       expect(besiktas!.lat, closeTo(41.0430, 0.001));
     });
 
-    test('LocationLookupService resolves local Turkish addresses without coordinates input', () async {
+    test(
+        'LocationLookupService resolves local Turkish addresses without coordinates input',
+        () async {
       final res = await LocationLookupService.resolveBestMatch('Kadıköy Moda');
       expect(res, isNotNull);
       expect(res!.lat, closeTo(40.9850, 0.05));
       expect(res.lng, closeTo(29.0285, 0.05));
 
-      final sandikli = await LocationLookupService.resolveBestMatch('Sandıklı Afyon');
+      final sandikli =
+          await LocationLookupService.resolveBestMatch('Sandıklı Afyon');
       expect(sandikli, isNotNull);
       expect(sandikli!.lat, closeTo(38.4647, 0.01));
       expect(sandikli.lng, closeTo(30.2719, 0.01));
     });
 
-    testWidgets('UstaOrdersScreen renders without crash or infinite layout', (tester) async {
+    testWidgets('UstaOrdersScreen renders without crash or infinite layout',
+        (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -217,7 +228,9 @@ void main() {
       expect(find.text('Usta Kontrol Paneli'), findsOneWidget);
       expect(find.text('Hizmet & İlan Tarifem'), findsOneWidget);
     });
-    testWidgets('CustomerHomeScreen renders listings and map search button without crash', (tester) async {
+    testWidgets(
+        'CustomerHomeScreen renders listings and map search button without crash',
+        (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -237,7 +250,8 @@ void main() {
       expect(find.text('Tüm İlanlar'), findsOneWidget);
     });
 
-    testWidgets('ProfileScreen renders rich account details and actions', (tester) async {
+    testWidgets('ProfileScreen renders rich account details and actions',
+        (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -260,7 +274,8 @@ void main() {
   });
 }
 
-class _MockAuthNotifier extends StateNotifier<AppAuthState> implements AuthNotifier {
+class _MockAuthNotifier extends StateNotifier<AppAuthState>
+    implements AuthNotifier {
   _MockAuthNotifier()
       : super(const AppAuthState(
           fullName: 'Ahmet Mehmet',
@@ -298,7 +313,8 @@ class _MockUstaDashboardController extends StateNotifier<UstaDashboardState>
       : super(UstaDashboardState(isLoading: isLoading));
 
   @override
-  Future<void> loadDashboardData({bool forceRefresh = false, bool isBackground = false}) async {}
+  Future<void> loadDashboardData(
+      {bool forceRefresh = false, bool isBackground = false}) async {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
