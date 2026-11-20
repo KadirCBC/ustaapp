@@ -16,7 +16,7 @@ class AppBackgroundService {
   static final AppBackgroundService instance = AppBackgroundService._();
 
   static const String serviceChannelId = 'ustam_bg_service_channel';
-  static const String serviceChannelName = 'UstamBurada Arka Plan Servisi';
+  static const String serviceChannelName = 'UstaGelio Arka Plan Servisi';
 
   Future<void> initialize() async {
     if (kIsWeb) return;
@@ -48,7 +48,7 @@ class AppBackgroundService {
           autoStart: true,
           isForegroundMode: true,
           notificationChannelId: serviceChannelId,
-          initialNotificationTitle: 'UstamBurada',
+          initialNotificationTitle: 'UstaGelio',
           initialNotificationContent: 'Canlı bildirim ve servis takibi devrede',
           foregroundServiceTypes: [
             AndroidForegroundType.dataSync,

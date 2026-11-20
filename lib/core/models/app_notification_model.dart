@@ -26,7 +26,7 @@ class AppNotificationModel {
   factory AppNotificationModel.fromJson(Map<String, dynamic> json) {
     return AppNotificationModel(
       id: json['id'] as String? ?? 'notif_${DateTime.now().millisecondsSinceEpoch}',
-      title: json['title'] as String? ?? 'UstamBurada Bildirimi',
+      title: json['title'] as String? ?? 'UstaGelio Bildirimi',
       message: json['message'] as String? ?? '',
       type: json['type'] as String? ?? 'general',
       target: json['target'] as String? ?? 'all',

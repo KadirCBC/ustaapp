@@ -1,5 +1,5 @@
 class AppConstants {
-  static const String appName = 'UstaGeldi';
+  static const String appName = 'UstaGelio';
   static const String defaultCountryCode = '+90';
   static const int phoneLengthWithoutCountryCode = 10; // 5XX XXX XX XX -> 10 hane
   static const int otpLength = 6;

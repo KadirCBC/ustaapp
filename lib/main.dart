@@ -56,13 +56,13 @@ Future<void> main() async {
   // 3. Uygulamayı Riverpod ProviderScope ile başlat
   runApp(
     const ProviderScope(
-      child: UstamBuradaApp(),
+      child: UstaGelioApp(),
     ),
   );
 }
 
-class UstamBuradaApp extends ConsumerWidget {
-  const UstamBuradaApp({super.key});
+class UstaGelioApp extends ConsumerWidget {
+  const UstaGelioApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

@@ -25,7 +25,7 @@ class NotificationService {
       'Ustanız adrese ulaştığında veya acil durumlarda sesli ve kilit ekranı uyarısı verir.';
 
   static const String channelBroadcastId = 'ustam_broadcasts';
-  static const String channelBroadcastName = '📢 UstamBurada Duyurular & Güncellemeler';
+  static const String channelBroadcastName = '📢 UstaGelio Duyurular & Güncellemeler';
   static const String channelBroadcastDesc =
       'Yönetim paneli duyuruları, yeni özellikler ve sistem güncellemeleri.';
 
@@ -158,7 +158,7 @@ class NotificationService {
         styleInformation: BigTextStyleInformation(
           body,
           contentTitle: title,
-          summaryText: 'UstamBurada Adrese Varış',
+          summaryText: 'UstaGelio Adrese Varış',
         ),
       );
 
@@ -266,7 +266,7 @@ class NotificationService {
       case 'pricing':
         return 'Tarife Düzenlemesi';
       default:
-        return 'UstamBurada Duyuru';
+        return 'UstaGelio Duyuru';
     }
   }
 

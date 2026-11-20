@@ -13,7 +13,7 @@ void main() async {
 
   // 2. HTTP ve WebSocket sunucusunu 0.0.0.0 üzerinden başlat (Hem localhost hem de Android 10.0.2.2 erişebilir)
   final server = await HttpServer.bind(InternetAddress.anyIPv4, kSyncPort);
-  stdout.writeln('[UstamBurada Sync Server] Dinleniyor: http://0.0.0.0:$kSyncPort');
+  stdout.writeln('[UstaGelio Sync Server] Dinleniyor: http://0.0.0.0:$kSyncPort');
 
   await for (final request in server) {
     _handleRequest(request);
@@ -147,7 +147,7 @@ Future<void> _handleRequest(HttpRequest request) async {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UstamBurada - APK İndir</title>
+  <title>UstaGelio - APK İndir</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0F172A; color: #FFF; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
     .card { background: #1E293B; border-radius: 24px; padding: 32px 24px; max-width: 440px; width: 100%; text-align: center; border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
@@ -165,9 +165,9 @@ Future<void> _handleRequest(HttpRequest request) async {
 <body>
   <div class="card">
     <div class="icon">🛠️</div>
-    <h1>UstamBurada Canlı Test</h1>
+    <h1>UstaGelio Canlı Test</h1>
     <p>Aynı Wi-Fi ağındaki tüm Android cihazlarda anlık konum ve senkronizasyon ile test edin.</p>
-    <a href="/app.apk" class="btn">📲 UstamBurada APK İndir (~242 MB)</a>
+    <a href="/app.apk" class="btn">📲 UstaGelio APK İndir (~242 MB)</a>
     <span class="badge">🌐 Canlı Sunucu: 192.168.1.101:8090</span>
     <div class="steps">
       <strong>Hızlı Test Adımları:</strong>
@@ -201,7 +201,7 @@ Future<void> _handleRequest(HttpRequest request) async {
       }
       if (apkFile != null) {
         response.headers.contentType = ContentType('application', 'vnd.android.package-archive');
-        response.headers.set('Content-Disposition', 'attachment; filename="UstamBurada-Test.apk"');
+        response.headers.set('Content-Disposition', 'attachment; filename="UstaGelio-Test.apk"');
         final fileLength = await apkFile.length();
         response.headers.contentLength = fileLength;
         if (request.method == 'HEAD') {

@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,7 +16,7 @@ import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:ustaapp/features/orders/views/widgets/completion_proof_preview.dart';
 
 /// Web tarayıcısında (Flutter Web) bağımsız çalışabilen
-/// Modern, Güvenli ve Tam Kapsamlı UstamBurada Yönetim Paneli
+/// Modern, Güvenli ve Tam Kapsamlı UstaGelio Yönetim Paneli
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -95,7 +95,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   String _selectedBusinessCategory = 'Elektrik Malzemesi & Toptan';
 
   // Admin Giriş Form Kontrolcüleri
-  final _adminEmailController = TextEditingController(text: 'admin@ustamburada.com');
+  final _adminEmailController = TextEditingController(text: 'admin@ustagelio.com');
   final _adminPasswordController = TextEditingController();
   bool _obscureAdminPassword = true;
   String? _adminLoginErrorMessage;
@@ -2635,7 +2635,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     'id': 'usr-${DateTime.now().millisecondsSinceEpoch}',
                     'full_name': memberName,
                     'phone': phoneCtrl.text.trim().isEmpty ? '+90 500 000 00 00' : phoneCtrl.text.trim(),
-                    'email': emailCtrl.text.trim().isEmpty ? 'uye@ustamburada.com' : emailCtrl.text.trim(),
+                    'email': emailCtrl.text.trim().isEmpty ? 'uye@ustagelio.com' : emailCtrl.text.trim(),
                     'role': 'Müşteri',
                     'status': 'Aktif',
                     'total_orders': 0,
@@ -2785,7 +2785,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         'adres': address,
         'enlem': lat,
         'boylam': lng,
-        'indirim_orani': '%15 UstamBurada Anlaşmalı',
+        'indirim_orani': '%15 UstaGelio Anlaşmalı',
         'created_at': DateTime.now().toIso8601String(),
       };
 
@@ -3244,7 +3244,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'UstamBurada',
+                          'UstaGelio',
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w900,
@@ -3993,7 +3993,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'UstamBurada Sistem Durumu: %100 Operasyonel 🚀',
+                      'UstaGelio Sistem Durumu: %100 Operasyonel 🚀',
                       style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     SizedBox(height: 4),
@@ -4238,7 +4238,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
             final kat = (job['kategori'] ?? job['category'] ?? 'Genel Hizmet').toString();
             final dist = (job['district'] ?? 'Kadıköy').toString();
-            final cust = (job['customer_name'] ?? job['usta_name'] ?? 'UstamBurada').toString();
+            final cust = (job['customer_name'] ?? job['usta_name'] ?? 'UstaGelio').toString();
 
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -7628,7 +7628,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     _buildReceiptRow('Hizmet / Usta Taban Ücreti:', '${ustaPayout.toStringAsFixed(2)} ₺', isBold: false),
                     const SizedBox(height: 8),
                     _buildReceiptRow(
-                      'UstamBurada Güvence & Platform Komisyonu (%15):',
+                      'UstaGelio Güvence & Platform Komisyonu (%15):',
                       '+${commission.toStringAsFixed(2)} ₺',
                       isBold: true,
                       valueColor: const Color(0xFF16A34A),
@@ -8861,7 +8861,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             children: [
               _buildTemplateButton(
                 label: '🚀 Yeni Sürüm',
-                title: 'UstamBurada v1.2 Güncellemesi Yayında! 🎉',
+                title: 'UstaGelio v1.2 Güncellemesi Yayında! 🎉',
                 body: 'Canlı sürüş takibi, kilit ekranı usta varış bildirimleri ve performans geliştirmeleri eklendi.',
                 type: 'update',
                 target: 'all',
@@ -9497,9 +9497,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       } catch (_) {}
     }
 
-    // 2. Güvenli Yönetici Anahtarı Doğrulaması (admin@ustamburada.com / admin123)
+    // 2. Güvenli Yönetici Anahtarı Doğrulaması (admin@ustagelio.com / admin123)
     if (!authenticated) {
-      if ((email.toLowerCase() == 'admin@ustamburada.com' || email.toLowerCase() == 'admin') &&
+      if ((email.toLowerCase() == 'admin@ustagelio.com' || email.toLowerCase() == 'admin') &&
           (password == 'admin123' || password == 'usta2026!')) {
         authenticated = true;
       }
@@ -9573,7 +9573,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 ),
                 const SizedBox(height: 18),
                 const Text(
-                  'UstamBurada',
+                  'UstaGelio',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white),
                 ),
                 const Text(
@@ -9692,7 +9692,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         Icon(Icons.info_outline, size: 14, color: Color(0xFF94A3B8)),
                         SizedBox(width: 6),
                         Text(
-                          'Varsayılan Admin: admin@ustamburada.com / admin123',
+                          'Varsayılan Admin: admin@ustagelio.com / admin123',
                           style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
                         ),
                       ],

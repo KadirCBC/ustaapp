@@ -72,7 +72,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       curve: const Interval(0.0, 0.35, curve: Curves.easeIn),
     );
 
-    // 2. UstamBurada logo kayması
+    // 2. UstaGelio logo kayması
     _logoSlide = Tween<Offset>(
       begin: const Offset(0, 0.35),
       end: Offset.zero,

@@ -2,7 +2,7 @@
   "name": "ustaapp",
   "version": "1.0.0",
   "private": true,
-  "description": "UstamBurada Mobil Uygulaması",
+  "description": "UstaGelio Mobil Uygulaması",
   "scripts": {
     "start": "node scripts/start.js",
     "emulator": "flutter emulators --launch Pixel_9_Pro_XL",
@@ -13,7 +13,7 @@
   "keywords": [
     "flutter",
     "ustaapp",
-    "ustamburada"
+    "ustagelio"
   ],
   "author": "",
   "license": "ISC"

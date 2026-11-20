@@ -22,7 +22,7 @@ async function sleep(ms) {
 
 async function main() {
   console.log('\n==========================================');
-  console.log('🚀 UstamBurada Başlatıcı');
+  console.log('🚀 UstaGelio Başlatıcı');
   console.log('==========================================\n');
 
   if (!isDeviceAttached()) {

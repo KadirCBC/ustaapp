@@ -51,7 +51,7 @@ void main() {
 
     expect(find.text('Resmi Hizmet Özeti & Dijital Dekont'), findsOneWidget);
     expect(find.text('Canlı Hizmet Akış Durumu'), findsOneWidget);
-    expect(find.text('UstamBurada Güvence & Platform Komisyonu (%15):'), findsOneWidget);
+    expect(find.text('UstaGelio Güvence & Platform Komisyonu (%15):'), findsOneWidget);
     expect(find.text('+262.50 ₺'), findsWidgets);
     expect(find.text('Müşteri Kartından Çekilen Toplam Tutar:'), findsOneWidget);
 

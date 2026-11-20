@@ -449,7 +449,7 @@ class _UstaRegisterFormState extends ConsumerState<UstaRegisterForm> {
                 const Expanded(
                   child: Text.rich(
                     TextSpan(
-                      text: 'UstamBurada ',
+                      text: 'UstaGelio ',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,

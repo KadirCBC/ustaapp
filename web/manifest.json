@@ -1,11 +1,11 @@
 {
-    "name": "ustaapp",
-    "short_name": "ustaapp",
+    "name": "UstaGelio",
+    "short_name": "UstaGelio",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "UstaGelio - En Yakın Usta Kapında!",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -64,7 +64,7 @@ class _OtpVerificationStepState extends ConsumerState<OtpVerificationStep> {
                   child: Column(
                     children: [
                       // =======================================================
-                      // 1. ÜST LÜKS HERO ALANI (UstamBurada Temasına Uygun)
+                      // 1. ÜST LÜKS HERO ALANI (UstaGelio Temasına Uygun)
                       // =======================================================
                       Container(
                         width: double.infinity,
@@ -528,7 +528,7 @@ class _OtpVerificationStepState extends ConsumerState<OtpVerificationStep> {
                               const SizedBox(height: 24),
 
                               // ===============================================
-                              // DOĞRULA VE DEVAM ET BUTONU (UstamBurada Turuncu)
+                              // DOĞRULA VE DEVAM ET BUTONU (UstaGelio Turuncu)
                               // ===============================================
                               Container(
                                 height: 54,

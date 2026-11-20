@@ -774,7 +774,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     child: Column(
                       children: [
                         Text(
-                          'Ustamburada Mobile • Sürüm 2.4.0',
+                          'UstaGelio Mobile • Sürüm 2.4.0',
                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF94A3B8)),
                         ),
                         SizedBox(height: 3),

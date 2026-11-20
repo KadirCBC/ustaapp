@@ -95,7 +95,7 @@ class _RoleSelectionStepState extends ConsumerState<RoleSelectionStep> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'UstamBurada\'yı nasıl kullanmak istediğinizi belirleyin.',
+                      'UstaGelio\'yu nasıl kullanmak istediğinizi belirleyin.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 13,
