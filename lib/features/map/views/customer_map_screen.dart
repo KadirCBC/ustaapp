@@ -1326,7 +1326,6 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
                           Navigator.of(ctx).pop(textController.text.trim()),
                       child: const Text('Konumu Güncelle'),
                     ),
-                    ),
                   ],
                 ),
               ),

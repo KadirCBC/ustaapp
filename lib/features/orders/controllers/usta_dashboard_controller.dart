@@ -234,7 +234,11 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       final match = await LocationLookupService.reverseGeocode(pos.latitude, pos.longitude);
       final label = match.shortLabel.isNotEmpty ? match.shortLabel : match.label;
 
-      await updateUstaLocation(label.isNotEmpty ? label : '${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}');
+      await setUstaLocation(
+        address: label.isNotEmpty ? label : '${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}',
+        lat: pos.latitude,
+        lng: pos.longitude,
+      );
       state = state.copyWith(
         ustaLat: pos.latitude,
         ustaLng: pos.longitude,
@@ -242,7 +246,7 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       );
 
       if (state.isOnline) {
-        final uid = currentUserId ?? state.activeUstaId;
+        final uid = currentUserId ?? state.activeUstaId ?? 'usta-default';
         await _locationService.syncLocationDirect(uid, pos.latitude, pos.longitude);
       }
       return true;

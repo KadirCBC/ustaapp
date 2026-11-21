@@ -139,20 +139,12 @@ class LocationLookupService {
             if (center != null && center.length >= 2) {
               final lng = (center[0] as num).toDouble();
               final lat = (center[1] as num).toDouble();
-              final placeName = (f['place_name_tr'] ?? f['place_name'] ?? '') as String;
-              final text = (f['text_tr'] ?? f['text'] ?? '') as String;
 
-              final parts = placeName
-                  .split(',')
-                  .map((e) => e.trim())
-                  .where((e) => e.isNotEmpty && e != 'Türkiye' && e != 'Turkey')
-                  .toList();
-
-              final shortLabel = parts.isNotEmpty ? parts.take(2).join(', ') : text;
+              final detailed = formatTurkishDetailedAddress(f);
 
               suggestions.add(LocationSuggestion(
-                label: placeName,
-                shortLabel: shortLabel.isNotEmpty ? shortLabel : text,
+                label: detailed,
+                shortLabel: detailed,
                 lat: lat,
                 lng: lng,
               ));
@@ -205,7 +197,70 @@ class LocationLookupService {
     return null;
   }
 
-  /// Koordinattan (lat, lng) tam ve doğru Türkçe adres (Mahalle, İlçe, İl) çözer (Mapbox Reverse Geocoding).
+  /// Mapbox Geocoding sonucunu Türkiye standartlarında tam açık adrese (Mahalle, Sokak/Cadde, Kapı No, İlçe, İl) dönüştürür.
+  static String formatTurkishDetailedAddress(Map<String, dynamic> feature) {
+    final street = (feature['text_tr'] ?? feature['text'] ?? '').toString().trim();
+    final houseNumber = (feature['address'] ?? '').toString().trim();
+
+    String locality = '';
+    String place = '';
+    String region = '';
+
+    final context = feature['context'] as List<dynamic>?;
+    if (context != null) {
+      for (final c in context) {
+        final id = (c['id'] ?? '').toString();
+        final text = (c['text_tr'] ?? c['text'] ?? '').toString().trim();
+        if (id.startsWith('locality') || id.startsWith('neighborhood')) {
+          locality = text;
+        } else if (id.startsWith('place') || id.startsWith('district')) {
+          place = text;
+        } else if (id.startsWith('region')) {
+          region = text;
+        }
+      }
+    }
+
+    final buffer = <String>[];
+    if (locality.isNotEmpty) {
+      buffer.add(locality.endsWith('Mahallesi') || locality.endsWith('Mah.') || locality.endsWith('Mah')
+          ? locality
+          : '$locality Mah.');
+    }
+    if (street.isNotEmpty) {
+      if (houseNumber.isNotEmpty) {
+        buffer.add('$street No:$houseNumber');
+      } else {
+        buffer.add(street);
+      }
+    }
+
+    String distCity = '';
+    if (place.isNotEmpty && region.isNotEmpty) {
+      distCity = '$place, $region';
+    } else if (place.isNotEmpty) {
+      distCity = place;
+    } else if (region.isNotEmpty) {
+      distCity = region;
+    }
+
+    if (buffer.isNotEmpty) {
+      final streetPart = buffer.join(' ');
+      return distCity.isNotEmpty ? '$streetPart, $distCity' : streetPart;
+    }
+
+    // Fallback: raw place_name'i temizle
+    final raw = (feature['place_name_tr'] ?? feature['place_name'] ?? '').toString();
+    return raw
+        .replaceAll(', Türkiye', '')
+        .replaceAll(', Turkey', '')
+        .replaceAll(RegExp(r'\b\d{5}\b\s*'), '')
+        .replaceAll('/', ', ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  /// Koordinattan (lat, lng) tam ve doğru Türkçe adres (Mahalle, Sokak, Kapı No, İlçe, İl) çözer.
   static Future<LocationSuggestion> reverseGeocode(double lat, double lng) async {
     try {
       const token = AppConstants.mapboxAccessToken;
@@ -217,7 +272,6 @@ class LocationLookupService {
             'access_token': token,
             'language': 'tr',
             'limit': '1',
-            'types': 'address,neighborhood,locality,place,district',
           },
         );
 
@@ -227,20 +281,11 @@ class LocationLookupService {
           final features = data['features'] as List<dynamic>?;
           if (features != null && features.isNotEmpty) {
             final first = features.first as Map<String, dynamic>;
-            final placeName = (first['place_name_tr'] ?? first['place_name'] ?? '') as String;
-            final text = (first['text_tr'] ?? first['text'] ?? '') as String;
-
-            final parts = placeName
-                .split(',')
-                .map((e) => e.trim())
-                .where((e) => e.isNotEmpty && e != 'Türkiye' && e != 'Turkey')
-                .toList();
-
-            final shortLabel = parts.isNotEmpty ? parts.take(2).join(', ') : text;
+            final detailedAddress = formatTurkishDetailedAddress(first);
 
             return LocationSuggestion(
-              label: placeName,
-              shortLabel: shortLabel.isNotEmpty ? shortLabel : (text.isNotEmpty ? text : '$lat, $lng'),
+              label: detailedAddress,
+              shortLabel: detailedAddress,
               lat: lat,
               lng: lng,
             );

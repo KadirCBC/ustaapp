@@ -973,15 +973,8 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
 
       final lng = (center[0] as num).toDouble();
       final lat = (center[1] as num).toDouble();
-      final placeName =
-          (first['place_name_tr'] ?? first['place_name'] ?? '') as String;
-      final parts = placeName
-          .split(',')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty && e != 'Türkiye' && e != 'Turkey')
-          .toList();
-      final shortLabel = parts.take(2).join(', ');
-      return (lat: lat, lng: lng, label: shortLabel);
+      final detailedLabel = LocationLookupService.formatTurkishDetailedAddress(first);
+      return (lat: lat, lng: lng, label: detailedLabel);
     } catch (e) {
       debugPrint('Mapbox geocoding hatası: $e');
       return null;
@@ -1000,7 +993,7 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
   Future<String?> _reverseGeocodeWithMapbox(double lat, double lng) async {
     final result = await _queryMapboxGeocoding(
       '$lng,$lat',
-      const {'types': 'address,neighborhood,locality,place,district'},
+      const {},
     );
     if (result != null && result.label.isNotEmpty) {
       return result.label;
