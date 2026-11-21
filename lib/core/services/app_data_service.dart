@@ -1091,6 +1091,88 @@ class AppDataService {
     _changesStreamController.add(null);
   }
 
+  /// Belirli bir ustanın ayrıntılı fiyatlandırma & yakıt tarifesini kalıcı kaydeder (SharedPreferences ve ustalar tablosu)
+  Future<void> saveUstaTarife({
+    required String phoneOrUstaId,
+    required double tabanServis,
+    required double kmBasiYakit,
+    required double ucretsizMesafeKm,
+    required double acilGeceUcreti,
+    required double calismaYaricapiKm,
+  }) async {
+    final norm = normalizePhone(phoneOrUstaId);
+    final key = 'usta_tarife_${norm.isNotEmpty ? norm : 'default'}';
+    final data = {
+      'taban_servis': tabanServis,
+      'km_basi_yakit': kmBasiYakit,
+      'ucretsiz_mesafe_km': ucretsizMesafeKm,
+      'acil_gece_ucreti': acilGeceUcreti,
+      'calisma_yaricapi_km': calismaYaricapiKm,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(key, jsonEncode(data));
+      debugPrint('[AppDataService] Usta tarife kalıcı hafızaya kaydedildi: $data');
+    } catch (e) {
+      debugPrint('saveUstaTarife prefs error: $e');
+    }
+
+    final ustalar = await getUstalar();
+    final idx = ustalar.indexWhere(
+      (u) => normalizePhone(u.phone) == norm || u.ustaId == phoneOrUstaId,
+    );
+    if (idx >= 0) {
+      ustalar[idx] = ustalar[idx].copyWith(
+        servisUcreti: tabanServis,
+        kmBasiYakitUcreti: kmBasiYakit,
+        ucretsizMesafeKm: ucretsizMesafeKm,
+        acilGeceUcreti: acilGeceUcreti,
+        calismaYaricapiKm: calismaYaricapiKm,
+      );
+      await saveUstalar(ustalar);
+    }
+    _changesStreamController.add(null);
+  }
+
+  /// Belirli bir ustanın kalıcı ayrıntılı tarife ayarlarını getirir
+  Future<Map<String, double>?> getUstaTarife(String phoneOrUstaId) async {
+    final norm = normalizePhone(phoneOrUstaId);
+    final key = 'usta_tarife_${norm.isNotEmpty ? norm : 'default'}';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(key);
+      if (raw != null && raw.isNotEmpty) {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        return {
+          'taban_servis': (map['taban_servis'] as num?)?.toDouble() ?? 500.0,
+          'km_basi_yakit': (map['km_basi_yakit'] as num?)?.toDouble() ?? 15.0,
+          'ucretsiz_mesafe_km': (map['ucretsiz_mesafe_km'] as num?)?.toDouble() ?? 3.0,
+          'acil_gece_ucreti': (map['acil_gece_ucreti'] as num?)?.toDouble() ?? 200.0,
+          'calisma_yaricapi_km': (map['calisma_yaricapi_km'] as num?)?.toDouble() ?? 25.0,
+        };
+      }
+    } catch (e) {
+      debugPrint('getUstaTarife prefs error: $e');
+    }
+
+    final ustalar = await getUstalar();
+    final match = ustalar.cast<NearbyUstaModel?>().firstWhere(
+      (u) => u != null && (normalizePhone(u.phone) == norm || u.ustaId == phoneOrUstaId),
+      orElse: () => null,
+    );
+    if (match != null && match.servisUcreti > 0) {
+      return {
+        'taban_servis': match.servisUcreti,
+        'km_basi_yakit': match.kmBasiYakitUcreti,
+        'ucretsiz_mesafe_km': match.ucretsizMesafeKm,
+        'acil_gece_ucreti': match.acilGeceUcreti,
+        'calisma_yaricapi_km': match.calismaYaricapiKm,
+      };
+    }
+    return null;
+  }
+
   /// Ustanın çalışma konumunu ve koordinatlarını günceller (Tüm ilanlar ve harita pinleri dahil anında senkronize olur)
   Future<void> updateUstaLocation({
     required String ustaId,

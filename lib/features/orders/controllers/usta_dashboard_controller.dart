@@ -450,9 +450,22 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
           .where((c) => c.durum == CagriDurumu.bekliyor)
           .toList();
 
-      final double resolvedServisUcreti = (matchedUsta != null && matchedUsta.servisUcreti > 0)
-          ? matchedUsta.servisUcreti
-          : ((session?['base_service_fee'] as num?)?.toDouble() ?? 750.0);
+      // 3. Kalıcı tarife ayarlarını getir
+      final savedTarife = await _appDataService.getUstaTarife(normPhone.isNotEmpty ? normPhone : (uid ?? 'default'));
+      final double resolvedServisUcreti = savedTarife?['taban_servis'] ??
+          ((matchedUsta != null && matchedUsta.servisUcreti > 0)
+              ? matchedUsta.servisUcreti
+              : ((session?['base_service_fee'] as num?)?.toDouble() ?? 750.0));
+      final double resolvedKmBasiYakit = savedTarife?['km_basi_yakit'] ??
+          (matchedUsta?.kmBasiYakitUcreti ?? 18.0);
+      final double resolvedUcretsizKm = savedTarife?['ucretsiz_mesafe_km'] ??
+          (matchedUsta?.ucretsizMesafeKm ?? 3.0);
+      final double resolvedAcilGece = savedTarife?['acil_gece_ucreti'] ??
+          (matchedUsta?.acilGeceUcreti ?? 250.0);
+      final double resolvedCalismaYaricap = savedTarife?['calisma_yaricapi_km'] ??
+          (matchedUsta?.calismaYaricapiKm ?? 20.0);
+
+      final double finalServisUcreti = resolvedServisUcreti;
 
       // Kalıcı çevrimiçi/çevrimdışı (müsait/meşgul) tercihi kontrolü
       bool isOnline = state.isOnline;
@@ -506,7 +519,11 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       state = state.copyWith(
         isLoading: false,
         isOnline: isOnline,
-        servisUcreti: resolvedServisUcreti,
+        servisUcreti: finalServisUcreti,
+        kmBasiYakitUcreti: resolvedKmBasiYakit,
+        ucretsizMesafeKm: resolvedUcretsizKm,
+        acilGeceUcreti: resolvedAcilGece,
+        calismaYaricapiKm: resolvedCalismaYaricap,
         hizmetler: syncedHizmetler,
         pendingCalls: pendingCalls,
         dailyCompletedJobs: completedToday,
@@ -790,7 +807,7 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     await _appDataService.removeUstaHizmetListing(id, ustaPhone: normPhone);
   }
 
-  /// Ayrıntılı tarife ve kilometre başına yakıt/ulaşım ayarlarını topluca kaydeder
+  /// Ayrıntılı tarife ve kilometre başına yakıt/ulaşım ayarlarını topluca kalıcı kaydeder
   Future<bool> updateTarifeAyarlari({
     required double tabanServis,
     required double kmBasiYakit,
@@ -798,15 +815,15 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     required double acilGeceUcreti,
     required double calismaYaricapiKm,
   }) async {
-    if (tabanServis < 300.0 || tabanServis > 5000.0) {
+    if (tabanServis < 100.0 || tabanServis > 20000.0) {
       state = state.copyWith(
-        errorMessage: 'Taban servis ücreti 300 ₺ ile 5.000 ₺ arasında olmalıdır.',
+        errorMessage: 'Taban servis ücreti 100 ₺ ile 20.000 ₺ arasında olmalıdır.',
       );
       return false;
     }
-    if (kmBasiYakit < 0.0 || kmBasiYakit > 100.0) {
+    if (kmBasiYakit < 0.0 || kmBasiYakit > 200.0) {
       state = state.copyWith(
-        errorMessage: 'Km başı yakıt ücreti 0 ₺ ile 100 ₺ arasında olmalıdır.',
+        errorMessage: 'Km başı yakıt ücreti 0 ₺ ile 200 ₺ arasında olmalıdır.',
       );
       return false;
     }
@@ -814,21 +831,31 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     state = state.copyWith(isSavingFee: true, errorMessage: null, successMessage: null);
 
     final normPhone = AppDataService.normalizePhone(state.activeUstaPhone ?? '');
-    if (normPhone.isNotEmpty) {
-      final ustalar = await _appDataService.getUstalar();
-      final idx = ustalar.indexWhere((u) => AppDataService.normalizePhone(u.phone) == normPhone);
-      if (idx >= 0) {
-        ustalar[idx] = ustalar[idx].copyWith(servisUcreti: tabanServis);
-        await _appDataService.saveUstalar(ustalar);
-      }
-    }
-
     final uid = currentUserId;
+    final phoneOrId = normPhone.isNotEmpty ? normPhone : (uid ?? 'default');
+
+    // 1. SharedPreferences ve Ustalar listesine %100 kalıcı kaydet
+    await _appDataService.saveUstaTarife(
+      phoneOrUstaId: phoneOrId,
+      tabanServis: tabanServis,
+      kmBasiYakit: kmBasiYakit,
+      ucretsizMesafeKm: ucretsizMesafeKm,
+      acilGeceUcreti: acilGeceUcreti,
+      calismaYaricapiKm: calismaYaricapiKm,
+    );
+
+    // 2. Supabase hesabı varsa veritabanını da güncelle
     if (uid != null) {
       try {
         await _supabase
             .from(AppConstants.ustalarTable)
-            .update({'servis_ucreti': tabanServis})
+            .update({
+              'servis_ucreti': tabanServis,
+              'km_basi_yakit': kmBasiYakit,
+              'ucretsiz_mesafe_km': ucretsizMesafeKm,
+              'acil_gece_ucreti': acilGeceUcreti,
+              'calisma_yaricapi_km': calismaYaricapiKm,
+            })
             .eq('id', uid);
       } catch (e) {
         debugPrint('Tarife ayarları supabase kayıt uyarısı: $e');

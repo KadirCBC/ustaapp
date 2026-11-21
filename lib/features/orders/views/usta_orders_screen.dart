@@ -27,21 +27,51 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
   late final TextEditingController _emergencyFeeController;
   double _radiusKm = 20.0;
   bool _initializedControllers = false;
+  double? _lastLoadedTaban;
+  double? _lastLoadedKm;
+  double? _lastLoadedFreeKm;
+  double? _lastLoadedEmergency;
+  double? _lastLoadedRadius;
 
   @override
   void initState() {
     super.initState();
-    _tabanFeeController = TextEditingController(text: '750');
-    _kmFeeController = TextEditingController(text: '18');
-    _freeKmController = TextEditingController(text: '3');
-    _emergencyFeeController = TextEditingController(text: '250');
+    _tabanFeeController = TextEditingController();
+    _kmFeeController = TextEditingController();
+    _freeKmController = TextEditingController();
+    _emergencyFeeController = TextEditingController();
+
+    _tabanFeeController.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _kmFeeController.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _freeKmController.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _emergencyFeeController.addListener(() {
+      if (mounted) setState(() {});
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(ustaDashboardControllerProvider.notifier).loadDashboardData(forceRefresh: true);
     });
   }
 
   void _syncControllers(UstaDashboardState state) {
-    if (!_initializedControllers) {
+    if (!_initializedControllers ||
+        _lastLoadedTaban != state.servisUcreti ||
+        _lastLoadedKm != state.kmBasiYakitUcreti ||
+        _lastLoadedFreeKm != state.ucretsizMesafeKm ||
+        _lastLoadedEmergency != state.acilGeceUcreti ||
+        _lastLoadedRadius != state.calismaYaricapiKm) {
+      _lastLoadedTaban = state.servisUcreti;
+      _lastLoadedKm = state.kmBasiYakitUcreti;
+      _lastLoadedFreeKm = state.ucretsizMesafeKm;
+      _lastLoadedEmergency = state.acilGeceUcreti;
+      _lastLoadedRadius = state.calismaYaricapiKm;
+
       _tabanFeeController.text = state.servisUcreti.toStringAsFixed(0);
       _kmFeeController.text = state.kmBasiYakitUcreti.toStringAsFixed(0);
       _freeKmController.text = state.ucretsizMesafeKm.toStringAsFixed(0);
@@ -336,30 +366,24 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        'Sandıklı, Afyonkarahisar',
-                        'Ece, Sandıklı',
-                        'Çakır, Sandıklı',
-                        'Kadıköy, İstanbul',
-                        'Beşiktaş, İstanbul',
-                      ]
-                          .map((dist) => ActionChip(
-                                label: Text(
-                                  dist,
-                                  style: const TextStyle(
-                                      fontSize: 11, color: Colors.white70),
-                                ),
-                                backgroundColor: const Color(0xFF0F172A),
-                                side:
-                                    const BorderSide(color: Color(0xFF334155)),
-                                onPressed: () => setModalState(
-                                    () => locationController.text = dist),
-                              ))
-                          .toList(),
-                    ),
+                    if (currentUstaState.ustaLocationAddress.isNotEmpty)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: ActionChip(
+                          avatar: const Icon(Icons.my_location_rounded, size: 14, color: AppTheme.ustaPrimary),
+                          label: Text(
+                            'Mevcut Adresimi Kullan: ${currentUstaState.ustaLocationAddress}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 11, color: Colors.white70),
+                          ),
+                          backgroundColor: const Color(0xFF0F172A),
+                          side: const BorderSide(color: Color(0xFF334155)),
+                          onPressed: () => setModalState(
+                            () => locationController.text = currentUstaState.ustaLocationAddress,
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 12),
 
                     // Taban Paket mi? Switch
@@ -506,30 +530,35 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF090D16),
       appBar: AppBar(
-        title: Row(
-          children: [
-            const Text(
-              'Usta Kontrol Paneli',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              decoration: BoxDecoration(
-                color: state.isOnline
-                    ? const Color(0xFF15803D)
-                    : const Color(0xFF334155),
-                borderRadius: BorderRadius.circular(6),
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Usta Kontrol Paneli',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
               ),
-              child: Text(
-                state.isOnline ? 'ONLINE' : 'OFFLINE',
-                style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: state.isOnline
+                      ? const Color(0xFF15803D)
+                      : const Color(0xFF334155),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  state.isOnline ? 'ONLINE' : 'OFFLINE',
+                  style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         backgroundColor: const Color(0xFF0F172A),
         elevation: 0,
@@ -1310,10 +1339,10 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
     UstaDashboardState state,
     UstaDashboardController controller,
   ) {
-    // Örnek 8 km hesaplama simülasyonu
-    const sampleDistance = 8.0;
-    final sampleTravel = state.calculateTravelFee(sampleDistance);
-    final sampleTotal = state.servisUcreti + sampleTravel;
+    final tabanVal = double.tryParse(_tabanFeeController.text.trim()) ?? state.servisUcreti;
+    final kmVal = double.tryParse(_kmFeeController.text.trim()) ?? state.kmBasiYakitUcreti;
+    final freeKmVal = double.tryParse(_freeKmController.text.trim()) ?? state.ucretsizMesafeKm;
+    final emergencyVal = double.tryParse(_emergencyFeeController.text.trim()) ?? state.acilGeceUcreti;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -1327,7 +1356,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
         children: [
           const Row(
             children: [
-              Icon(Icons.tune_rounded, size: 20, color: Color(0xFF38BDF8)),
+              Icon(Icons.tune_rounded, size: 20, color: AppTheme.ustaPrimary),
               SizedBox(width: 8),
               Text(
                 'Ayrıntılı Fiyatlandırma & Yakıt Tarifesi',
@@ -1354,7 +1383,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                   controller: _tabanFeeController,
                   label: 'Taban Servis Ücreti',
                   suffix: '₺',
-                  hint: '750',
+                  hint: '0',
                 ),
               ),
               const SizedBox(width: 12),
@@ -1363,7 +1392,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                   controller: _kmFeeController,
                   label: 'Km Başı Yakıt / Ulaşım',
                   suffix: '₺/km',
-                  hint: '18',
+                  hint: '0',
                 ),
               ),
             ],
@@ -1378,7 +1407,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                   controller: _freeKmController,
                   label: 'Ücretsiz Yarıçap (Tabana Dahil)',
                   suffix: 'km',
-                  hint: '3',
+                  hint: '0',
                 ),
               ),
               const SizedBox(width: 12),
@@ -1387,7 +1416,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                   controller: _emergencyFeeController,
                   label: 'Gece / Acil Ek Ücreti',
                   suffix: '₺',
-                  hint: '250',
+                  hint: '0',
                 ),
               ),
             ],
@@ -1410,16 +1439,16 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                 style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF38BDF8)),
+                    color: AppTheme.ustaPrimary),
               ),
             ],
           ),
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              activeTrackColor: const Color(0xFF38BDF8),
+              activeTrackColor: AppTheme.ustaPrimary,
               inactiveTrackColor: const Color(0xFF0F172A),
-              thumbColor: const Color(0xFF38BDF8),
-              overlayColor: const Color(0xFF38BDF8).withValues(alpha: 0.2),
+              thumbColor: AppTheme.ustaPrimary,
+              overlayColor: AppTheme.ustaPrimary.withValues(alpha: 0.2),
             ),
             child: Slider(
               value: _radiusKm,
@@ -1430,26 +1459,26 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
             ),
           ),
 
-          // Canlı Simülasyon Bilgi Kutusu
+          // Canlı Tarife Formülü Bilgi Kutusu
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: const Color(0xFF0F172A),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF334155)),
+              border: Border.all(color: AppTheme.ustaPrimary.withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
                 const Icon(Icons.calculate_outlined,
-                    size: 20, color: Color(0xFF38BDF8)),
+                    size: 20, color: AppTheme.ustaPrimary),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Örnek 8 km çağrıda: ${_tabanFeeController.text} ₺ taban + ${sampleTravel.toStringAsFixed(0)} ₺ yol (${(sampleDistance - state.ucretsizMesafeKm).toStringAsFixed(0)} km x ${state.kmBasiYakitUcreti.toStringAsFixed(0)} ₺) = ${sampleTotal.toStringAsFixed(0)} ₺ Hakediş',
+                    'Aktif Tarife: ${tabanVal.toStringAsFixed(0)} ₺ taban (${freeKmVal.toStringAsFixed(0)} km dahil) • Ek her km için +${kmVal.toStringAsFixed(0)} ₺/km • Acil/Gece: +${emergencyVal.toStringAsFixed(0)} ₺ • Menzil: ${_radiusKm.toStringAsFixed(0)} km',
                     style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFFCBD5E1)),
+                        color: Color(0xFFE2E8F0)),
                   ),
                 ),
               ],
@@ -1461,28 +1490,53 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
           SizedBox(
             width: double.infinity,
             height: 48,
-            child: ElevatedButton(
+            child: ElevatedButton.icon(
+              icon: state.isSavingFee
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.save_rounded, size: 18, color: Colors.white),
               onPressed: state.isSavingFee
                   ? null
-                  : () {
+                  : () async {
                       final taban =
                           double.tryParse(_tabanFeeController.text.trim()) ??
-                              750.0;
+                              state.servisUcreti;
                       final kmFee =
-                          double.tryParse(_kmFeeController.text.trim()) ?? 18.0;
+                          double.tryParse(_kmFeeController.text.trim()) ??
+                              state.kmBasiYakitUcreti;
                       final freeKm =
-                          double.tryParse(_freeKmController.text.trim()) ?? 3.0;
+                          double.tryParse(_freeKmController.text.trim()) ??
+                              state.ucretsizMesafeKm;
                       final emergency = double.tryParse(
                               _emergencyFeeController.text.trim()) ??
-                          250.0;
+                          state.acilGeceUcreti;
 
-                      controller.updateTarifeAyarlari(
+                      final success = await controller.updateTarifeAyarlari(
                         tabanServis: taban,
                         kmBasiYakit: kmFee,
                         ucretsizMesafeKm: freeKm,
                         acilGeceUcreti: emergency,
                         calismaYaricapiKm: _radiusKm,
                       );
+                      if (success && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Row(
+                              children: [
+                                Icon(Icons.check_circle_rounded, color: Colors.white),
+                                SizedBox(width: 8),
+                                Expanded(child: Text('Tarife ve yakıt ayarlarınız kalıcı olarak kaydedildi!')),
+                              ],
+                            ),
+                            backgroundColor: Color(0xFF15803D),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
                     },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.ustaPrimary,
@@ -1490,18 +1544,12 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              child: state.isSavingFee
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Text(
-                      'Tarife & Yakıt Ayarlarını Kaydet',
-                      style:
-                          TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
+              label: Text(
+                state.isSavingFee
+                    ? 'Kaydediliyor...'
+                    : 'Tarife & Yakıt Ayarlarını Kaydet',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
             ),
           ),
         ],
@@ -1975,7 +2023,7 @@ class _TarifeInputField extends StatelessWidget {
           decoration: InputDecoration(
             suffixText: suffix,
             suffixStyle: const TextStyle(
-                color: Color(0xFF38BDF8), fontWeight: FontWeight.bold),
+                color: AppTheme.ustaPrimary, fontWeight: FontWeight.bold),
             hintText: hint,
             hintStyle: const TextStyle(color: Color(0xFF64748B)),
             filled: true,
@@ -1989,6 +2037,10 @@ class _TarifeInputField extends StatelessWidget {
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: Color(0xFF334155)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppTheme.ustaPrimary, width: 1.5),
             ),
           ),
         ),
