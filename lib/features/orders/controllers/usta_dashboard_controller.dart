@@ -170,20 +170,87 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
 
   String? get currentUserId => _supabase.auth.currentUser?.id;
 
-  /// Ustanın mevcut konumunu günceller (mesafe hesaplaması için)
+  /// Ustanın mevcut konumunu günceller ve ters jeokodlama ile canlı adresini belirler
   Future<void> _updateCurrentUstaCoordinates() async {
     try {
       final hasPermission = await _locationService.checkAndRequestPermissions();
       if (hasPermission) {
-        final pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.medium,
-          timeLimit: const Duration(seconds: 3),
-        );
-        if (mounted) {
-          state = state.copyWith(ustaLat: pos.latitude, ustaLng: pos.longitude);
+        Position? pos;
+        try {
+          pos = await Geolocator.getLastKnownPosition();
+        } catch (_) {}
+
+        try {
+          final fresh = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+            timeLimit: const Duration(seconds: 8),
+          );
+          pos = fresh;
+        } catch (_) {}
+
+        if (pos != null && mounted) {
+          final match = await LocationLookupService.reverseGeocode(pos.latitude, pos.longitude);
+          final label = match.shortLabel.isNotEmpty ? match.shortLabel : match.label;
+          if (mounted) {
+            state = state.copyWith(
+              ustaLat: pos.latitude,
+              ustaLng: pos.longitude,
+              ustaLocationAddress: label.isNotEmpty ? label : state.ustaLocationAddress,
+            );
+          }
         }
       }
     } catch (_) {}
+  }
+
+  /// Ustanın anlık GPS konumunu alarak profilini ve hizmet konumunu %100 günceller
+  Future<bool> useCurrentGpsLocation() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final hasPermission = await _locationService.checkAndRequestPermissions();
+      if (!hasPermission) {
+        state = state.copyWith(isLoading: false);
+        return false;
+      }
+
+      Position? pos;
+      try {
+        pos = await Geolocator.getLastKnownPosition();
+      } catch (_) {}
+
+      try {
+        final fresh = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 8),
+        );
+        pos = fresh;
+      } catch (_) {}
+
+      if (pos == null) {
+        state = state.copyWith(isLoading: false);
+        return false;
+      }
+
+      final match = await LocationLookupService.reverseGeocode(pos.latitude, pos.longitude);
+      final label = match.shortLabel.isNotEmpty ? match.shortLabel : match.label;
+
+      await updateUstaLocation(label.isNotEmpty ? label : '${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}');
+      state = state.copyWith(
+        ustaLat: pos.latitude,
+        ustaLng: pos.longitude,
+        isLoading: false,
+      );
+
+      if (state.isOnline) {
+        final uid = currentUserId ?? state.activeUstaId;
+        await _locationService.syncLocationDirect(uid, pos.latitude, pos.longitude);
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Usta GPS konumu alma hatası: $e');
+      state = state.copyWith(isLoading: false);
+      return false;
+    }
   }
 
   static DateTime? _parseTxDate(dynamic raw) {

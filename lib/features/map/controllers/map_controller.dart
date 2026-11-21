@@ -134,16 +134,51 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
       final hasPermission = await _locationService.checkAndRequestPermissions();
       if (!mounted) return;
       if (hasPermission) {
-        final position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-          timeLimit: const Duration(seconds: 4),
-        );
-        if (!mounted) return;
-        state = state.copyWith(
-          currentLat: position.latitude,
-          currentLng: position.longitude,
-          isLoadingLocation: false,
-        );
+        // 1. Önce hızlı son bilinen konumu al (0ms bekleme)
+        Position? position;
+        try {
+          position = await Geolocator.getLastKnownPosition();
+          if (position != null && mounted) {
+            final quickLabel = await _reverseGeocodeWithMapbox(
+              position.latitude,
+              position.longitude,
+            );
+            if (mounted) {
+              state = state.copyWith(
+                currentLat: position.latitude,
+                currentLng: position.longitude,
+                currentAddressLabel: quickLabel ?? state.currentAddressLabel,
+              );
+            }
+          }
+        } catch (_) {}
+
+        // 2. Yüksek hassasiyetli GPS konumunu al
+        try {
+          final freshPos = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+            timeLimit: const Duration(seconds: 8),
+          );
+          position = freshPos;
+        } catch (e) {
+          debugPrint('High accuracy GPS zaman aşımı/hata, son konum korundu: $e');
+        }
+
+        if (position != null && mounted) {
+          final label = await _reverseGeocodeWithMapbox(
+            position.latitude,
+            position.longitude,
+          );
+          if (!mounted) return;
+          state = state.copyWith(
+            currentLat: position.latitude,
+            currentLng: position.longitude,
+            currentAddressLabel: label ?? state.currentAddressLabel,
+            isLoadingLocation: false,
+          );
+        } else {
+          state = state.copyWith(isLoadingLocation: false);
+        }
       } else {
         state = state.copyWith(isLoadingLocation: false);
       }
@@ -965,9 +1000,25 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
   Future<String?> _reverseGeocodeWithMapbox(double lat, double lng) async {
     final result = await _queryMapboxGeocoding(
       '$lng,$lat',
-      const {'types': 'district,place,locality'},
+      const {'types': 'address,neighborhood,locality,place,district'},
     );
-    return (result != null && result.label.isNotEmpty) ? result.label : null;
+    if (result != null && result.label.isNotEmpty) {
+      return result.label;
+    }
+    // Son çare yerel bilinen yerlerden en yakını seç
+    double minD = double.infinity;
+    String? closest;
+    for (final entry in _knownLocations.values) {
+      final d = Geolocator.distanceBetween(lat, lng, entry.lat, entry.lng);
+      if (d < minD) {
+        minD = d;
+        closest = entry.label;
+      }
+    }
+    if (closest != null && minD < 45000) {
+      return closest;
+    }
+    return null;
   }
 
   /// Bilinen ilçe/şehir isimlerini veya normalleştirilmiş sorguyu koordinata çözer.
@@ -1035,11 +1086,26 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
         return false;
       }
 
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 5),
-      );
-      if (!mounted) return false;
+      Position? position;
+      try {
+        position = await Geolocator.getLastKnownPosition();
+      } catch (_) {}
+
+      try {
+        final freshPos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 8),
+        );
+        position = freshPos;
+      } catch (e) {
+        debugPrint('useCurrentGpsLocation high accuracy timeout, using lastKnown: $e');
+      }
+
+      if (position == null) {
+        if (!mounted) return false;
+        state = state.copyWith(isLoadingLocation: false);
+        return false;
+      }
 
       final label = await _reverseGeocodeWithMapbox(
         position.latitude,
@@ -1050,7 +1116,7 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
       state = state.copyWith(
         currentLat: position.latitude,
         currentLng: position.longitude,
-        currentAddressLabel: label ?? 'Mevcut Konumum',
+        currentAddressLabel: label ?? '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}',
         clearSelectedUsta: true,
         clearSelectedIsletme: true,
         isLoadingLocation: false,

@@ -803,16 +803,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
   ) async {
     final textController =
         TextEditingController(text: state.ustaLocationAddress);
-    const presets = [
-      'Sandıklı, Afyonkarahisar',
-      'Ece, Sandıklı',
-      'Çakır, Sandıklı',
-      'Bolvadin, Afyonkarahisar',
-      'Kadıköy, İstanbul',
-      'Beşiktaş, İstanbul',
-      'Çankaya, Ankara',
-      'Karşıyaka, İzmir',
-    ];
+    List<LocationSuggestion> liveSuggestions = [];
 
     final selected = await showModalBottomSheet<String>(
       context: context,
@@ -822,104 +813,199 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            16,
-            20,
-            MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF475569),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                16,
+                20,
+                MediaQuery.of(ctx).viewInsets.bottom + 24,
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Çalışma Bölgenizi / Konumunuzu Belirleyin',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: textController,
-                style: const TextStyle(color: Colors.white, fontSize: 13.5),
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.location_on_rounded,
-                      color: AppTheme.ustaPrimary),
-                  hintText: 'Şehir, İlçe veya Semt yazın...',
-                  hintStyle: const TextStyle(color: Color(0xFF64748B)),
-                  filled: true,
-                  fillColor: const Color(0xFF0F172A),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFF334155)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: presets.map((district) {
-                  final isCurrent = district == state.ustaLocationAddress;
-                  return ActionChip(
-                    label: Text(
-                      district,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight:
-                            isCurrent ? FontWeight.w700 : FontWeight.w500,
-                        color:
-                            isCurrent ? Colors.white : const Color(0xFFCBD5E1),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF475569),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
-                    backgroundColor: isCurrent
-                        ? AppTheme.ustaPrimary
-                        : const Color(0xFF0F172A),
-                    side: BorderSide(
-                      color: isCurrent
-                          ? AppTheme.ustaPrimary
-                          : const Color(0xFF334155),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Çalışma Bölgenizi / Konumunuzu Belirleyin',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
                     ),
-                    onPressed: () => Navigator.of(ctx).pop(district),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () =>
-                    Navigator.of(ctx).pop(textController.text.trim()),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.ustaPrimary,
-                  minimumSize: const Size.fromHeight(48),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Müşteri çağrıları ve iş bildirimleri bu konuma göre eşleşir.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // 1. Canlı GPS Konumumu Kullan Butonu
+                    InkWell(
+                      onTap: () => Navigator.of(ctx).pop('__USE_GPS__'),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.ustaPrimary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppTheme.ustaPrimary.withValues(alpha: 0.45)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.my_location_rounded, color: AppTheme.ustaPrimary, size: 22),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Mevcut Canlı Konumumu Kullan (GPS)',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Cihaz uydusundan anlık konumunuzu alır ve haritaya yayınlar',
+                                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.arrow_forward_ios_rounded, color: AppTheme.ustaPrimary, size: 14),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+                    const Row(
+                      children: [
+                        Expanded(child: Divider(color: Color(0xFF334155))),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: Text(
+                            'veya adres arayın',
+                            style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                          ),
+                        ),
+                        Expanded(child: Divider(color: Color(0xFF334155))),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    TextField(
+                      controller: textController,
+                      style: const TextStyle(color: Colors.white, fontSize: 13.5),
+                      onChanged: (val) async {
+                        if (val.trim().length >= 2) {
+                          final results = await LocationLookupService.searchAddress(val.trim());
+                          if (ctx.mounted) {
+                            setSheetState(() => liveSuggestions = results);
+                          }
+                        } else {
+                          if (liveSuggestions.isNotEmpty && ctx.mounted) {
+                            setSheetState(() => liveSuggestions = []);
+                          }
+                        }
+                      },
+                      onSubmitted: (val) => Navigator.of(ctx).pop(val.trim()),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.ustaPrimary),
+                        hintText: 'Şehir, İlçe veya Mahalle ara...',
+                        hintStyle: const TextStyle(color: Color(0xFF64748B)),
+                        filled: true,
+                        fillColor: const Color(0xFF0F172A),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFF334155)),
+                        ),
+                      ),
+                    ),
+                    if (liveSuggestions.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 180),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F172A),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFF334155)),
+                        ),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: liveSuggestions.length,
+                          separatorBuilder: (_, __) => const Divider(color: Color(0xFF1E293B), height: 1),
+                          itemBuilder: (context, index) {
+                            final sug = liveSuggestions[index];
+                            return ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.place_rounded, size: 18, color: AppTheme.ustaPrimary),
+                              title: Text(
+                                sug.shortLabel,
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+                              ),
+                              subtitle: Text(
+                                sug.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                              ),
+                              onTap: () => Navigator.of(ctx).pop(sug.label),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () =>
+                          Navigator.of(ctx).pop(textController.text.trim()),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.ustaPrimary,
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Konumu Güncelle',
+                          style: TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ),
-                child: const Text('Konumu Güncelle',
-                    style: TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold)),
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
 
     if (selected != null && selected.isNotEmpty) {
-      await controller.setUstaLocation(address: selected);
+      if (selected == '__USE_GPS__') {
+        final success = await controller.useCurrentGpsLocation();
+        if (!success && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('GPS konumu alınamadı. Lütfen konum izinlerini kontrol edin.')),
+          );
+        }
+      } else {
+        await controller.setUstaLocation(address: selected);
+      }
     }
   }
 

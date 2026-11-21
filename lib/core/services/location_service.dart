@@ -43,7 +43,58 @@ class LocationService {
       return false;
     }
 
-    return true;
+    return permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always;
+  }
+
+  /// Cihazın anlık gerçek GPS konumunu yüksek hassasiyetle (high accuracy) alır.
+  Future<Position?> getDeviceExactLocation({bool requestPermission = true}) async {
+    if (requestPermission) {
+      final hasPerm = await checkAndRequestPermissions();
+      if (!hasPerm) return null;
+    }
+    try {
+      Position? pos;
+      try {
+        pos = await Geolocator.getLastKnownPosition();
+      } catch (_) {}
+
+      try {
+        final freshPos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 8),
+        );
+        pos = freshPos;
+      } catch (e) {
+        debugPrint('getCurrentPosition high-accuracy zaman aşımı/hata: $e');
+      }
+
+      return pos;
+    } catch (e) {
+      debugPrint('getDeviceExactLocation hata: $e');
+      return null;
+    }
+  }
+
+  /// Ustanın anlık koordinatlarını PostGIS ve Supabase veritabanına doğrudan senkronize eder.
+  Future<void> syncLocationDirect(String ustaId, double lat, double lng) async {
+    try {
+      await _supabase.rpc('usta_konum_guncelle', params: {
+        'p_lat': lat,
+        'p_lng': lng,
+        'p_is_online': true,
+      });
+      debugPrint('syncLocationDirect RPC başarılı: ($lat, $lng)');
+    } catch (_) {
+      try {
+        await _supabase.from('ustalar').update({
+          'konum': 'SRID=4326;POINT($lng $lat)',
+          'is_online': true,
+        }).eq('id', ustaId);
+      } catch (e) {
+        debugPrint('syncLocationDirect hata: $e');
+      }
+    }
   }
 
   /// Usta 'Online' moduna geçtiğinde konum dinleyicisini başlatır.

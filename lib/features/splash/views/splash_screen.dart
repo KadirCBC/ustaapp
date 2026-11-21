@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/features/auth/models/user_role.dart';
@@ -16,17 +17,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     with TickerProviderStateMixin {
   late final AnimationController _mainController;
   late final AnimationController _rippleController;
-  late final AnimationController _shimmerController;
 
   // Animasyonlar
   late final Animation<double> _iconScale;
   late final Animation<double> _iconFade;
   late final Animation<Offset> _logoSlide;
   late final Animation<double> _logoFade;
-  late final Animation<double> _sloganFade;
-  late final Animation<double> _sloganScale;
-  late final Animation<Offset> _sloganSlide;
-  late final Animation<double> _lineWidth;
+
   late final Animation<double> _progressFade;
 
   bool _navigated = false;
@@ -34,6 +31,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   void initState() {
     super.initState();
+
+    // Uygulama ilk açıldığında hemen konum iznini sor ve uyduları hazırla
+    _requestInitialLocationPermission();
 
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
@@ -54,11 +54,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       duration: const Duration(milliseconds: 1600),
     )..repeat();
 
-    // Slogan altın/turuncu ışıltı akışı
-    _shimmerController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat();
+
 
     // 1. İkon belirişi
     _iconScale = Tween<double>(begin: 0.65, end: 1.0).animate(
@@ -87,32 +83,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       curve: const Interval(0.35, 0.60, curve: Curves.easeIn),
     );
 
-    // 3. Slogan belirişi, büyümesi ve çizgi açılışı
-    _sloganFade = CurvedAnimation(
-      parent: _mainController,
-      curve: const Interval(0.48, 0.78, curve: Curves.easeIn),
-    );
-    _sloganScale = Tween<double>(begin: 0.82, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.48, 0.82, curve: Curves.easeOutBack),
-      ),
-    );
-    _sloganSlide = Tween<Offset>(
-      begin: const Offset(0, 0.35),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.48, 0.78, curve: Curves.easeOutCubic),
-      ),
-    );
-    _lineWidth = Tween<double>(begin: 0.0, end: 32.0).animate(
-      CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.52, 0.86, curve: Curves.easeOutCubic),
-      ),
-    );
+
 
     // 4. İnce yükleme çizgisi
     _progressFade = CurvedAnimation(
@@ -121,6 +92,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
 
     _mainController.forward().then((_) => _checkAuthAndNavigate());
+  }
+
+  Future<void> _requestInitialLocationPermission() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        debugPrint('Konum servisi kapalı.');
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.whileInUse ||
+          permission == LocationPermission.always) {
+        try {
+          await Geolocator.getLastKnownPosition();
+        } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint('Açılışta konum izni hatası: $e');
+    }
   }
 
   void _checkAuthAndNavigate() {
@@ -141,7 +133,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   void dispose() {
     _mainController.dispose();
     _rippleController.dispose();
-    _shimmerController.dispose();
     super.dispose();
   }
 
@@ -263,10 +254,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   ],
                 ),
 
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
 
                 // ===============================================================
-                // 2. YATAY LOGO (Kırmızı Çizgi Alanı - İkonun Hemen Altı)
+                // 2. YATAY LOGO & SLOGAN (Kırmızı Çizgi Alanı - İkonun Hemen Altı)
                 // ===============================================================
                 SlideTransition(
                   position: _logoSlide,
@@ -274,91 +265,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     opacity: _logoFade,
                     child: Image.asset(
                       'assets/images/app_logo.png',
-                      height: 52,
+                      height: 56,
                       fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 6),
-
-                // 3. HAREKETLİ SLOGAN ÇİZGİLERİ
-                FadeTransition(
-                  opacity: _sloganFade,
-                  child: SlideTransition(
-                    position: _sloganSlide,
-                    child: ScaleTransition(
-                      scale: _sloganScale,
-                      child: AnimatedBuilder(
-                        animation: Listenable.merge([_shimmerController, _lineWidth]),
-                        builder: (context, _) {
-                          final shimmerValue = _shimmerController.value;
-                          final currentLineWidth = _lineWidth.value;
-
-                          return Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Sol açılan degrade çizgi
-                              Container(
-                                width: currentLineWidth,
-                                height: 2.0,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      const Color(0xFFF97316).withValues(alpha: 0.0),
-                                      const Color(0xFFF97316).withValues(alpha: 0.85),
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(1),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-
-                              // Büyütülmüş & Altın/Turuncu Işıltılı Slogan
-                              ShaderMask(
-                                shaderCallback: (bounds) {
-                                  return LinearGradient(
-                                    begin: Alignment(-1.6 + (shimmerValue * 3.2), -0.3),
-                                    end: Alignment(-0.4 + (shimmerValue * 3.2), 0.3),
-                                    colors: const [
-                                      Color(0xFF0F172A),
-                                      Color(0xFFF97316),
-                                      Color(0xFFFBBF24),
-                                      Color(0xFF0F172A),
-                                    ],
-                                    stops: const [0.0, 0.45, 0.55, 1.0],
-                                  ).createShader(bounds);
-                                },
-                                child: const Text(
-                                  'Ustalar Dakikalar İçinde Kapında!',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.8,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-
-                              // Sağ açılan degrade çizgi
-                              Container(
-                                width: currentLineWidth,
-                                height: 2.0,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      const Color(0xFFF97316).withValues(alpha: 0.85),
-                                      const Color(0xFFF97316).withValues(alpha: 0.0),
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(1),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
                     ),
                   ),
                 ),

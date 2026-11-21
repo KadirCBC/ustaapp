@@ -1155,17 +1155,6 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
     CustomerMapController mapNotifier,
   ) async {
     final textController = TextEditingController(text: currentAddress);
-    const presetDistricts = [
-      'Sandıklı, Afyonkarahisar',
-      'Ece, Sandıklı',
-      'Çakır, Sandıklı',
-      'Bolvadin, Afyonkarahisar',
-      'Kadıköy, İstanbul',
-      'Beşiktaş, İstanbul',
-      'Çankaya, Ankara',
-      'Karşıyaka, İzmir',
-    ];
-
     List<LocationSuggestion> liveSuggestions = [];
 
     final updated = await showModalBottomSheet<String>(
@@ -1209,7 +1198,70 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
                         color: AppTheme.customerTextDark,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Haritadaki ustalar ve hizmet noktaları bu konuma göre anlık yenilenir.',
+                      style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // 1. Canlı Gerçek GPS Konumu Butonu
+                    InkWell(
+                      onTap: () => Navigator.of(ctx).pop('__USE_GPS__'),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF7ED),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFFDBA74)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.my_location_rounded, color: AppTheme.customerPrimary, size: 22),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Mevcut Canlı Konumumu Kullan (GPS)',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13.5,
+                                      color: Color(0xFF9A3412),
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Uydudan anlık %100 kesin konumunuzu tespit eder',
+                                    style: TextStyle(fontSize: 11, color: Color(0xFFC2410C)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppTheme.customerPrimary),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+                    const Row(
+                      children: [
+                        Expanded(child: Divider()),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: Text(
+                            'veya adres arayın',
+                            style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                          ),
+                        ),
+                        Expanded(child: Divider()),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
                     TextField(
                       controller: textController,
                       textInputAction: TextInputAction.done,
@@ -1227,7 +1279,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
                       },
                       onSubmitted: (val) => Navigator.of(ctx).pop(val.trim()),
                       decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.location_on_outlined, color: AppTheme.customerPrimary),
+                        prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.customerPrimary),
                         hintText: 'İlçe, Şehir veya Mahalle yazın...',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
@@ -1237,7 +1289,7 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
                     if (liveSuggestions.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Container(
-                        constraints: const BoxConstraints(maxHeight: 160),
+                        constraints: const BoxConstraints(maxHeight: 180),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(12),
@@ -1268,56 +1320,12 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        ActionChip(
-                          avatar: const Icon(
-                            Icons.my_location_rounded,
-                            size: 16,
-                            color: AppTheme.customerPrimary,
-                          ),
-                          label: const Text(
-                            'Mevcut GPS Konumum',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.customerPrimary,
-                            ),
-                          ),
-                          backgroundColor: const Color(0xFFFFF7ED),
-                          side: const BorderSide(color: Color(0xFFFED7AA)),
-                          onPressed: () => Navigator.of(ctx).pop('__USE_GPS__'),
-                        ),
-                        ...presetDistricts.map((district) {
-                          final isCurrent = district == currentAddress;
-                          return ActionChip(
-                            label: Text(
-                              district,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight:
-                                    isCurrent ? FontWeight.w700 : FontWeight.w500,
-                                color: isCurrent
-                                    ? Colors.white
-                                    : AppTheme.customerTextDark,
-                              ),
-                            ),
-                            backgroundColor: isCurrent
-                                ? AppTheme.customerPrimary
-                                : const Color(0xFFF8FAFC),
-                            onPressed: () => Navigator.of(ctx).pop(district),
-                          );
-                        }),
-                      ],
-                    ),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () =>
                           Navigator.of(ctx).pop(textController.text.trim()),
                       child: const Text('Konumu Güncelle'),
+                    ),
                     ),
                   ],
                 ),

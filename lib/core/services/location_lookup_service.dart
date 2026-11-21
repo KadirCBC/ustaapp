@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:ustaapp/core/constants/app_constants.dart';
 
@@ -202,6 +203,79 @@ class LocationLookupService {
       }
     }
     return null;
+  }
+
+  /// Koordinattan (lat, lng) tam ve doğru Türkçe adres (Mahalle, İlçe, İl) çözer (Mapbox Reverse Geocoding).
+  static Future<LocationSuggestion> reverseGeocode(double lat, double lng) async {
+    try {
+      const token = AppConstants.mapboxAccessToken;
+      if (token.isNotEmpty) {
+        final uri = Uri.https(
+          'api.mapbox.com',
+          '/geocoding/v5/mapbox.places/$lng,$lat.json',
+          {
+            'access_token': token,
+            'language': 'tr',
+            'limit': '1',
+            'types': 'address,neighborhood,locality,place,district',
+          },
+        );
+
+        final res = await http.get(uri).timeout(const Duration(seconds: 5));
+        if (res.statusCode == 200) {
+          final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+          final features = data['features'] as List<dynamic>?;
+          if (features != null && features.isNotEmpty) {
+            final first = features.first as Map<String, dynamic>;
+            final placeName = (first['place_name_tr'] ?? first['place_name'] ?? '') as String;
+            final text = (first['text_tr'] ?? first['text'] ?? '') as String;
+
+            final parts = placeName
+                .split(',')
+                .map((e) => e.trim())
+                .where((e) => e.isNotEmpty && e != 'Türkiye' && e != 'Turkey')
+                .toList();
+
+            final shortLabel = parts.isNotEmpty ? parts.take(2).join(', ') : text;
+
+            return LocationSuggestion(
+              label: placeName,
+              shortLabel: shortLabel.isNotEmpty ? shortLabel : (text.isNotEmpty ? text : '$lat, $lng'),
+              lat: lat,
+              lng: lng,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[LocationLookupService] Reverse geocode hatası: $e');
+    }
+
+    // Çevrimdışı / Hızlı Yerel Sözlük Fallback: En yakın bilinen il/ilçe
+    double minDistance = double.infinity;
+    LocationSuggestion? closest;
+    for (final entry in _localLocations.values) {
+      final d = Geolocator.distanceBetween(lat, lng, entry.lat, entry.lng);
+      if (d < minDistance) {
+        minDistance = d;
+        closest = LocationSuggestion(
+          label: entry.label,
+          shortLabel: entry.shortLabel,
+          lat: lat,
+          lng: lng,
+        );
+      }
+    }
+    if (closest != null && minDistance < 45000) {
+      return closest;
+    }
+
+    return LocationSuggestion(
+      label: 'Konum (${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)})',
+      shortLabel: '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}',
+      lat: lat,
+      lng: lng,
+    );
   }
 
   /// Senkron hızlı çözümleme: Verilen adresi yerel sözlükten anında çözer
