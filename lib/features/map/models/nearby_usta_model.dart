@@ -98,6 +98,7 @@ class NearbyUstaModel {
   final double ucretsizMesafeKm;
   final double acilGeceUcreti;
   final double calismaYaricapiKm;
+  final bool hasCustomTarife;
   final int deneyimYili;
   final String uzmanlikBasligi;
   final List<String> guvenceler;
@@ -119,11 +120,12 @@ class NearbyUstaModel {
     required this.komisyonOrani,
     required this.komisyonTutari,
     required this.toplamTutar,
-    this.servisUcreti = 500.0,
-    this.kmBasiYakitUcreti = 15.0,
-    this.ucretsizMesafeKm = 3.0,
-    this.acilGeceUcreti = 200.0,
-    this.calismaYaricapiKm = 25.0,
+    this.servisUcreti = 0.0,
+    this.kmBasiYakitUcreti = 0.0,
+    this.ucretsizMesafeKm = 0.0,
+    this.acilGeceUcreti = 0.0,
+    this.calismaYaricapiKm = 20.0,
+    this.hasCustomTarife = false,
     this.deneyimYili = 10,
     this.uzmanlikBasligi = 'Onaylı Uzman Usta',
     this.guvenceler = const [
@@ -193,11 +195,12 @@ class NearbyUstaModel {
       komisyonOrani: (json['komisyon_orani'] as num?)?.toDouble() ?? 0.15,
       komisyonTutari: (json['komisyon_tutari'] as num?)?.toDouble() ?? 0.0,
       toplamTutar: (json['toplam_tutar'] as num?)?.toDouble() ?? (json['price'] as num?)?.toDouble() ?? 0.0,
-      servisUcreti: (json['servis_ucreti'] as num?)?.toDouble() ?? 500.0,
-      kmBasiYakitUcreti: (json['km_basi_yakit_ucreti'] as num?)?.toDouble() ?? (json['km_fee'] as num?)?.toDouble() ?? 15.0,
-      ucretsizMesafeKm: (json['ucretsiz_mesafe_km'] as num?)?.toDouble() ?? 3.0,
-      acilGeceUcreti: (json['acil_gece_ucreti'] as num?)?.toDouble() ?? 200.0,
-      calismaYaricapiKm: (json['calisma_yaricapi_km'] as num?)?.toDouble() ?? 25.0,
+      servisUcreti: (json['servis_ucreti'] as num?)?.toDouble() ?? 0.0,
+      kmBasiYakitUcreti: (json['km_basi_yakit_ucreti'] as num?)?.toDouble() ?? (json['km_fee'] as num?)?.toDouble() ?? 0.0,
+      ucretsizMesafeKm: (json['ucretsiz_mesafe_km'] as num?)?.toDouble() ?? 0.0,
+      acilGeceUcreti: (json['acil_gece_ucreti'] as num?)?.toDouble() ?? 0.0,
+      calismaYaricapiKm: (json['calisma_yaricapi_km'] as num?)?.toDouble() ?? 20.0,
+      hasCustomTarife: json['has_custom_tarife'] as bool? ?? false,
       deneyimYili: (json['deneyim_yili'] as num?)?.toInt() ?? 10,
       uzmanlikBasligi:
           (json['uzmanlik_basligi'] ?? json['uzmanlikBasligi'] ?? json['location'] ?? 'Onaylı Uzman Usta').toString(),
@@ -257,6 +260,7 @@ class NearbyUstaModel {
     'ucretsiz_mesafe_km': ucretsizMesafeKm,
     'acil_gece_ucreti': acilGeceUcreti,
     'calisma_yaricapi_km': calismaYaricapiKm,
+    'has_custom_tarife': hasCustomTarife,
     'deneyim_yili': deneyimYili,
     'uzmanlik_basligi': uzmanlikBasligi,
     'guvenceler': guvenceler,
@@ -285,6 +289,7 @@ class NearbyUstaModel {
     double? ucretsizMesafeKm,
     double? acilGeceUcreti,
     double? calismaYaricapiKm,
+    bool? hasCustomTarife,
     int? deneyimYili,
     String? uzmanlikBasligi,
     List<String>? guvenceler,
@@ -311,6 +316,7 @@ class NearbyUstaModel {
       ucretsizMesafeKm: ucretsizMesafeKm ?? this.ucretsizMesafeKm,
       acilGeceUcreti: acilGeceUcreti ?? this.acilGeceUcreti,
       calismaYaricapiKm: calismaYaricapiKm ?? this.calismaYaricapiKm,
+      hasCustomTarife: hasCustomTarife ?? this.hasCustomTarife,
       deneyimYili: deneyimYili ?? this.deneyimYili,
       uzmanlikBasligi: uzmanlikBasligi ?? this.uzmanlikBasligi,
       guvenceler: guvenceler ?? this.guvenceler,

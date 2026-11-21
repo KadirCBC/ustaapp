@@ -19,6 +19,7 @@ class UstaDashboardState {
   final double ucretsizMesafeKm; // Taban ücrete dahil ücretsiz servis yarıçapı (km)
   final double acilGeceUcreti; // Acil / gece tarifesi ek bedeli (₺)
   final double calismaYaricapiKm; // Maksimum kabul edilen servis yarıçapı (km)
+  final bool hasCustomTarife; // Ustanın bizzat belirleyip kaydettiği özel tarife var mı
   final List<UstaHizmetIlan> hizmetler; // Ustanın eklediği işler / hizmet tarifesi (Kalıcı ve gerçek)
   final List<CagriModel> pendingCalls; // Bekleyen acil çağrılar
   final int dailyCompletedJobs;
@@ -40,11 +41,12 @@ class UstaDashboardState {
 
   const UstaDashboardState({
     this.isOnline = true,
-    this.servisUcreti = 750.00,
-    this.kmBasiYakitUcreti = 18.00,
-    this.ucretsizMesafeKm = 3.00,
-    this.acilGeceUcreti = 250.00,
+    this.servisUcreti = 0.0,
+    this.kmBasiYakitUcreti = 0.0,
+    this.ucretsizMesafeKm = 0.0,
+    this.acilGeceUcreti = 0.0,
     this.calismaYaricapiKm = 20.00,
+    this.hasCustomTarife = false,
     this.hizmetler = const [],
     this.pendingCalls = const [],
     this.dailyCompletedJobs = 0,
@@ -72,6 +74,7 @@ class UstaDashboardState {
     double? ucretsizMesafeKm,
     double? acilGeceUcreti,
     double? calismaYaricapiKm,
+    bool? hasCustomTarife,
     List<UstaHizmetIlan>? hizmetler,
     List<CagriModel>? pendingCalls,
     int? dailyCompletedJobs,
@@ -99,6 +102,7 @@ class UstaDashboardState {
       ucretsizMesafeKm: ucretsizMesafeKm ?? this.ucretsizMesafeKm,
       acilGeceUcreti: acilGeceUcreti ?? this.acilGeceUcreti,
       calismaYaricapiKm: calismaYaricapiKm ?? this.calismaYaricapiKm,
+      hasCustomTarife: hasCustomTarife ?? this.hasCustomTarife,
       hizmetler: hizmetler ?? this.hizmetler,
       pendingCalls: pendingCalls ?? this.pendingCalls,
       dailyCompletedJobs: dailyCompletedJobs ?? this.dailyCompletedJobs,
@@ -318,32 +322,13 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
         );
       }
 
-      // Eğer sistemde kayıtlı usta yoksa ve aktif oturum varsa model oluştur
-      if (matchedUsta == null && normPhone.isNotEmpty) {
-        final baseFee = (session?['base_service_fee'] as num?)?.toDouble() ?? 750.0;
-        final ustaId = uid ?? 'usta-${DateTime.now().millisecondsSinceEpoch}';
-        matchedUsta = NearbyUstaModel(
-          ustaId: ustaId,
-          fullName: sessionFullName.isNotEmpty ? sessionFullName : 'Usta',
-          phone: normPhone,
-          kategori: session?['category'] ?? 'genel',
-          puan: 5.0,
-          tamamlananIsSayisi: 0,
-          latitude: state.ustaLat,
-          longitude: state.ustaLng,
-          mesafeMetre: 500,
-          ustaHakedis: baseFee,
-          komisyonOrani: 0.15,
-          komisyonTutari: baseFee * 0.15,
-          toplamTutar: baseFee * 1.15,
-          servisUcreti: baseFee,
-          deneyimYili: (session?['experience_years'] as num?)?.toInt() ?? 5,
-          uzmanlikBasligi: session?['address'] ?? session?['city_district'] ?? 'Sandıklı, Afyonkarahisar',
-          guvenceler: const ['30 Gün İşçilik Garantisi', 'Sabit Fiyat Güvencesi'],
-          ilanlar: const [],
+      // Silinen usta kontrolü
+      if (normPhone.isNotEmpty && await _appDataService.isUstaDeleted(normPhone)) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Hesabınız yönetici tarafından silinmiştir.',
         );
-        ustalar.add(matchedUsta);
-        await _appDataService.saveUstalar(ustalar);
+        return;
       }
 
       // 3. Kalıcı ve gerçek hizmet ilanlarını yükle
@@ -452,18 +437,32 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
 
       // 3. Kalıcı tarife ayarlarını getir
       final savedTarife = await _appDataService.getUstaTarife(normPhone.isNotEmpty ? normPhone : (uid ?? 'default'));
-      final double resolvedServisUcreti = savedTarife?['taban_servis'] ??
-          ((matchedUsta != null && matchedUsta.servisUcreti > 0)
+      final bool hasSaved = savedTarife != null;
+      final double resolvedServisUcreti = hasSaved
+          ? (savedTarife['taban_servis'] ?? 0.0)
+          : ((matchedUsta != null && matchedUsta.hasCustomTarife && matchedUsta.servisUcreti > 0)
               ? matchedUsta.servisUcreti
-              : ((session?['base_service_fee'] as num?)?.toDouble() ?? 750.0));
-      final double resolvedKmBasiYakit = savedTarife?['km_basi_yakit'] ??
-          (matchedUsta?.kmBasiYakitUcreti ?? 18.0);
-      final double resolvedUcretsizKm = savedTarife?['ucretsiz_mesafe_km'] ??
-          (matchedUsta?.ucretsizMesafeKm ?? 3.0);
-      final double resolvedAcilGece = savedTarife?['acil_gece_ucreti'] ??
-          (matchedUsta?.acilGeceUcreti ?? 250.0);
-      final double resolvedCalismaYaricap = savedTarife?['calisma_yaricapi_km'] ??
-          (matchedUsta?.calismaYaricapiKm ?? 20.0);
+              : 0.0);
+      final double resolvedKmBasiYakit = hasSaved
+          ? (savedTarife['km_basi_yakit'] ?? 0.0)
+          : ((matchedUsta != null && matchedUsta.hasCustomTarife)
+              ? matchedUsta.kmBasiYakitUcreti
+              : 0.0);
+      final double resolvedUcretsizKm = hasSaved
+          ? (savedTarife['ucretsiz_mesafe_km'] ?? 0.0)
+          : ((matchedUsta != null && matchedUsta.hasCustomTarife)
+              ? matchedUsta.ucretsizMesafeKm
+              : 0.0);
+      final double resolvedAcilGece = hasSaved
+          ? (savedTarife['acil_gece_ucreti'] ?? 0.0)
+          : ((matchedUsta != null && matchedUsta.hasCustomTarife)
+              ? matchedUsta.acilGeceUcreti
+              : 0.0);
+      final double resolvedCalismaYaricap = hasSaved
+          ? (savedTarife['calisma_yaricapi_km'] ?? 20.0)
+          : ((matchedUsta != null && matchedUsta.hasCustomTarife && matchedUsta.calismaYaricapiKm > 0)
+              ? matchedUsta.calismaYaricapiKm
+              : 20.0);
 
       final double finalServisUcreti = resolvedServisUcreti;
 
@@ -518,6 +517,7 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
 
       state = state.copyWith(
         isLoading: false,
+        hasCustomTarife: hasSaved || (matchedUsta != null && matchedUsta.hasCustomTarife),
         isOnline: isOnline,
         servisUcreti: finalServisUcreti,
         kmBasiYakitUcreti: resolvedKmBasiYakit,
@@ -864,6 +864,7 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
 
     state = state.copyWith(
       isSavingFee: false,
+      hasCustomTarife: true,
       servisUcreti: tabanServis,
       kmBasiYakitUcreti: kmBasiYakit,
       ucretsizMesafeKm: ucretsizMesafeKm,

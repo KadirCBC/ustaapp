@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1996,16 +1996,23 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              final selectedIdsCopy = List<String>.from(_selectedUstaIds);
+              final appData = ref.read(appDataServiceProvider);
+              for (final id in selectedIdsCopy) {
+                final matched = _activeUstalar.firstWhere((u) => u['id'] == id, orElse: () => {});
+                final phone = (matched['phone'] ?? '').toString();
+                await appData.deleteUsta(id, phone: phone);
+              }
               setState(() {
-                _activeUstalar.removeWhere((u) => _selectedUstaIds.contains(u['id']));
-                _activeJobs.removeWhere((j) => _selectedUstaIds.contains(j['usta_id']));
+                _activeUstalar.removeWhere((u) => selectedIdsCopy.contains(u['id']));
+                _activeJobs.removeWhere((j) => selectedIdsCopy.contains(j['usta_id']));
                 _selectedUstaIds.clear();
               });
               _recalculateMetrics();
-              _savePersistedData('admin_active_ustalar');
-              _savePersistedData('admin_jobs');
-              Navigator.pop(ctx);
+              await _savePersistedData('admin_active_ustalar');
+              await _savePersistedData('admin_jobs');
+              if (ctx.mounted) Navigator.pop(ctx);
               _showSuccessToast('Seçilen ustalar sistemden silindi.');
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
@@ -2033,16 +2040,22 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              final appData = ref.read(appDataServiceProvider);
+              for (final u in List<Map<String, dynamic>>.from(_activeUstalar)) {
+                final id = (u['id'] ?? '').toString();
+                final phone = (u['phone'] ?? '').toString();
+                await appData.deleteUsta(id, phone: phone);
+              }
               setState(() {
                 _activeUstalar.clear();
                 _activeJobs.removeWhere((j) => j['type'] == 'Usta Hizmet İlanı');
                 _selectedUstaIds.clear();
               });
               _recalculateMetrics();
-              _savePersistedData('admin_active_ustalar');
-              _savePersistedData('admin_jobs');
-              Navigator.pop(ctx);
+              await _savePersistedData('admin_active_ustalar');
+              await _savePersistedData('admin_jobs');
+              if (ctx.mounted) Navigator.pop(ctx);
               _showSuccessToast('Tüm ustalar silindi. Harita temizlendi.');
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
@@ -2051,6 +2064,49 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ],
       ),
     );
+  }
+
+  void _deleteUstaPermanently(Map<String, dynamic> u) async {
+    final targetId = (u['id'] ?? '').toString();
+    final targetPhone = AppDataService.normalizePhone((u['phone'] ?? '').toString());
+
+    setState(() {
+      _activeUstalar.removeWhere((item) {
+        final itemId = (item['id'] ?? '').toString();
+        final itemPhone = AppDataService.normalizePhone((item['phone'] ?? '').toString());
+        return (targetId.isNotEmpty && itemId == targetId) ||
+            (targetPhone.isNotEmpty && itemPhone == targetPhone);
+      });
+      _activeJobs.removeWhere((j) {
+        final jId = (j['usta_id'] ?? '').toString();
+        final jPhone = AppDataService.normalizePhone((j['customer_phone'] ?? j['usta_phone'] ?? '').toString());
+        return (targetId.isNotEmpty && jId == targetId) ||
+            (targetPhone.isNotEmpty && jPhone == targetPhone);
+      });
+      _members.removeWhere((m) {
+        final mId = (m['id'] ?? '').toString();
+        final mPhone = AppDataService.normalizePhone((m['phone'] ?? '').toString());
+        return (targetId.isNotEmpty && mId == targetId) ||
+            (targetPhone.isNotEmpty && mPhone == targetPhone);
+      });
+      _selectedUstaIds.remove(targetId);
+      _recalculateMetrics();
+    });
+
+    final appData = ref.read(appDataServiceProvider);
+    await appData.deleteUsta(targetId, phone: targetPhone);
+    await _savePersistedData('admin_active_ustalar');
+    await _savePersistedData('admin_jobs');
+    await _savePersistedData('admin_members');
+
+    final supabase = _getSupabaseSafe();
+    if (supabase != null && targetId.isNotEmpty) {
+      try {
+        await supabase.from(AppConstants.ustalarTable).delete().eq('id', targetId);
+      } catch (_) {}
+    }
+
+    _showSuccessToast('${u['full_name'] ?? 'Usta'} sistemden kalıcı olarak çıkarıldı.');
   }
 
   void _deleteSelectedMembers() {
@@ -5396,15 +5452,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                     icon: Icons.delete_outline_rounded,
                                     color: const Color(0xFFEF4444),
                                     tooltip: 'Ustayla İlişiği Kes',
-                                    onPressed: () {
-                                      setState(() {
-                                        _activeUstalar.removeWhere((item) => item['id'] == u['id']);
-                                        _selectedUstaIds.remove(u['id']);
-                                        _recalculateMetrics();
-                                      });
-                                      _savePersistedData('admin_active_ustalar');
-                                      _showSuccessToast('Usta sistemden çıkarıldı.');
-                                    },
+                                    onPressed: () => _deleteUstaPermanently(u),
                                   ),
                                 ],
                               ),

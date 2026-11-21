@@ -441,9 +441,20 @@ class AppDataService {
   }
 
   Future<void> saveUstalar(List<NearbyUstaModel> ustalar) async {
-    _cachedUstalar = List.from(ustalar);
-    final list = ustalar.map((u) => u.toJson()).toList();
-    await _persistUstalarToPrefs(ustalar);
+    List<String> deletedList = [];
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      deletedList = prefs.getStringList('deleted_usta_ids') ?? <String>[];
+    } catch (_) {}
+
+    final cleanUstalar = ustalar.where((u) {
+      final p = normalizePhone(u.phone);
+      return !deletedList.contains(u.ustaId) && (p.isEmpty || !deletedList.contains(p));
+    }).toList();
+
+    _cachedUstalar = List.from(cleanUstalar);
+    final list = cleanUstalar.map((u) => u.toJson()).toList();
+    await _persistUstalarToPrefs(cleanUstalar);
     _changesStreamController.add(null);
     _postToSyncServer('/api/ustalar', list);
   }
@@ -642,10 +653,74 @@ class AppDataService {
     await saveUstalar(list);
   }
 
-  Future<void> deleteUsta(String ustaId) async {
+  Future<bool> isUstaDeleted(String phoneOrId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final deletedList = prefs.getStringList('deleted_usta_ids') ?? <String>[];
+      final norm = normalizePhone(phoneOrId);
+      return deletedList.contains(phoneOrId) || (norm.isNotEmpty && deletedList.contains(norm));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> deleteUsta(String ustaId, {String? phone}) async {
+    final normPhone = phone != null && phone.isNotEmpty ? normalizePhone(phone) : '';
+
+    // 1. Kara listeye ekle (Deleted ustalar listesi)
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final deletedList = prefs.getStringList('deleted_usta_ids') ?? <String>[];
+      final deletedSet = deletedList.toSet();
+      if (ustaId.isNotEmpty) deletedSet.add(ustaId);
+      if (normPhone.isNotEmpty) deletedSet.add(normPhone);
+      await prefs.setStringList('deleted_usta_ids', deletedSet.toList());
+    } catch (_) {}
+
+    // 2. Ustalar listesinden sil
     final list = await getUstalar();
-    list.removeWhere((u) => u.ustaId == ustaId);
+    list.removeWhere((u) {
+      final uPhone = normalizePhone(u.phone);
+      return (ustaId.isNotEmpty && u.ustaId == ustaId) ||
+          (normPhone.isNotEmpty && uPhone == normPhone) ||
+          (ustaId.isNotEmpty && uPhone == normalizePhone(ustaId));
+    });
     await saveUstalar(list);
+
+    // 3. İlanları sil
+    final jobs = await getActiveJobs();
+    jobs.removeWhere((j) {
+      final jId = (j['usta_id'] ?? '').toString();
+      final jPhone = normalizePhone((j['customer_phone'] ?? j['usta_phone'] ?? '').toString());
+      return (ustaId.isNotEmpty && jId == ustaId) ||
+          (normPhone.isNotEmpty && jPhone == normPhone);
+    });
+    await saveActiveJobs(jobs);
+
+    // 4. Üyeler listesinden sil
+    final members = await getMembers();
+    members.removeWhere((m) {
+      final mId = (m['id'] ?? '').toString();
+      final mPhone = normalizePhone((m['phone'] ?? '').toString());
+      return (ustaId.isNotEmpty && mId == ustaId) ||
+          (normPhone.isNotEmpty && mPhone == normPhone);
+    });
+    await saveMembers(members);
+
+    // 5. Kayıtlı kullanıcılar önbelleğinden sil
+    if (_cachedRegisteredUsers != null) {
+      if (normPhone.isNotEmpty) _cachedRegisteredUsers!.remove(normPhone);
+      if (ustaId.isNotEmpty) _cachedRegisteredUsers!.remove(ustaId);
+    }
+
+    // 6. Eğer aktif oturum bu ustaya aitse oturumu temizle
+    final session = await getActiveSession();
+    if (session != null) {
+      final sPhone = normalizePhone((session['phone'] ?? '').toString());
+      if ((normPhone.isNotEmpty && sPhone == normPhone) || (session['uid'] ?? session['id']) == ustaId) {
+        await clearActiveSession();
+      }
+    }
   }
 
   // ==========================================
@@ -1108,6 +1183,7 @@ class AppDataService {
       'ucretsiz_mesafe_km': ucretsizMesafeKm,
       'acil_gece_ucreti': acilGeceUcreti,
       'calisma_yaricapi_km': calismaYaricapiKm,
+      'is_custom': true,
       'updated_at': DateTime.now().toIso8601String(),
     };
     try {
@@ -1129,13 +1205,14 @@ class AppDataService {
         ucretsizMesafeKm: ucretsizMesafeKm,
         acilGeceUcreti: acilGeceUcreti,
         calismaYaricapiKm: calismaYaricapiKm,
+        hasCustomTarife: true,
       );
       await saveUstalar(ustalar);
     }
     _changesStreamController.add(null);
   }
 
-  /// Belirli bir ustanın kalıcı ayrıntılı tarife ayarlarını getirir
+  /// Belirli bir ustanın kalıcı ayrıntılı tarife ayarlarını getirir (Yalnızca usta kaydettiyse döner)
   Future<Map<String, double>?> getUstaTarife(String phoneOrUstaId) async {
     final norm = normalizePhone(phoneOrUstaId);
     final key = 'usta_tarife_${norm.isNotEmpty ? norm : 'default'}';
@@ -1144,13 +1221,15 @@ class AppDataService {
       final raw = prefs.getString(key);
       if (raw != null && raw.isNotEmpty) {
         final map = jsonDecode(raw) as Map<String, dynamic>;
-        return {
-          'taban_servis': (map['taban_servis'] as num?)?.toDouble() ?? 500.0,
-          'km_basi_yakit': (map['km_basi_yakit'] as num?)?.toDouble() ?? 15.0,
-          'ucretsiz_mesafe_km': (map['ucretsiz_mesafe_km'] as num?)?.toDouble() ?? 3.0,
-          'acil_gece_ucreti': (map['acil_gece_ucreti'] as num?)?.toDouble() ?? 200.0,
-          'calisma_yaricapi_km': (map['calisma_yaricapi_km'] as num?)?.toDouble() ?? 25.0,
-        };
+        if (map['is_custom'] == true) {
+          return {
+            'taban_servis': (map['taban_servis'] as num?)?.toDouble() ?? 0.0,
+            'km_basi_yakit': (map['km_basi_yakit'] as num?)?.toDouble() ?? 0.0,
+            'ucretsiz_mesafe_km': (map['ucretsiz_mesafe_km'] as num?)?.toDouble() ?? 0.0,
+            'acil_gece_ucreti': (map['acil_gece_ucreti'] as num?)?.toDouble() ?? 0.0,
+            'calisma_yaricapi_km': (map['calisma_yaricapi_km'] as num?)?.toDouble() ?? 20.0,
+          };
+        }
       }
     } catch (e) {
       debugPrint('getUstaTarife prefs error: $e');
@@ -1161,7 +1240,7 @@ class AppDataService {
       (u) => u != null && (normalizePhone(u.phone) == norm || u.ustaId == phoneOrUstaId),
       orElse: () => null,
     );
-    if (match != null && match.servisUcreti > 0) {
+    if (match != null && match.hasCustomTarife && match.servisUcreti > 0) {
       return {
         'taban_servis': match.servisUcreti,
         'km_basi_yakit': match.kmBasiYakitUcreti,
@@ -1518,22 +1597,14 @@ class AppDataService {
       debugPrint('Kayıtlı kullanıcılar yüklenirken hata: $e');
     }
 
-    // 2. Varsayılan kullanıcıları (Demo Kadir Usta ve Ahmet Demir) ekle
-    if (!_cachedRegisteredUsers!.containsKey('5524342069')) {
-      _cachedRegisteredUsers!['5524342069'] = {
-        'phone': '5524342069',
-        'full_name': 'Kadir Usta',
-        'role': 'usta',
-        'registered_at': DateTime.now().toIso8601String(),
-      };
-    }
-    if (!_cachedRegisteredUsers!.containsKey('5329998877')) {
-      _cachedRegisteredUsers!['5329998877'] = {
-        'phone': '5329998877',
-        'full_name': 'Ahmet Demir',
-        'role': 'musteri',
-        'registered_at': DateTime.now().toIso8601String(),
-      };
+    // 2. Silinen ustaları listeden temizle
+    List<String> deletedList = [];
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      deletedList = prefs.getStringList('deleted_usta_ids') ?? <String>[];
+    } catch (_) {}
+    for (final delId in deletedList) {
+      _cachedRegisteredUsers!.remove(delId);
     }
 
     // 3. Mevcut members listesindeki kullanıcıları da dahil et
