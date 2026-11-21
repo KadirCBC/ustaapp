@@ -205,191 +205,188 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           // 3. Ön Plan İçerikleri
           SafeArea(
             child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Spacer(flex: 3),
+              children: [
+                const SizedBox(height: 12),
 
-              // ===============================================================
-              // 1. İKON & RADAR DALGASI
-              // ===============================================================
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Dışarıya doğru genişleyen radar dalgası
-                  AnimatedBuilder(
-                    animation: _rippleController,
-                    builder: (context, child) {
-                      return CustomPaint(
-                        painter: _RipplePainter(_rippleController.value),
-                        size: const Size(220, 220),
-                      );
-                    },
-                  ),
+                // ===============================================================
+                // 1. İKON & RADAR DALGASI (Mavi Çizgi Alanı - En Üst)
+                // ===============================================================
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Dışarıya doğru genişleyen radar dalgası
+                    AnimatedBuilder(
+                      animation: _rippleController,
+                      builder: (context, child) {
+                        return CustomPaint(
+                          painter: _RipplePainter(_rippleController.value),
+                          size: const Size(170, 170),
+                        );
+                      },
+                    ),
 
-                  // Ana Uygulama İkonu
-                  FadeTransition(
-                    opacity: _iconFade,
-                    child: ScaleTransition(
-                      scale: _iconScale,
-                      child: Container(
-                        width: 104,
-                        height: 104,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF0F172A).withValues(alpha: 0.22),
-                              blurRadius: 28,
-                              offset: const Offset(0, 12),
+                    // Ana Uygulama İkonu
+                    FadeTransition(
+                      opacity: _iconFade,
+                      child: ScaleTransition(
+                        scale: _iconScale,
+                        child: Container(
+                          width: 88,
+                          height: 88,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0F172A).withValues(alpha: 0.22),
+                                blurRadius: 24,
+                                offset: const Offset(0, 10),
+                              ),
+                              BoxShadow(
+                                color: const Color(0xFFF97316).withValues(alpha: 0.25),
+                                blurRadius: 32,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: Image.asset(
+                              'assets/images/app_icon.png',
+                              width: 88,
+                              height: 88,
+                              fit: BoxFit.cover,
                             ),
-                            BoxShadow(
-                              color: const Color(0xFFF97316).withValues(alpha: 0.25),
-                              blurRadius: 36,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(28),
-                          child: Image.asset(
-                            'assets/images/app_icon.png',
-                            width: 104,
-                            height: 104,
-                            fit: BoxFit.cover,
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 32),
-
-              // ===============================================================
-              // 2. YATAY LOGO
-              // ===============================================================
-              SlideTransition(
-                position: _logoSlide,
-                child: FadeTransition(
-                  opacity: _logoFade,
-                  child: Image.asset(
-                    'assets/images/app_logo.png',
-                    height: 54,
-                    fit: BoxFit.contain,
-                  ),
+                  ],
                 ),
-              ),
 
-              const SizedBox(height: 16),
+                const SizedBox(height: 10),
 
-              // ===============================================================
-              // 3. BÜYÜTÜLMÜŞ & HAREKETLİ SLOGAN (Shimmer & Expand Lines)
-              // ===============================================================
-              FadeTransition(
-                opacity: _sloganFade,
-                child: SlideTransition(
-                  position: _sloganSlide,
-                  child: ScaleTransition(
-                    scale: _sloganScale,
-                    child: AnimatedBuilder(
-                      animation: Listenable.merge([_shimmerController, _lineWidth]),
-                      builder: (context, _) {
-                        final shimmerValue = _shimmerController.value;
-                        final currentLineWidth = _lineWidth.value;
-
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Sol açılan degrade çizgi
-                            Container(
-                              width: currentLineWidth,
-                              height: 2.0,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    const Color(0xFFF97316).withValues(alpha: 0.0),
-                                    const Color(0xFFF97316).withValues(alpha: 0.85),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(1),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-
-                            // Büyütülmüş & Altın/Turuncu Işıltılı Slogan
-                            ShaderMask(
-                              shaderCallback: (bounds) {
-                                return LinearGradient(
-                                  begin: Alignment(-1.6 + (shimmerValue * 3.2), -0.3),
-                                  end: Alignment(-0.4 + (shimmerValue * 3.2), 0.3),
-                                  colors: const [
-                                    Color(0xFF0F172A),
-                                    Color(0xFFF97316),
-                                    Color(0xFFFBBF24),
-                                    Color(0xFF0F172A),
-                                  ],
-                                  stops: const [0.0, 0.45, 0.55, 1.0],
-                                ).createShader(bounds);
-                              },
-                              child: const Text(
-                                'En Yakın Usta Kapında!',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.5,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-
-                            // Sağ açılan degrade çizgi
-                            Container(
-                              width: currentLineWidth,
-                              height: 2.0,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    const Color(0xFFF97316).withValues(alpha: 0.85),
-                                    const Color(0xFFF97316).withValues(alpha: 0.0),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(1),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
+                // ===============================================================
+                // 2. YATAY LOGO (Kırmızı Çizgi Alanı - İkonun Hemen Altı)
+                // ===============================================================
+                SlideTransition(
+                  position: _logoSlide,
+                  child: FadeTransition(
+                    opacity: _logoFade,
+                    child: Image.asset(
+                      'assets/images/app_logo.png',
+                      height: 52,
+                      fit: BoxFit.contain,
                     ),
                   ),
                 ),
-              ),
 
-              const Spacer(flex: 4),
+                const SizedBox(height: 6),
 
-              // ===============================================================
-              // 4. ALT YÜKLENİYOR ÇİZGİSİ
-              // ===============================================================
-              FadeTransition(
-                opacity: _progressFade,
-                child: SizedBox(
-                  width: 56,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: const LinearProgressIndicator(
-                      minHeight: 3.5,
-                      backgroundColor: Color(0xFFE2E8F0),
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF97316)),
+                // 3. HAREKETLİ SLOGAN ÇİZGİLERİ
+                FadeTransition(
+                  opacity: _sloganFade,
+                  child: SlideTransition(
+                    position: _sloganSlide,
+                    child: ScaleTransition(
+                      scale: _sloganScale,
+                      child: AnimatedBuilder(
+                        animation: Listenable.merge([_shimmerController, _lineWidth]),
+                        builder: (context, _) {
+                          final shimmerValue = _shimmerController.value;
+                          final currentLineWidth = _lineWidth.value;
+
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Sol açılan degrade çizgi
+                              Container(
+                                width: currentLineWidth,
+                                height: 2.0,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      const Color(0xFFF97316).withValues(alpha: 0.0),
+                                      const Color(0xFFF97316).withValues(alpha: 0.85),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(1),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+
+                              // Büyütülmüş & Altın/Turuncu Işıltılı Slogan
+                              ShaderMask(
+                                shaderCallback: (bounds) {
+                                  return LinearGradient(
+                                    begin: Alignment(-1.6 + (shimmerValue * 3.2), -0.3),
+                                    end: Alignment(-0.4 + (shimmerValue * 3.2), 0.3),
+                                    colors: const [
+                                      Color(0xFF0F172A),
+                                      Color(0xFFF97316),
+                                      Color(0xFFFBBF24),
+                                      Color(0xFF0F172A),
+                                    ],
+                                    stops: const [0.0, 0.45, 0.55, 1.0],
+                                  ).createShader(bounds);
+                                },
+                                child: const Text(
+                                  'Ustalar Dakikalar İçinde Kapında!',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.8,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+
+                              // Sağ açılan degrade çizgi
+                              Container(
+                                width: currentLineWidth,
+                                height: 2.0,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      const Color(0xFFF97316).withValues(alpha: 0.85),
+                                      const Color(0xFFF97316).withValues(alpha: 0.0),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(1),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
-              ),
 
-              const SizedBox(height: 36),
-            ],
+                const Spacer(),
+
+                // ===============================================================
+                // 4. ALT YÜKLENİYOR ÇİZGİSİ
+                // ===============================================================
+                FadeTransition(
+                  opacity: _progressFade,
+                  child: SizedBox(
+                    width: 56,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: const LinearProgressIndicator(
+                        minHeight: 3.5,
+                        backgroundColor: Color(0xFFE2E8F0),
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF97316)),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 36),
+              ],
+            ),
           ),
-        ),
       ],
     ),
   ),
@@ -410,7 +407,7 @@ class _RipplePainter extends CustomPainter {
 
     for (int i = 0; i < 2; i++) {
       final p = (progress + (i * 0.5)) % 1.0;
-      final radius = 52.0 + (p * (maxRadius - 52.0));
+      final radius = 46.0 + (p * (maxRadius - 46.0));
       final opacity = (1.0 - p) * 0.35;
 
       final paint = Paint()
