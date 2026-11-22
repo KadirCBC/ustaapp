@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ustaapp/core/models/app_notification_model.dart';
+import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/core/services/notification_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
@@ -116,6 +117,17 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
     );
     String selectedIcon = existingHizmet?.ikon ?? '⚡';
     bool isDefault = existingHizmet?.isDefault ?? false;
+
+    final categoryList = AppDataService.defaultAppCategories
+        .map((c) => (c['name'] ?? c['title'] ?? '').toString())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    String selectedCategory = existingHizmet?.kategori ??
+        (categoryList.isNotEmpty ? categoryList.first : 'Elektrik');
+    if (!categoryList.contains(selectedCategory)) {
+      selectedCategory = categoryList.first;
+    }
 
     const availableIcons = [
       '⚡',
@@ -234,6 +246,62 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
+
+                    // Hizmet Kategorisi Seçimi
+                    DropdownButtonFormField<String>(
+                      value: selectedCategory,
+                      isExpanded: true,
+                      dropdownColor: Colors.white,
+                      icon: const Icon(Icons.arrow_drop_down_rounded,
+                          color: Color(0xFF64748B), size: 28),
+                      style: const TextStyle(
+                        color: Color(0xFF0F172A),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Hizmet Kategorisi / Meslek Alanı',
+                        labelStyle: const TextStyle(color: Color(0xFF64748B)),
+                        prefixIcon: const Icon(Icons.category_rounded,
+                            color: AppTheme.ustaPrimary, size: 20),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: AppTheme.ustaPrimary, width: 2),
+                        ),
+                      ),
+                      items: categoryList.map((catName) {
+                        return DropdownMenuItem<String>(
+                          value: catName,
+                          child: Text(
+                            catName,
+                            style: const TextStyle(
+                              color: Color(0xFF0F172A),
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setModalState(() => selectedCategory = val);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
 
                     // Hizmet Başlığı
                     TextField(
@@ -500,6 +568,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                               ? existingHizmet.id
                               : 'ILN-${DateTime.now().millisecondsSinceEpoch % 9000 + 1000}',
                           baslik: title,
+                          kategori: selectedCategory,
                           aciklama: descController.text.trim(),
                           fiyat: price,
                           tahminiSure: durationController.text.trim().isNotEmpty
@@ -587,47 +656,46 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Usta Kontrol Paneli',
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Flexible(
+              child: Text(
+                'Usta Paneli',
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  fontSize: 18,
+                  fontSize: 17,
                   color: Color(0xFF0F172A),
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+              decoration: BoxDecoration(
+                color: state.isOnline
+                    ? const Color(0xFFDCFCE7)
+                    : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
                   color: state.isOnline
-                      ? const Color(0xFFDCFCE7)
-                      : const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: state.isOnline
-                        ? const Color(0xFF86EFAC)
-                        : const Color(0xFFE2E8F0),
-                  ),
-                ),
-                child: Text(
-                  state.isOnline ? 'ONLINE' : 'OFFLINE',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    color: state.isOnline
-                        ? const Color(0xFF15803D)
-                        : const Color(0xFF64748B),
-                  ),
+                      ? const Color(0xFF86EFAC)
+                      : const Color(0xFFE2E8F0),
                 ),
               ),
-            ],
-          ),
+              child: Text(
+                state.isOnline ? 'ONLINE' : 'OFFLINE',
+                style: TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w900,
+                  color: state.isOnline
+                      ? const Color(0xFF15803D)
+                      : const Color(0xFF64748B),
+                ),
+              ),
+            ),
+          ],
         ),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF0F172A),
@@ -648,6 +716,11 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                 child: Divider(height: 1, color: Color(0xFFE2E8F0)),
               ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.account_balance_wallet_rounded, color: AppTheme.ustaPrimary),
+            tooltip: 'Cüzdanım & Hakediş',
+            onPressed: () => context.push('/usta/wallet'),
+          ),
           ValueListenableBuilder<List<AppNotificationModel>>(
             valueListenable: NotificationService.instance.notificationsNotifier,
             builder: (context, notifs, _) {
@@ -712,7 +785,12 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
               // 1. ÇEVRİMİÇİ / ÇEVRİMDIŞI DOKUNMATİK CANLI STATÜ KARTI
               _buildTactileOnlineCard(state, controller),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+
+              // 1.1 USTA CÜZDANI & HAKEDİŞ HIZLI ERİŞİM BANNERI
+              _buildWalletBannerCard(state),
+
+              const SizedBox(height: 14),
 
               // 2. 4'LÜ PERFORMANS & KAZANÇ MATRİSİ
               _buildPerformanceGrid(state),
@@ -1116,6 +1194,99 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
     }
   }
 
+  /// 1.1 Usta Cüzdanı & Hakediş Hızlı Erişim Kartı
+  Widget _buildWalletBannerCard(UstaDashboardState state) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.12),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: AppTheme.ustaPrimary.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.ustaPrimary.withValues(alpha: 0.3)),
+            ),
+            child: const Icon(
+              Icons.account_balance_wallet_rounded,
+              color: AppTheme.ustaPrimary,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Text(
+                      'Usta Cüzdanı & Hakediş',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(width: 5),
+                    Icon(Icons.shield_rounded, color: Color(0xFF4ADE80), size: 13),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Aktif Hakediş: ${state.weeklyEarnings.toStringAsFixed(0)} ₺ • İyzico Korumalı',
+                  style: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => context.push('/usta/wallet'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.ustaPrimary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              elevation: 0,
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Cüzdan',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(width: 3),
+                Icon(Icons.arrow_forward_ios_rounded, size: 9),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 2. Performans ve Finansal Gösterge Kartları (2x2 Grid)
   Widget _buildPerformanceGrid(UstaDashboardState state) {
     return Column(
@@ -1126,10 +1297,11 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
               child: _MetricCard(
                 title: 'Bugünkü Kazanç',
                 value: '${state.dailyEarnings.toStringAsFixed(0)} ₺',
-                subtitle: '${state.dailyCompletedJobs} Çağrı Tamamlandı',
+                subtitle: '${state.dailyCompletedJobs} İş • 7 Gün Blokeli',
                 icon: Icons.account_balance_wallet_rounded,
                 iconColor: const Color(0xFF16A34A),
                 accentColor: const Color(0xFF15803D),
+                onTap: () => context.push('/usta/wallet'),
               ),
             ),
             const SizedBox(width: 10),
@@ -1137,10 +1309,11 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
               child: _MetricCard(
                 title: 'Haftalık Hakediş',
                 value: '${state.weeklyEarnings.toStringAsFixed(0)} ₺',
-                subtitle: 'Provizyon Güvenceli',
+                subtitle: '7 Gün Provizyon Korumalı',
                 icon: Icons.trending_up_rounded,
                 iconColor: AppTheme.ustaPrimary,
                 accentColor: AppTheme.ustaPrimary,
+                onTap: () => context.push('/usta/wallet'),
               ),
             ),
           ],
@@ -1309,6 +1482,26 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                                     ),
                                   ),
                                 ),
+                                if (hizmet.kategori != null &&
+                                    hizmet.kategori!.isNotEmpty)
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                    ),
+                                    child: Text(
+                                      hizmet.kategori!,
+                                      style: const TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF475569),
+                                      ),
+                                    ),
+                                  ),
                                 if (hizmet.isDefault)
                                   Container(
                                     margin: const EdgeInsets.only(left: 6),
@@ -2057,6 +2250,7 @@ class _MetricCard extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final Color accentColor;
+  final VoidCallback? onTap;
 
   const _MetricCard({
     required this.title,
@@ -2065,54 +2259,74 @@ class _MetricCard extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     required this.accentColor,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF64748B)),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-              Icon(icon, size: 20, color: iconColor),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.w900, color: accentColor),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B)),
+                  ),
+                  Icon(icon, size: 20, color: iconColor),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                value,
+                style: TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.w900, color: accentColor),
+              ),
+              const SizedBox(height: 3),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                    ),
+                  ),
+                  if (onTap != null)
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 10,
+                      color: Color(0xFFCBD5E1),
+                    ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 3),
-          Text(
-            subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-          ),
-        ],
+        ),
       ),
     );
   }

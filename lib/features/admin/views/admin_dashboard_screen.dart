@@ -335,11 +335,34 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   String _formatCategoryName(String raw) {
     final lower = raw.toLowerCase().trim();
-    if (lower.contains('elektrik')) return 'Elektrik & Aydınlatma';
-    if (lower.contains('tesisat')) return 'Sıhhi Tesisat & Su Kaçağı';
-    if (lower.contains('cilingir')) return 'Çilingir & Kapı Açma';
-    if (lower.contains('boya')) return 'Boya, Alçı & Dekorasyon';
-    if (lower.contains('klima')) return 'Klima & Kombi Servisi';
+    if (lower.contains('elektrik')) return 'Elektrik';
+    if (lower.contains('tesisat')) return 'Sıhhi Tesisat';
+    if (lower.contains('cilingir') || lower.contains('çilingir') || lower.contains('kilit')) return 'Çilingir';
+    if (lower.contains('kombi') || lower.contains('petek')) return 'Kombi Servisi';
+    if (lower.contains('klima')) return 'Klima Servisi';
+    if (lower.contains('alçı') || lower.contains('alci') || lower.contains('dekorasyon') || lower.contains('alçıpan')) return 'Alçı & Dekorasyon';
+    if (lower.contains('boya')) return 'Boya';
+    if (lower.contains('marangoz') || lower.contains('mobilya')) return 'Mobilya & Marangoz';
+    if (lower.contains('beyaz')) return 'Beyaz Eşya Tamiri';
+    if (lower.contains('alet') || lower.contains('süpürge')) return 'Küçük Ev Aletleri';
+    if (lower.contains('pimapen') || lower.contains('balkon') || lower.contains('pencere')) return 'Pimapen & Cam Balkon';
+    if (lower.contains('fayans') || lower.contains('seramik') || lower.contains('derz')) return 'Fayans & Seramik';
+    if (lower.contains('parke') || lower.contains('zemin') || lower.contains('laminat')) return 'Parke & Zemin';
+    if (lower.contains('çatı') || lower.contains('cati') || lower.contains('izolasyon')) return 'Çatı & İzolasyon';
+    if (lower.contains('temizlik') || lower.contains('ilaç') || lower.contains('ilac')) return 'Temizlik & İlaçlama';
+    if (lower.contains('yıkama') || lower.contains('yikama') || lower.contains('koltuk') || lower.contains('halı')) return 'Halı & Koltuk Yıkama';
+    if (lower.contains('çekici') || lower.contains('cekici') || lower.contains('kurtarma')) return 'Oto Kurtarma & Çekici';
+    if (lower.contains('oto') || lower.contains('mekanik') || lower.contains('araba')) return 'Oto Mekanik & Bakım';
+    if (lower.contains('demir') || lower.contains('ferforje') || lower.contains('kaynak')) return 'Demir Doğrama & Ferforje';
+    if (lower.contains('güvenlik') || lower.contains('guvenlik') || lower.contains('elektronik') || lower.contains('kamera') || lower.contains('alarm')) return 'Elektronik & Güvenlik';
+    if (lower.contains('bahçe') || lower.contains('bahce') || lower.contains('peyzaj')) return 'Bahçe & Peyzaj';
+    if (lower.contains('solar') || lower.contains('güneş') || lower.contains('gunes')) return 'Güneş Enerjisi & Solar';
+    if (lower.contains('havalandırma') || lower.contains('baca') || lower.contains('havalandirma')) return 'Havalandırma & Baca';
+    if (lower.contains('rezervuar') || lower.contains('klozet') || lower.contains('sifon')) return 'Gömme Rezervuar & Klozet';
+    if (lower.contains('tente') || lower.contains('branda') || lower.contains('gölgelik')) return 'Tente & Gölgelendirme';
+    if (lower.contains('arıtma') || lower.contains('aritma')) return 'Su Arıtma Servisi';
+    if (lower.contains('doğalgaz') || lower.contains('dogalgaz') || lower.contains('kalorifer')) return 'Doğalgaz & Kalorifer';
+    if (lower.contains('nakliye') || lower.contains('kurye') || lower.contains('taşımacılık')) return 'Kurye & Nakliye';
     return raw;
   }
 
@@ -347,9 +370,32 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final lower = formatted.toLowerCase().trim();
     if (lower.contains('elektrik')) return 'elektrik';
     if (lower.contains('tesisat')) return 'tesisat';
-    if (lower.contains('cilingir')) return 'cilingir';
-    if (lower.contains('boya')) return 'boya';
+    if (lower.contains('cilingir') || lower.contains('çilingir')) return 'cilingir';
+    if (lower.contains('kombi')) return 'kombi';
     if (lower.contains('klima')) return 'klima';
+    if (lower.contains('boya')) return 'boya';
+    if (lower.contains('alçı') || lower.contains('alci')) return 'alci';
+    if (lower.contains('marangoz') || lower.contains('mobilya')) return 'marangoz';
+    if (lower.contains('beyaz')) return 'beyazesya';
+    if (lower.contains('alet')) return 'kucukevaletleri';
+    if (lower.contains('pimapen')) return 'pimapen';
+    if (lower.contains('fayans')) return 'fayans';
+    if (lower.contains('parke')) return 'parke';
+    if (lower.contains('cati') || lower.contains('çatı')) return 'cati';
+    if (lower.contains('temizlik')) return 'temizlik';
+    if (lower.contains('yıkama') || lower.contains('yikama')) return 'hali';
+    if (lower.contains('çekici') || lower.contains('cekici')) return 'cekici';
+    if (lower.contains('oto')) return 'otomekanik';
+    if (lower.contains('demir')) return 'demirdograma';
+    if (lower.contains('güvenlik') || lower.contains('elektronik')) return 'guvenlik';
+    if (lower.contains('bahçe') || lower.contains('bahce')) return 'bahce';
+    if (lower.contains('solar') || lower.contains('güneş')) return 'solar';
+    if (lower.contains('havalandırma')) return 'havalandirma';
+    if (lower.contains('rezervuar')) return 'rezervuar';
+    if (lower.contains('tente')) return 'tente';
+    if (lower.contains('arıtma')) return 'suaritma';
+    if (lower.contains('doğalgaz')) return 'dogalgaz';
+    if (lower.contains('nakliye')) return 'nakliye';
     return formatted.toLowerCase();
   }
 
@@ -388,6 +434,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       // 3. Kategoriler
       final cats = await appData.getCategories();
       _categories = cats.map((c) => _categoryFromJson(c)).toList();
+      if (_categories.length < 20) {
+        await appData.saveCategories(AppDataService.defaultAppCategories);
+        _categories = AppDataService.defaultAppCategories.map((c) => _categoryFromJson(c)).toList();
+      }
 
       // 4. Harita Pinleri
       final pins = await appData.getMapPins();
@@ -709,21 +759,35 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       case 'water':
         return Icons.water_drop_rounded;
       case 'key':
-        return Icons.key_rounded;
+        return Icons.vpn_key_rounded;
+      case 'fire':
+        return Icons.local_fire_department_rounded;
       case 'ac':
         return Icons.ac_unit_rounded;
-      case 'repair':
-        return Icons.home_repair_service_rounded;
       case 'paint':
         return Icons.format_paint_rounded;
       case 'engineering':
-        return Icons.engineering_rounded;
+        return Icons.construction_rounded;
+      case 'carpenter':
+        return Icons.handyman_rounded;
+      case 'repair':
+        return Icons.home_repair_service_rounded;
+      case 'cleaning':
+        return Icons.cleaning_services_rounded;
+      case 'shipping':
+        return Icons.local_shipping_rounded;
+      case 'car':
+        return Icons.directions_car_rounded;
+      case 'security':
+        return Icons.security_rounded;
+      case 'grass':
+        return Icons.yard_rounded;
+      case 'solar':
+        return Icons.solar_power_rounded;
       case 'store':
         return Icons.storefront_rounded;
       case 'warning':
         return Icons.warning_amber_rounded;
-      case 'shipping':
-        return Icons.local_shipping_rounded;
       default:
         return Icons.category_rounded;
     }
@@ -732,21 +796,30 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   String _nameFromIcon(IconData? icon) {
     if (icon == Icons.bolt_rounded) return 'bolt';
     if (icon == Icons.water_drop_rounded) return 'water';
-    if (icon == Icons.key_rounded) return 'key';
+    if (icon == Icons.vpn_key_rounded || icon == Icons.key_rounded) return 'key';
+    if (icon == Icons.local_fire_department_rounded) return 'fire';
     if (icon == Icons.ac_unit_rounded) return 'ac';
-    if (icon == Icons.home_repair_service_rounded) return 'repair';
     if (icon == Icons.format_paint_rounded) return 'paint';
-    if (icon == Icons.engineering_rounded) return 'engineering';
+    if (icon == Icons.construction_rounded || icon == Icons.engineering_rounded) return 'engineering';
+    if (icon == Icons.handyman_rounded) return 'carpenter';
+    if (icon == Icons.home_repair_service_rounded) return 'repair';
+    if (icon == Icons.cleaning_services_rounded) return 'cleaning';
+    if (icon == Icons.local_shipping_rounded) return 'shipping';
+    if (icon == Icons.directions_car_rounded) return 'car';
+    if (icon == Icons.security_rounded) return 'security';
+    if (icon == Icons.yard_rounded) return 'grass';
+    if (icon == Icons.solar_power_rounded) return 'solar';
     if (icon == Icons.storefront_rounded) return 'store';
     if (icon == Icons.warning_amber_rounded) return 'warning';
-    if (icon == Icons.local_shipping_rounded) return 'shipping';
     return 'category';
   }
 
   Map<String, dynamic> _categoryToJson(Map<String, dynamic> c) {
+    final catName = (c['name'] ?? c['title'] ?? '').toString();
     return {
       'id': c['id'],
-      'name': c['name'],
+      'name': catName,
+      'title': catName,
       'type': c['type'],
       'iconName': (c['icon'] is IconData) ? _nameFromIcon(c['icon'] as IconData) : 'category',
       'colorValue': (c['color'] is Color) ? (c['color'] as Color).toARGB32() : null,
@@ -756,9 +829,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   Map<String, dynamic> _categoryFromJson(Map<String, dynamic> m) {
+    final catName = (m['name'] ?? m['title'] ?? m['ad'] ?? m['kategori_adi'] ?? '').toString();
     return {
       'id': m['id'] ?? '',
-      'name': m['name'] ?? '',
+      'name': catName,
+      'title': catName,
       'type': m['type'] ?? 'Usta Hizmeti',
       'icon': _iconFromName(m['iconName']?.toString()),
       'color': m['colorValue'] != null ? Color(m['colorValue']) : const Color(0xFF0284C7),
@@ -803,7 +878,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     String selectedLocation = (u['location'] ?? 'Kadıköy, İstanbul').toString();
     double selectedLat = (u['latitude'] as num?)?.toDouble() ?? 40.9905;
     double selectedLng = (u['longitude'] as num?)?.toDouble() ?? 29.0270;
-    String kategori = (u['kategori'] ?? 'Elektrik & Aydınlatma').toString();
+    String kategori = _formatCategoryName((u['kategori'] ?? 'Elektrik').toString());
     String status = (u['status'] ?? 'Çevrimiçi').toString();
 
     showDialog(
@@ -838,16 +913,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: kategori,
+                          value: _categories.any((c) => (c['name'] ?? '').toString() == kategori)
+                              ? kategori
+                              : (_categories.isNotEmpty ? (_categories.first['name'] ?? 'Elektrik').toString() : 'Elektrik'),
                           decoration: const InputDecoration(labelText: 'Meslek / Kategori', border: OutlineInputBorder()),
-                          items: [
-                            'Elektrik & Aydınlatma',
-                            'Sıhhi Tesisat & Su Kaçağı',
-                            'Çilingir & Kapı Açma',
-                            'Klima & Kombi Servisi',
-                            'Boya, Alçı & Dekorasyon',
-                            'Hırdavat & Nalburiye',
-                          ].map((k) => DropdownMenuItem(value: k, child: Text(k, style: const TextStyle(fontSize: 12.5)))).toList(),
+                          items: (_categories.isNotEmpty
+                                  ? _categories.map((c) => (c['name'] ?? '').toString()).where((s) => s.isNotEmpty).toSet().toList()
+                                  : AppDataService.defaultAppCategories.map((c) => c['name'] as String).toList())
+                              .map((k) => DropdownMenuItem(value: k, child: Text(k, style: const TextStyle(fontSize: 12.5))))
+                              .toList(),
                           onChanged: (val) {
                             if (val != null) setDlgState(() => kategori = val);
                           },
@@ -953,7 +1027,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     String selectedLocation = 'Kadıköy, İstanbul';
     double selectedLat = 40.9905;
     double selectedLng = 29.0270;
-    String kategori = 'Elektrik & Aydınlatma';
+    String kategori = 'Elektrik';
     String status = 'Çevrimiçi';
 
     showDialog(
@@ -988,16 +1062,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: kategori,
+                          value: _categories.any((c) => (c['name'] ?? '').toString() == kategori)
+                              ? kategori
+                              : (_categories.isNotEmpty ? (_categories.first['name'] ?? 'Elektrik').toString() : 'Elektrik'),
                           decoration: const InputDecoration(labelText: 'Meslek / Kategori', border: OutlineInputBorder()),
-                          items: [
-                            'Elektrik & Aydınlatma',
-                            'Sıhhi Tesisat & Su Kaçağı',
-                            'Çilingir & Kapı Açma',
-                            'Klima & Kombi Servisi',
-                            'Boya, Alçı & Dekorasyon',
-                            'Hırdavat & Nalburiye',
-                          ].map((k) => DropdownMenuItem(value: k, child: Text(k, style: const TextStyle(fontSize: 12.5)))).toList(),
+                          items: (_categories.isNotEmpty
+                                  ? _categories.map((c) => (c['name'] ?? '').toString()).where((s) => s.isNotEmpty).toSet().toList()
+                                  : AppDataService.defaultAppCategories.map((c) => c['name'] as String).toList())
+                              .map((k) => DropdownMenuItem(value: k, child: Text(k, style: const TextStyle(fontSize: 12.5))))
+                              .toList(),
                           onChanged: (val) {
                             if (val != null) setDlgState(() => kategori = val);
                           },
@@ -1123,7 +1196,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final phoneCtrl = TextEditingController();
     final expCtrl = TextEditingController(text: '5 Yıl');
     final docCtrl = TextEditingController(text: 'Mesleki Yeterlilik (MYK) Belgesi');
-    String meslek = 'Elektrik & Aydınlatma';
+    String meslek = 'Elektrik';
 
     showDialog(
       context: context,
@@ -1148,15 +1221,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'Telefon Numarası', border: OutlineInputBorder())),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: meslek,
+                    value: _categories.any((c) => (c['name'] ?? '').toString() == meslek)
+                        ? meslek
+                        : (_categories.isNotEmpty ? (_categories.first['name'] ?? 'Elektrik').toString() : 'Elektrik'),
                     decoration: const InputDecoration(labelText: 'Meslek Alanı', border: OutlineInputBorder()),
-                    items: [
-                      'Elektrik & Aydınlatma',
-                      'Sıhhi Tesisat & Su Kaçağı',
-                      'Çilingir & Kapı Açma',
-                      'Klima & Kombi Servisi',
-                      'Boya, Alçı & Dekorasyon',
-                    ].map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                    items: (_categories.isNotEmpty
+                            ? _categories.map((c) => (c['name'] ?? '').toString()).where((s) => s.isNotEmpty).toSet().toList()
+                            : AppDataService.defaultAppCategories.map((c) => c['name'] as String).toList())
+                        .map((m) => DropdownMenuItem(value: m, child: Text(m, style: const TextStyle(fontSize: 12.5))))
+                        .toList(),
                     onChanged: (val) {
                       if (val != null) setDlgState(() => meslek = val);
                     },
@@ -1241,7 +1314,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     String selectedLocation = 'Kadıköy / Moda';
     double selectedLat = 40.9850;
     double selectedLng = 29.0285;
-    String category = 'Elektrik & Aydınlatma';
+    String category = 'Elektrik';
     bool isUrgent = false;
     String? selectedUstaId;
 
@@ -1251,7 +1324,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       selectedUstaId = firstUsta['id']?.toString();
       ustaNameCtrl.text = (firstUsta['full_name'] ?? 'Kadir Usta').toString();
       ustaPhoneCtrl.text = (firstUsta['phone'] ?? '05524342069').toString();
-      category = (firstUsta['kategori'] ?? 'Elektrik & Aydınlatma').toString();
+      category = _formatCategoryName((firstUsta['kategori'] ?? 'Elektrik').toString());
       selectedLocation = (firstUsta['location'] ?? 'Kadıköy / Moda').toString();
       selectedLat = _asDouble(firstUsta['latitude'], 40.9850);
       selectedLng = _asDouble(firstUsta['longitude'], 29.0285);
@@ -1396,15 +1469,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: _categories.any((c) => (c['title'] ?? c['ad'] ?? '').toString() == category) ? category : 'Elektrik & Aydınlatma',
+                          value: _categories.any((c) => (c['name'] ?? c['title'] ?? '').toString() == category)
+                              ? category
+                              : (_categories.isNotEmpty ? (_categories.first['name'] ?? 'Elektrik').toString() : 'Elektrik'),
                           decoration: const InputDecoration(labelText: 'Hizmet Kategorisi', border: OutlineInputBorder()),
-                          items: const [
-                            DropdownMenuItem(value: 'Elektrik & Aydınlatma', child: Text('Elektrik & Aydınlatma', style: TextStyle(fontSize: 12.5))),
-                            DropdownMenuItem(value: 'Sıhhi Tesisat & Su Kaçağı', child: Text('Sıhhi Tesisat & Su Kaçağı', style: TextStyle(fontSize: 12.5))),
-                            DropdownMenuItem(value: 'Çilingir & Kapı Açma', child: Text('Çilingir & Kapı Açma', style: TextStyle(fontSize: 12.5))),
-                            DropdownMenuItem(value: 'Klima & Kombi Servisi', child: Text('Klima & Kombi Servisi', style: TextStyle(fontSize: 12.5))),
-                            DropdownMenuItem(value: 'Boya, Alçı & Dekorasyon', child: Text('Boya, Alçı & Dekorasyon', style: TextStyle(fontSize: 12.5))),
-                          ],
+                          items: (_categories.isNotEmpty
+                                  ? _categories.map((c) => (c['name'] ?? c['title'] ?? '').toString()).where((s) => s.isNotEmpty).toSet().toList()
+                                  : AppDataService.defaultAppCategories.map((c) => c['name'] as String).toList())
+                              .map((k) => DropdownMenuItem(value: k, child: Text(k, style: const TextStyle(fontSize: 12.5))))
+                              .toList(),
                           onChanged: (val) {
                             if (val != null) setDlgState(() => category = val);
                           },
@@ -2180,6 +2253,43 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   // 1. Kategori Yönetimi Metotları
+  void _resetToDefaultCategories() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.auto_awesome_rounded, color: Color(0xFF0284C7)),
+            SizedBox(width: 8),
+            Text('28 Meslek Dalını Yükle'),
+          ],
+        ),
+        content: const Text(
+          'Elektrik, Sıhhi Tesisat, Çilingir, Kombi Servisi, Klima Servisi, Boya, Alçı & Dekorasyon gibi '
+          'araştırılmış tüm 28 meslek dalı ve kategorisi sisteme kalıcı olarak yüklenecektir. Onaylıyor musunuz?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0284C7), foregroundColor: Colors.white),
+            child: const Text('Evet, Yükle ve Güncelle'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final appData = ref.read(appDataServiceProvider);
+      await appData.saveCategories(AppDataService.defaultAppCategories);
+      setState(() {
+        _categories = AppDataService.defaultAppCategories.map((c) => _categoryFromJson(c)).toList();
+      });
+      _showSuccessToast('Tüm 28 meslek dalı kategorisi başarıyla yüklendi!');
+    }
+  }
+
   void _showAddCategoryDialog() {
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
@@ -2313,6 +2423,384 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showCommissionSettingsDialog() async {
+    final settings = await AppDataService().getCommissionSettings();
+    double defaultRate = (settings['default_rate'] as num?)?.toDouble() ?? 15.0;
+    bool isCategoryBased = settings['is_category_based'] == true;
+    Map<String, double> categoryRates = {};
+    if (settings['category_rates'] is Map) {
+      (settings['category_rates'] as Map).forEach((k, v) {
+        categoryRates[k.toString()] = (v as num?)?.toDouble() ?? 15.0;
+      });
+    }
+
+    final defaultRateCtrl = TextEditingController(text: defaultRate.toStringAsFixed(0));
+    final singleRateCtrl = TextEditingController(text: '15');
+
+    final List<String> standardCategories = AppDataService.defaultAppCategories
+        .map((c) => (c['name'] ?? c['title'] ?? '').toString())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    final Set<String> allCategoryNames = {};
+    for (final c in _categories) {
+      final name = (c['name'] ?? c['title'] ?? c['ad'] ?? c['kategori_adi'] ?? '').toString().trim();
+      if (name.isNotEmpty) {
+        allCategoryNames.add(name);
+      }
+    }
+    allCategoryNames.addAll(standardCategories);
+    final List<String> availableCategories = allCategoryNames.toList()..sort();
+
+    for (final cat in availableCategories) {
+      categoryRates.putIfAbsent(cat, () => defaultRate);
+    }
+
+    String selectedCategory = availableCategories.first;
+    if (categoryRates.containsKey(selectedCategory)) {
+      singleRateCtrl.text = categoryRates[selectedCategory]!.toStringAsFixed(0);
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) {
+          return AlertDialog(
+            backgroundColor: _bgSurface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.percent_rounded, color: Color(0xFF2563EB), size: 22),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Komisyon Oranları & Hakediş Kuralları',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _textPrimary),
+                      ),
+                      Text(
+                        'Platform komisyon oranlarını ve 7 günlük bloke kuralını yapılandırın',
+                        style: TextStyle(fontSize: 11.5, color: _textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 7 Gün Blokeli Kuralı Bilgi Kutusu
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                      ),
+                      child: const Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.lock_clock_rounded, size: 18, color: Color(0xFFD97706)),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '7 Gün Provizyon Blokesi Aktif',
+                                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Ustaların bugün tamamladığı işler en az 7 gün süreyle provizyon güvencesi kapsamında blokeli kalır. 7 günün ardından usta çekilebilir bakiyesine geçer.',
+                                  style: TextStyle(fontSize: 11, color: Color(0xFFB45309)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Komisyon Modu Seçimi (Tüm Kategoriler vs Tekil Kategori)
+                    Text('Komisyon Belirleme Kapsamı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setDlgState(() => isCategoryBased = false),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: !isCategoryBased ? const Color(0xFFEFF6FF) : _bgPrimary,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: !isCategoryBased ? const Color(0xFF2563EB) : _borderSecondary,
+                                  width: !isCategoryBased ? 1.5 : 1.0,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    !isCategoryBased ? Icons.radio_button_checked : Icons.radio_button_off,
+                                    size: 16,
+                                    color: !isCategoryBased ? const Color(0xFF2563EB) : _textSecondary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Tüm Kategoriler İçin Tek Oran',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: !isCategoryBased ? const Color(0xFF1E40AF) : _textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setDlgState(() => isCategoryBased = true),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isCategoryBased ? const Color(0xFFEFF6FF) : _bgPrimary,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isCategoryBased ? const Color(0xFF2563EB) : _borderSecondary,
+                                  width: isCategoryBased ? 1.5 : 1.0,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    isCategoryBased ? Icons.radio_button_checked : Icons.radio_button_off,
+                                    size: 16,
+                                    color: isCategoryBased ? const Color(0xFF2563EB) : _textSecondary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Kategoriye Özel Oran Belirle',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: isCategoryBased ? const Color(0xFF1E40AF) : _textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    if (!isCategoryBased) ...[
+                      // 1. TÜM KATEGORİLER İÇİN GENEL KOMİSYON ORANI
+                      Text('Genel Platform Komisyon Oranı (%)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: defaultRateCtrl,
+                        keyboardType: TextInputType.number,
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary),
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.percent_rounded, size: 18),
+                          suffixText: '% Komisyon Kesintisi',
+                          hintText: 'Örn: 15',
+                          filled: true,
+                          fillColor: _bgPrimary,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _borderSecondary)),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Bu oran seçildiğinde tüm hizmet ve siparişlerden istisnasız %${defaultRateCtrl.text} komisyon kesilir.',
+                        style: TextStyle(fontSize: 11.5, color: _textSecondary),
+                      ),
+                    ] else ...[
+                      // 2. KATEGORİYE ÖZEL ORAN
+                      Text('Hedef Kategori Seçimi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<String>(
+                        value: availableCategories.contains(selectedCategory) ? selectedCategory : availableCategories.first,
+                        isExpanded: true,
+                        dropdownColor: _isDarkMode ? _bgSurface : Colors.white,
+                        icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF475569), size: 28),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: _isDarkMode ? Colors.white : const Color(0xFF0F172A),
+                          fontWeight: FontWeight.w700,
+                        ),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: _isDarkMode ? _bgPrimary : const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _borderSecondary)),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _borderSecondary)),
+                        ),
+                        items: availableCategories.map((catName) => DropdownMenuItem<String>(
+                          value: catName,
+                          child: Text(
+                            catName,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: _isDarkMode ? Colors.white : const Color(0xFF0F172A),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        )).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDlgState(() {
+                              selectedCategory = val;
+                              final existing = categoryRates[val] ?? defaultRate;
+                              singleRateCtrl.text = existing.toStringAsFixed(0);
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      Text('$selectedCategory Komisyon Oranı (%)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: singleRateCtrl,
+                              keyboardType: TextInputType.number,
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary),
+                              decoration: InputDecoration(
+                                prefixIcon: const Icon(Icons.percent_rounded, size: 18),
+                                suffixText: '% Komisyon',
+                                hintText: 'Örn: 12',
+                                filled: true,
+                                fillColor: _bgPrimary,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _borderSecondary)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          ElevatedButton(
+                            onPressed: () {
+                              final rate = double.tryParse(singleRateCtrl.text.trim()) ?? defaultRate;
+                              setDlgState(() {
+                                categoryRates[selectedCategory] = rate;
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2563EB),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text('Oranı Güncelle'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Kayıtlı Kategori Oranları Listesi
+                      Text('Aktif Kategori Komisyon Tablosu', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary)),
+                      const SizedBox(height: 6),
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 140),
+                        decoration: BoxDecoration(
+                          color: _bgPrimary,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: _borderSecondary),
+                        ),
+                        child: ListView(
+                          shrinkWrap: true,
+                          children: categoryRates.entries.map((entry) {
+                            return ListTile(
+                              dense: true,
+                              title: Text(entry.key, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: _textPrimary)),
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text('%${entry.value.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('İptal', style: TextStyle(color: _textSecondary)),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final parsedDefault = double.tryParse(defaultRateCtrl.text.trim()) ?? 15.0;
+                  final newSettings = {
+                    'default_rate': parsedDefault,
+                    'is_category_based': isCategoryBased,
+                    'category_rates': categoryRates,
+                    'hold_days': 7,
+                  };
+
+                  await AppDataService().saveCommissionSettings(newSettings);
+                  if (Navigator.of(context, rootNavigator: true).canPop()) {
+                    Navigator.of(context, rootNavigator: true).pop();
+                  } else if (Navigator.of(ctx).canPop()) {
+                    Navigator.of(ctx).pop();
+                  }
+
+                  setState(() {});
+                  _showSuccessToast('Komisyon oranları ve 7 günlük bloke kuralı başarıyla kaydedildi!');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF16A34A),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('Kaydet ve Uygula', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -5216,7 +5704,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final filteredUstalar = _activeUstalar.where((u) {
       final matchesSearch = u['full_name'].toString().toLowerCase().contains(_ustaSearchQuery.toLowerCase()) ||
           u['phone'].toString().contains(_ustaSearchQuery);
-      final matchesCat = _ustaFilterCategory == 'Tümü' || u['kategori'] == _ustaFilterCategory;
+      final matchesCat = _ustaFilterCategory == 'Tümü' ||
+          u['kategori'] == _ustaFilterCategory ||
+          _formatCategoryName((u['kategori'] ?? '').toString()) == _ustaFilterCategory;
       return matchesSearch && matchesCat;
     }).toList();
 
@@ -5265,8 +5755,20 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     ),
                     const SizedBox(width: 12),
                     DropdownButton<String>(
-                      value: _ustaFilterCategory,
-                      items: ['Tümü', 'Elektrik & Aydınlatma', 'Sıhhi Tesisat & Su Kaçağı', 'Çilingir & Kapı Açma', 'Klima & Kombi Servisi', 'Boya, Alçı & Dekorasyon']
+                      value: {
+                        'Tümü',
+                        ...(_categories.isNotEmpty
+                            ? _categories.map((c) => (c['name'] ?? '').toString()).where((s) => s.isNotEmpty)
+                            : AppDataService.defaultAppCategories.map((c) => c['name'] as String))
+                      }.contains(_ustaFilterCategory)
+                          ? _ustaFilterCategory
+                          : 'Tümü',
+                      items: {
+                        'Tümü',
+                        ...(_categories.isNotEmpty
+                            ? _categories.map((c) => (c['name'] ?? '').toString()).where((s) => s.isNotEmpty)
+                            : AppDataService.defaultAppCategories.map((c) => c['name'] as String))
+                      }
                           .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13))))
                           .toList(),
                       onChanged: (val) {
@@ -6342,6 +6844,31 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   // SEKME 6: KATEGORİ YÖNETİMİ
   // ==========================================
 
+  (int ustaCount, int ilanCount) _getCategoryAssetCounts(Map<String, dynamic> c) {
+    final catName = (c['name'] ?? c['title'] ?? '').toString().trim().toLowerCase();
+    final catKey = _rawCategoryKey(catName);
+
+    int uCount = 0;
+    for (final u in _activeUstalar) {
+      final uCat = (u['kategori'] ?? '').toString().trim().toLowerCase();
+      if (uCat.isEmpty) continue;
+      if (uCat == catName || _formatCategoryName(uCat).toLowerCase() == catName || uCat.contains(catKey) || catName.contains(uCat)) {
+        uCount++;
+      }
+    }
+
+    int jCount = 0;
+    for (final j in _activeJobs) {
+      final jCat = (j['category'] ?? j['kategori'] ?? '').toString().trim().toLowerCase();
+      if (jCat.isEmpty) continue;
+      if (jCat == catName || _formatCategoryName(jCat).toLowerCase() == catName || jCat.contains(catKey) || catName.contains(jCat)) {
+        jCount++;
+      }
+    }
+
+    return (uCount, jCount);
+  }
+
   Widget _buildCategoriesTab() {
     return Container(
       decoration: BoxDecoration(
@@ -6372,15 +6899,39 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     ),
                   ],
                 ),
-                ElevatedButton.icon(
-                  onPressed: _showAddCategoryDialog,
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Yeni Kategori Ekle'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.ustaPrimary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
+                Wrap(
+                  spacing: 10,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _showCommissionSettingsDialog,
+                      icon: const Icon(Icons.percent_rounded, size: 16),
+                      label: const Text('Komisyon Oranları'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2563EB),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _resetToDefaultCategories,
+                      icon: const Icon(Icons.auto_awesome_rounded, size: 16, color: Color(0xFF0284C7)),
+                      label: const Text('Tüm Meslekleri Yükle (28 Kategori)', style: TextStyle(color: Color(0xFF0284C7), fontWeight: FontWeight.bold)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF0284C7), width: 1.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _showAddCategoryDialog,
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Yeni Kategori Ekle'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.ustaPrimary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -6472,17 +7023,33 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               ),
                             ),
                             DataCell(
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-                                decoration: BoxDecoration(
-                                  color: _bgSurfaceElevated,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: _borderPrimary),
-                                ),
-                                child: Text(
-                                  '${c['count']} Kayıtlı',
-                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: _textSecondary),
-                                ),
+                              Builder(
+                                builder: (context) {
+                                  final (uCount, jCount) = _getCategoryAssetCounts(c);
+                                  final bool hasAny = uCount > 0 || jCount > 0;
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: hasAny
+                                          ? const Color(0xFF0284C7).withValues(alpha: 0.1)
+                                          : (_isDarkMode ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9)),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: hasAny ? const Color(0xFF0284C7).withValues(alpha: 0.3) : _borderPrimary,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      !hasAny
+                                          ? '0 Usta (Kayıt Yok)'
+                                          : (jCount > 0 ? '$uCount Usta • $jCount İlan' : '$uCount Usta Kayıtlı'),
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: hasAny ? const Color(0xFF0284C7) : _textMuted,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                             DataCell(
@@ -6733,6 +7300,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           style: OutlinedButton.styleFrom(
                             foregroundColor: _textPrimary,
                             side: BorderSide(color: _borderSecondary),
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _showCommissionSettingsDialog,
+                          icon: const Icon(Icons.percent_rounded, size: 16),
+                          label: const Text('Komisyon Oranları'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2563EB),
+                            foregroundColor: Colors.white,
                           ),
                         ),
                         ElevatedButton.icon(

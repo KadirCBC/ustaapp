@@ -55,9 +55,15 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
 
   final List<Map<String, dynamic>> _categories = const [
     {'key': 'tum', 'label': 'Tüm İlanlar', 'icon': Icons.apps_rounded},
-    {'key': 'elektrik', 'label': 'Elektrik & Aydınlatma', 'icon': Icons.bolt_rounded},
-    {'key': 'cilingir', 'label': 'Çilingir & Kilit', 'icon': Icons.vpn_key_rounded},
-    {'key': 'tesisat', 'label': 'Sıhhi Tesisat & Su', 'icon': Icons.build_rounded},
+    {'key': 'elektrik', 'label': 'Elektrik', 'icon': Icons.bolt_rounded},
+    {'key': 'tesisat', 'label': 'Sıhhi Tesisat', 'icon': Icons.water_drop_rounded},
+    {'key': 'cilingir', 'label': 'Çilingir', 'icon': Icons.vpn_key_rounded},
+    {'key': 'kombi', 'label': 'Kombi Servisi', 'icon': Icons.local_fire_department_rounded},
+    {'key': 'klima', 'label': 'Klima Servisi', 'icon': Icons.ac_unit_rounded},
+    {'key': 'boya', 'label': 'Boya', 'icon': Icons.format_paint_rounded},
+    {'key': 'alci', 'label': 'Alçı & Dekorasyon', 'icon': Icons.construction_rounded},
+    {'key': 'marangoz', 'label': 'Mobilya & Marangoz', 'icon': Icons.handyman_rounded},
+    {'key': 'beyazesya', 'label': 'Beyaz Eşya Tamiri', 'icon': Icons.home_repair_service_rounded},
     {'key': 'tedarikciler', 'label': 'Tedarikçiler / Dükkanlar', 'icon': Icons.storefront_rounded},
   ];
 

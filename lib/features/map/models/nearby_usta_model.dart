@@ -9,6 +9,7 @@ class UstaHizmetIlan {
   final String? konum;
   final double? lat;
   final double? lng;
+  final String? kategori;
 
   const UstaHizmetIlan({
     required this.id,
@@ -21,6 +22,7 @@ class UstaHizmetIlan {
     this.konum,
     this.lat,
     this.lng,
+    this.kategori,
   });
 
   factory UstaHizmetIlan.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,7 @@ class UstaHizmetIlan {
       konum: json['konum'] as String?,
       lat: (json['lat'] as num?)?.toDouble(),
       lng: (json['lng'] as num?)?.toDouble(),
+      kategori: json['kategori'] as String? ?? json['category'] as String?,
     );
   }
 
@@ -49,6 +52,8 @@ class UstaHizmetIlan {
     if (konum != null) 'konum': konum,
     if (lat != null) 'lat': lat,
     if (lng != null) 'lng': lng,
+    if (kategori != null) 'kategori': kategori,
+    if (kategori != null) 'category': kategori,
   };
 
   UstaHizmetIlan copyWith({
@@ -62,6 +67,7 @@ class UstaHizmetIlan {
     String? konum,
     double? lat,
     double? lng,
+    String? kategori,
   }) {
     return UstaHizmetIlan(
       id: id ?? this.id,
@@ -74,6 +80,7 @@ class UstaHizmetIlan {
       konum: konum ?? this.konum,
       lat: lat ?? this.lat,
       lng: lng ?? this.lng,
+      kategori: kategori ?? this.kategori,
     );
   }
 }

@@ -253,9 +253,14 @@ class CategoryFilterBar extends StatelessWidget {
   static const List<CategoryItem> _categories = [
     CategoryItem(key: 'tum', label: 'Tümü', icon: Icons.apps_rounded),
     CategoryItem(key: 'elektrik', label: 'Elektrik', icon: Icons.bolt_rounded),
-    CategoryItem(
-        key: 'cilingir', label: 'Çilingir', icon: Icons.vpn_key_rounded),
-    CategoryItem(key: 'tesisat', label: 'Tesisat', icon: Icons.build_rounded),
+    CategoryItem(key: 'tesisat', label: 'Sıhhi Tesisat', icon: Icons.water_drop_rounded),
+    CategoryItem(key: 'cilingir', label: 'Çilingir', icon: Icons.vpn_key_rounded),
+    CategoryItem(key: 'kombi', label: 'Kombi Servisi', icon: Icons.local_fire_department_rounded),
+    CategoryItem(key: 'klima', label: 'Klima Servisi', icon: Icons.ac_unit_rounded),
+    CategoryItem(key: 'boya', label: 'Boya', icon: Icons.format_paint_rounded),
+    CategoryItem(key: 'alci', label: 'Alçı & Dekorasyon', icon: Icons.construction_rounded),
+    CategoryItem(key: 'marangoz', label: 'Mobilya & Marangoz', icon: Icons.handyman_rounded),
+    CategoryItem(key: 'beyazesya', label: 'Beyaz Eşya Tamiri', icon: Icons.home_repair_service_rounded),
     CategoryItem(
       key: 'tedarikciler',
       label: 'Tedarikçiler / Dükkanlar',

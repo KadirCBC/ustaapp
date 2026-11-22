@@ -12,6 +12,7 @@ import 'package:ustaapp/features/orders/views/customer_on_the_way_screen.dart';
 import 'package:ustaapp/features/orders/views/customer_summary_rating_screen.dart';
 import 'package:ustaapp/features/orders/views/usta_active_job_screen.dart';
 import 'package:ustaapp/features/orders/views/usta_orders_screen.dart';
+import 'package:ustaapp/features/orders/views/usta_wallet_screen.dart';
 import 'package:ustaapp/features/profile/views/profile_screen.dart';
 import 'package:ustaapp/features/splash/views/splash_screen.dart';
 
@@ -126,6 +127,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/usta/orders',
         name: 'ustaOrders',
         builder: (context, state) => const UstaOrdersScreen(),
+      ),
+      GoRoute(
+        path: '/usta/wallet',
+        name: 'ustaWallet',
+        builder: (context, state) => const UstaWalletScreen(),
       ),
       GoRoute(
         path: '/usta/active-job/:cagriId',

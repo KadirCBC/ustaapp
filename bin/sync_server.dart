@@ -251,6 +251,11 @@ Future<void> _handleRequest(HttpRequest request) async {
       await response.close();
       return;
     }
+    if (path == '/api/commission_settings') {
+      response.write(jsonEncode(_data['commission_settings'] ?? {}));
+      await response.close();
+      return;
+    }
   }
 
   if (request.method == 'POST') {
@@ -318,6 +323,15 @@ Future<void> _handleRequest(HttpRequest request) async {
         _data['tedarikciler'] = body;
         await _saveDataToFile();
         _broadcast('tedarikciler_updated', body);
+        response.write(jsonEncode({'status': 'ok'}));
+        await response.close();
+        return;
+      }
+
+      if (path == '/api/commission_settings') {
+        _data['commission_settings'] = body;
+        await _saveDataToFile();
+        _broadcast('commission_settings_updated', body);
         response.write(jsonEncode({'status': 'ok'}));
         await response.close();
         return;

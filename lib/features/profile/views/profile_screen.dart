@@ -702,13 +702,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 18),
 
                   // 5. KATEGORİ: İŞLEMLER VE ÖDEMELER
-                  _buildSectionHeader('İŞLEM VE ÖDEME GEÇMİŞİ'),
+                  _buildSectionHeader(isUsta ? 'CÜZDAN & ÖDEME GEÇMİŞİ' : 'İŞLEM VE ÖDEME GEÇMİŞİ'),
                   _buildMenuContainer([
+                    if (isUsta) ...[
+                      _buildMenuItem(
+                        icon: Icons.account_balance_wallet_rounded,
+                        iconBg: const Color(0xFFEFF6FF),
+                        iconColor: const Color(0xFF2563EB),
+                        title: 'Usta Cüzdanım & Hakediş Yönetimi',
+                        subtitle: 'Aktif Kazançlar, IBAN & Para Çekme',
+                        onTap: () => context.push('/usta/wallet'),
+                      ),
+                      const Divider(height: 1, indent: 56),
+                    ],
                     _buildMenuItem(
                       icon: Icons.receipt_long_rounded,
                       iconBg: const Color(0xFFFFF7ED),
                       iconColor: const Color(0xFFEA580C),
-                      title: 'Geçmiş Çağrılarım ve Servisler',
+                      title: isUsta ? 'Tamamlanan Servis & İş Kayıtları' : 'Geçmiş Çağrılarım ve Servisler',
                       subtitle: '${_userTransactions.length} adet tamamlanan işlem kaydı',
                       onTap: _showOrderHistorySheet,
                     ),
