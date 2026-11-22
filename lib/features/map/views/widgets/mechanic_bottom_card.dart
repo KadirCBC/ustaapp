@@ -533,47 +533,52 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.star_rounded,
-                            size: 16,
-                            color: Colors.amber.shade600,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            usta.puan.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.customerTextDark,
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.star_rounded,
+                              size: 16,
+                              color: Colors.amber.shade600,
                             ),
-                          ),
-                          const Text(
-                            ' • ',
-                            style: TextStyle(color: AppTheme.customerTextMuted),
-                          ),
-                          Text(
-                            '${usta.tamamlananIsSayisi} tamamlanan iş',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.customerTextMuted,
+                            const SizedBox(width: 3),
+                            Text(
+                              usta.puan.toStringAsFixed(1),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: AppTheme.customerTextDark,
+                              ),
                             ),
-                          ),
-                          const Text(
-                            ' • ',
-                            style: TextStyle(color: AppTheme.customerTextMuted),
-                          ),
-                          const Text(
-                            '%99 Memnuniyet',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF15803D),
+                            const Text(
+                              ' • ',
+                              style: TextStyle(color: AppTheme.customerTextMuted),
                             ),
-                          ),
-                        ],
+                            Text(
+                              '${usta.tamamlananIsSayisi} tamamlanan iş',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.customerTextMuted,
+                              ),
+                            ),
+                            const Text(
+                              ' • ',
+                              style: TextStyle(color: AppTheme.customerTextMuted),
+                            ),
+                            const Text(
+                              '%99 Memnuniyet',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF15803D),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -1094,58 +1099,65 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      InkWell(
-                        onTap: () {
-                          setState(() {
-                            _hasPhotoAttached = !_hasPhotoAttached;
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _hasPhotoAttached
-                                ? const Color(0xFFDCFCE7)
-                                : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: _hasPhotoAttached
-                                  ? const Color(0xFF86EFAC)
-                                  : const Color(0xFFE2E8F0),
+                      Flexible(
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _hasPhotoAttached = !_hasPhotoAttached;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 6,
                             ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _hasPhotoAttached
-                                    ? Icons.check_circle_rounded
-                                    : Icons.add_a_photo_outlined,
-                                size: 14,
+                            decoration: BoxDecoration(
+                              color: _hasPhotoAttached
+                                  ? const Color(0xFFDCFCE7)
+                                  : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
                                 color: _hasPhotoAttached
-                                    ? const Color(0xFF15803D)
-                                    : AppTheme.customerPrimary,
+                                    ? const Color(0xFF86EFAC)
+                                    : const Color(0xFFE2E8F0),
                               ),
-                              const SizedBox(width: 5),
-                              Text(
-                                _hasPhotoAttached
-                                    ? '1 Arıza Fotoğrafı Eklendi'
-                                    : '+ Fotoğraf / Görsel Ekle (Opsiyonel)',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _hasPhotoAttached
+                                      ? Icons.check_circle_rounded
+                                      : Icons.add_a_photo_outlined,
+                                  size: 14,
                                   color: _hasPhotoAttached
                                       ? const Color(0xFF15803D)
                                       : AppTheme.customerPrimary,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 5),
+                                Flexible(
+                                  child: Text(
+                                    _hasPhotoAttached
+                                        ? '1 Fotoğraf Eklendi'
+                                        : '+ Fotoğraf / Görsel Ekle (Opsiyonel)',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: _hasPhotoAttached
+                                          ? const Color(0xFF15803D)
+                                          : AppTheme.customerPrimary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
+                      const SizedBox(width: 6),
                       const Text(
                         'Maks 200 karakter',
                         style: TextStyle(

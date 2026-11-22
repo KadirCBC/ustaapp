@@ -15,45 +15,41 @@ import 'package:ustaapp/core/theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 0. Bildirim servisini başlat (Hızlı UI açılışı için ana akışta)
-  try {
-    await NotificationService.instance.initialize();
-  } catch (e) {
-    debugPrint('Bildirim servisi başlatılırken hata: $e');
-  }
-
-  // Arka plan kalıcı dinleyici servisini arayüzü (runApp) BLOKE ETMEDEN asenkron başlat
-  unawaited(AppBackgroundService.instance.initialize().catchError((e) {
-    debugPrint('Arka plan servisi başlatma uyarısı: $e');
-  }));
-
   // Mapbox Public Token yapılandırması
   MapboxOptions.setAccessToken(AppConstants.mapboxAccessToken);
 
-  // 1. Çevresel değişkenleri (.env) yükle
-  try {
-    await dotenv.load(fileName: '.env');
-  } catch (e) {
-    debugPrint('.env dosyası yüklenirken uyarı: $e');
-  }
+  // 1. Kritik servisleri paralel olarak hızlıca başlat
+  await Future.wait([
+    dotenv.load(fileName: '.env').catchError((e) {
+      debugPrint('.env yüklenirken uyarı: $e');
+    }),
+    NotificationService.instance.initialize().catchError((e) {
+      debugPrint('Bildirim servisi başlatma uyarısı: $e');
+    }),
+  ]);
 
   // 2. Supabase İstemcisini Başlat
   final supabaseUrl = EnvConfig.supabaseUrl;
   final supabaseAnonKey = EnvConfig.supabaseAnonKey;
 
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
-    await Supabase.initialize(
-      url: supabaseUrl,
-      publishableKey: supabaseAnonKey,
-      debug: false,
-    );
-  } else {
-    debugPrint(
-      'UYARI: Supabase URL veya Anon Key eksik! Lütfen .env dosyanızı doldurunuz.',
-    );
+    try {
+      await Supabase.initialize(
+        url: supabaseUrl,
+        publishableKey: supabaseAnonKey,
+        debug: false,
+      );
+    } catch (e) {
+      debugPrint('Supabase başlatma uyarısı: $e');
+    }
   }
 
-  // 3. Uygulamayı Riverpod ProviderScope ile başlat
+  // 3. Arka plan kalıcı servisini ana iş parçacığını bekletmeden asenkron başlat
+  unawaited(AppBackgroundService.instance.initialize().catchError((e) {
+    debugPrint('Arka plan servisi başlatma uyarısı: $e');
+  }));
+
+  // 4. Uygulamayı Riverpod ProviderScope ile anında başlat
   runApp(
     const ProviderScope(
       child: UstaGelioApp(),

@@ -431,8 +431,8 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
           ? matchedUsta.puan
           : 5.0;
 
-      // Bekleyen çağrılar listesi
-      final pendingCalls = cagrilar
+      // Bekleyen çağrılar listesi (SADECE BU USTAYA GELEN ÇAĞRILAR)
+      final pendingCalls = ustaCalls
           .where((c) => c.durum == CagriDurumu.bekliyor)
           .toList();
 
@@ -888,29 +888,75 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     if (!mounted || !state.isOnline) return;
 
     try {
-      final cagrilar = await _appDataService.getCagrilar();
-      final pendingCalls =
-          cagrilar.where((c) => c.durum == CagriDurumu.bekliyor).toList();
+      // Aktif ustanın kimlik bilgilerini belirle
+      final session = await _appDataService.getActiveSession();
+      final sessionPhone = session?['phone'] as String? ?? '';
+      final myPhone = AppDataService.normalizePhone(
+        (state.activeUstaPhone != null && state.activeUstaPhone!.isNotEmpty)
+            ? state.activeUstaPhone!
+            : sessionPhone,
+      );
+      final myUstaId = (state.activeUstaId != null && state.activeUstaId!.isNotEmpty)
+          ? state.activeUstaId!
+          : (session?['id'] as String? ?? (myPhone.isNotEmpty ? 'usta-$myPhone' : ''));
+      final uid = currentUserId;
 
-      if (pendingCalls.isEmpty) {
-        if (state.incomingCall != null &&
-            !state.incomingCall!.id.startsWith('demo-manual-')) {
-          state = state.copyWith(clearIncomingCall: true);
-        }
+      // Ustanın telefon numarası, ID'si veya oturumu yoksa başka ustaların çağrılarını ASLA alma
+      if (myPhone.isEmpty && myUstaId.isEmpty && (uid == null || uid.isEmpty)) {
         return;
       }
 
-      // Daha önce reddedilmemiş / kabul edilmemiş en son çağrıyı al
-      final active = pendingCalls.firstWhere(
-        (c) => !_handledCallIds.contains(c.id),
-        orElse: () => pendingCalls.first,
-      );
+      final cagrilar = await _appDataService.getCagrilar();
+      final pendingCalls = cagrilar.where((c) {
+        if (c.durum != CagriDurumu.bekliyor) return false;
 
-      if (_handledCallIds.contains(active.id)) return;
+        final cUstaPhone = AppDataService.normalizePhone(c.ustaPhone ?? '');
+        final cUstaId = (c.ustaId ?? '').trim();
+
+        // 1. Telefon numarası ile %100 birebir kontrol (en güvenilir benzersiz kimlik)
+        if (myPhone.isNotEmpty && cUstaPhone.isNotEmpty) {
+          return myPhone == cUstaPhone;
+        }
+
+        // 2. Usta ID ile kontrol (jobId veya custom ID eşleşmesi)
+        if (myUstaId.isNotEmpty && cUstaId.isNotEmpty) {
+          if (myUstaId == cUstaId ||
+              myUstaId == 'usta-$cUstaId' ||
+              cUstaId == 'usta-$myUstaId') {
+            return true;
+          }
+        }
+
+        // 3. Supabase Auth UID ile kontrol
+        if (uid != null && uid.isNotEmpty && cUstaId.isNotEmpty && cUstaId == uid) {
+          return true;
+        }
+
+        return false;
+      }).toList();
+
+      // Şu an ekranda açık bir çağrı varsa ama artık bekleyenler arasında yoksa veya bu ustaya ait değilse temizle
+      if (state.incomingCall != null) {
+        final isStillPendingForMe = pendingCalls.any((c) => c.id == state.incomingCall!.id);
+        if (!isStillPendingForMe && !state.incomingCall!.id.startsWith('demo-manual-')) {
+          state = state.copyWith(clearIncomingCall: true);
+        }
+      }
+
+      // Daha önce reddedilmemiş / kabul edilmemiş en son çağrıyı al
+      final unhandled = pendingCalls
+          .where((c) => !_handledCallIds.contains(c.id))
+          .toList();
+
+      if (unhandled.isEmpty) {
+        return;
+      }
+
+      final active = unhandled.first;
       if (state.incomingCall?.id == active.id) return;
 
       debugPrint(
-        '>>> [UstaDashboardController] Gelen çağrı bulundu: ${active.id}, Tutar: ${active.toplamTutar}',
+        '>>> [UstaDashboardController] Gelen çağrı bulundu: ${active.id}, Hedef Usta Tel: ${active.ustaPhone}, Tutar: ${active.toplamTutar}',
       );
       state = state.copyWith(incomingCall: active);
       NotificationService.instance.showIncomingCallNotification(

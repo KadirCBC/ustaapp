@@ -1221,9 +1221,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
       sliver: SliverGrid(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 14,
-          childAspectRatio: 0.71,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 12,
+          childAspectRatio: 0.58,
         ),
         delegate: SliverChildBuilderDelegate(
           (context, index) {
@@ -1303,7 +1303,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           onTap: () => _openBookingSheet(usta, ilan: item.ilan),
           borderRadius: BorderRadius.circular(18),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1548,32 +1548,39 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'TABAN',
-                            style: TextStyle(
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF64748B),
-                              letterSpacing: 0.3,
+                      Flexible(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'TABAN',
+                              style: TextStyle(
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF64748B),
+                                letterSpacing: 0.3,
+                              ),
                             ),
-                          ),
-                          Text(
-                            '${item.price.toStringAsFixed(0)} ₺',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF15803D),
-                              height: 1.1,
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                '${item.price.toStringAsFixed(0)} ₺',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF15803D),
+                                  height: 1.1,
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                         decoration: BoxDecoration(
                           color: const Color(0xFF0F172A),
                           borderRadius: BorderRadius.circular(8),
@@ -1589,7 +1596,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                                 color: Colors.white,
                               ),
                             ),
-                            SizedBox(width: 3),
+                            SizedBox(width: 2),
                             Icon(Icons.arrow_forward_rounded, size: 12, color: Colors.white),
                           ],
                         ),

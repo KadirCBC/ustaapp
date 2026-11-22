@@ -134,17 +134,33 @@ class AppDataService {
 
   Future<void> _fetchServerData() async {
     try {
-      final res = await http.get(Uri.parse('$_syncBaseUrl/api/data')).timeout(const Duration(seconds: 2));
+      final futures = [
+        http.get(Uri.parse('$_syncBaseUrl/api/data')).timeout(const Duration(milliseconds: 1500)),
+        http.get(Uri.parse('$_syncBaseUrl/api/commission_settings')).timeout(const Duration(milliseconds: 1500)),
+      ];
+      final results = await Future.wait(futures.map((f) => f.catchError((_) => http.Response('', 408))));
+
+      final res = results[0];
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         if (data is Map<String, dynamic> && data['initialized'] == true) {
           _handleWsMessage(jsonEncode({'event': 'initial_data', 'data': data}));
         }
       }
+
+      final cRes = results[1];
+      if (cRes.statusCode == 200) {
+        final cData = jsonDecode(cRes.body);
+        if (cData is Map<String, dynamic> && cData.isNotEmpty) {
+          _cachedCommissionSettings = Map<String, dynamic>.from(cData);
+          _persistCommissionSettingsToPrefs(_cachedCommissionSettings!);
+          _changesStreamController.add(null);
+        }
+      }
     } catch (_) {
       if (!kIsWeb) {
         try {
-          final res = await http.get(Uri.parse('http://10.0.2.2:$_kSyncPort/api/data')).timeout(const Duration(seconds: 2));
+          final res = await http.get(Uri.parse('http://10.0.2.2:$_kSyncPort/api/data')).timeout(const Duration(milliseconds: 1200));
           if (res.statusCode == 200) {
             final data = jsonDecode(res.body);
             if (data is Map<String, dynamic> && data['initialized'] == true) {
@@ -154,18 +170,6 @@ class AppDataService {
         } catch (_) {}
       }
     }
-
-    try {
-      final cRes = await http.get(Uri.parse('$_syncBaseUrl/api/commission_settings')).timeout(const Duration(seconds: 2));
-      if (cRes.statusCode == 200) {
-        final cData = jsonDecode(cRes.body);
-        if (cData is Map<String, dynamic> && cData.isNotEmpty) {
-          _cachedCommissionSettings = Map<String, dynamic>.from(cData);
-          _persistCommissionSettingsToPrefs(_cachedCommissionSettings!);
-          _changesStreamController.add(null);
-        }
-      }
-    } catch (_) {}
   }
 
   void _handleWsMessage(dynamic raw) {
@@ -443,7 +447,7 @@ class AppDataService {
     if (_cachedUstalar != null && !forceRefresh) return List.from(_cachedUstalar!);
 
     if (forceRefresh) {
-      await _fetchServerData();
+      unawaited(_fetchServerData());
       if (_cachedUstalar != null && _cachedUstalar!.isNotEmpty) {
         return List.from(_cachedUstalar!);
       }
@@ -1373,7 +1377,7 @@ class AppDataService {
     if (_cachedJobs != null && !forceRefresh) return List.from(_cachedJobs!);
 
     if (forceRefresh) {
-      await _fetchServerData();
+      unawaited(_fetchServerData());
       if (_cachedJobs != null && _cachedJobs!.isNotEmpty) {
         return List.from(_cachedJobs!);
       }

@@ -89,12 +89,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       // Kullanıcının çağrıları ve finansal geçmişi (anında yerel önbellekten yükle)
       final calls = await AppDataService.instance.getCagrilar(forceRefresh: false);
+      final filteredCalls = normPhone.isEmpty
+          ? calls
+          : calls.where((c) {
+              final cp = AppDataService.normalizePhone(c.musteriPhone ?? '');
+              final up = AppDataService.normalizePhone(c.ustaPhone ?? '');
+              return cp == normPhone || up == normPhone;
+            }).toList();
       final transactions = await AppDataService.instance.getFinancialTransactions(forceRefresh: false);
 
       if (mounted) {
         setState(() {
           _memberData = matchedMember;
-          _userCalls = calls;
+          _userCalls = filteredCalls;
           _userTransactions = transactions;
           _isLoading = false;
         });
