@@ -915,7 +915,11 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
 
         // 1. Telefon numarası ile %100 birebir kontrol (en güvenilir benzersiz kimlik)
         if (myPhone.isNotEmpty && cUstaPhone.isNotEmpty) {
-          return myPhone == cUstaPhone;
+          final isMatch = myPhone == cUstaPhone;
+          if (!isMatch) {
+            return false; // Telefonu eşleşmeyen ustanın telefonu ASLA ve ASLA çalmaz!
+          }
+          return true;
         }
 
         // 2. Usta ID ile kontrol (jobId veya custom ID eşleşmesi)

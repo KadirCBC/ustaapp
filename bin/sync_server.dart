@@ -189,8 +189,14 @@ Future<void> _handleRequest(HttpRequest request) async {
 
     if (path == '/app.apk' || path == '/download') {
       final candidates = [
+        File('build/app.apk'),
+        File('build/app/outputs/flutter-apk/app-release.apk'),
         File('build/app/outputs/flutter-apk/app-debug.apk'),
+        File('c:/Users/taner/Documents/GitHub/ustaapp/build/app.apk'),
+        File('c:/Users/taner/Documents/GitHub/ustaapp/build/app/outputs/flutter-apk/app-release.apk'),
         File('c:/Users/taner/Documents/GitHub/ustaapp/build/app/outputs/flutter-apk/app-debug.apk'),
+        File(r'c:\Users\taner\Documents\GitHub\ustaapp\build\app.apk'),
+        File(r'c:\Users\taner\Documents\GitHub\ustaapp\build\app\outputs\flutter-apk\app-release.apk'),
         File(r'c:\Users\taner\Documents\GitHub\ustaapp\build\app\outputs\flutter-apk\app-debug.apk'),
       ];
       File? apkFile;

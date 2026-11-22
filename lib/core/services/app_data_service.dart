@@ -639,8 +639,14 @@ class AppDataService {
           price = double.tryParse(rawPrice.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 1750.0;
         }
 
-        final ustaName = (job['customer_name'] ?? job['usta_name'] ?? 'Kadir Usta').toString();
-        final ustaPhone = (job['customer_phone'] ?? job['usta_phone'] ?? '05524342069').toString();
+        final ustaName = (matchingUsta != null && matchingUsta.fullName.isNotEmpty)
+            ? matchingUsta.fullName
+            : (job['customer_name'] ?? job['usta_name'] ?? 'Kadir Usta').toString();
+        final rawUstaPhone = (matchingUsta != null && matchingUsta.phone.isNotEmpty)
+            ? matchingUsta.phone
+            : (job['customer_phone'] ?? job['usta_phone'] ?? '').toString();
+        final ustaPhone = normalizePhone(rawUstaPhone);
+        if (ustaPhone.isEmpty) continue; // Telefonu olmayan geçersiz ilanlar haritaya eklenmez!
         final title = (job['title'] ?? 'Standart Servis & Arıza Tespiti').toString();
         final desc = (job['description'] ?? '').toString();
 
@@ -655,7 +661,7 @@ class AppDataService {
         }
 
         final normCategory = _normalizeCatKey(jobCat);
-        String ustaAvatar = (job['avatar_url'] ?? job['avatarUrl'])?.toString() ?? '';
+        String ustaAvatar = (job['avatar_url'] ?? job['avatarUrl'])?.toString() ?? (matchingUsta?.avatarUrl ?? '');
         if (ustaAvatar.isEmpty) {
           if (normCategory.contains('cilingir')) {
             ustaAvatar = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=600&auto=format&fit=crop';
@@ -666,14 +672,24 @@ class AppDataService {
           }
         }
 
+        final realUstaId = (matchingUsta != null && matchingUsta.ustaId.isNotEmpty)
+            ? matchingUsta.ustaId
+            : (ustaId.isNotEmpty ? ustaId : 'usta-$ustaPhone');
+        final realServiceFee = (matchingUsta != null && matchingUsta.servisUcreti > 0)
+            ? matchingUsta.servisUcreti
+            : price;
+        final realExp = (matchingUsta != null && matchingUsta.deneyimYili > 0)
+            ? matchingUsta.deneyimYili
+            : 8;
+
         result.add(NearbyUstaModel(
-          ustaId: jobId, // Her ilan için benzersiz harita pin ID'si
+          ustaId: realUstaId, // Ustanın gerçek benzersiz kimliği (Çağrı ve zil doğru kişiye yönlensin)
           fullName: ustaName,
           phone: ustaPhone,
           avatarUrl: ustaAvatar,
           kategori: normCategory,
-          puan: 5.0,
-          tamamlananIsSayisi: 48,
+          puan: matchingUsta?.puan ?? 5.0,
+          tamamlananIsSayisi: matchingUsta?.tamamlananIsSayisi ?? 0,
           latitude: lat,
           longitude: lng,
           mesafeMetre: dist > 0 ? dist : 100.0,
@@ -681,10 +697,10 @@ class AppDataService {
           ustaHakedis: price * 0.85,
           komisyonOrani: 0.15,
           komisyonTutari: price * 0.15,
-          servisUcreti: 150.0,
-          deneyimYili: 10,
+          servisUcreti: realServiceFee,
+          deneyimYili: realExp,
           uzmanlikBasligi: district,
-          guvenceler: const [
+          guvenceler: matchingUsta?.guvenceler ?? const [
             '30 Gün İşçilik Garantisi',
             'Sabit Fiyat Güvencesi',
             'MYK Belgeli',
@@ -711,8 +727,10 @@ class AppDataService {
     final allUstalar = await getUstalar();
     for (final u in allUstalar) {
       if (!u.isOnline) continue; // Çevrimdışı usta haritada kesinlikle gösterilmez!
-      if (u.ilanlar.isEmpty) continue;
-      bool alreadyRepresented = result.any((r) => r.phone == u.phone && r.fullName == u.fullName);
+      final uNormPhone = normalizePhone(u.phone);
+      bool alreadyRepresented = result.any(
+        (r) => normalizePhone(r.phone) == uNormPhone || r.ustaId == u.ustaId,
+      );
       if (!alreadyRepresented && seenPinIds.add(u.ustaId)) {
         final ustaCat = u.kategori.trim().toLowerCase();
         final catMatch = (normalizedCat == 'tümü' || normalizedCat == 'all' || normalizedCat == 'tum')
@@ -721,7 +739,31 @@ class AppDataService {
         if (catMatch) {
           final dist = Geolocator.distanceBetween(customerLat, customerLng, u.latitude, u.longitude);
           if (dist <= maxRadiusMeter) {
-            result.add(u.copyWith(mesafeMetre: dist > 0 ? dist : 500.0));
+            final effectiveFee = u.servisUcreti > 0 ? u.servisUcreti : (u.toplamTutar > 0 ? u.toplamTutar : 750.0);
+            final ilanList = u.ilanlar.isNotEmpty
+                ? u.ilanlar
+                : [
+                    UstaHizmetIlan(
+                      id: 'hz-${u.ustaId}',
+                      baslik: '${u.kategori.isNotEmpty ? u.kategori[0].toUpperCase() + u.kategori.substring(1) : 'Elektrik'} Hizmeti',
+                      aciklama: 'Yerinde arıza tespiti, malzeme kontrolü ve profesyonel müdahale.',
+                      fiyat: effectiveFee,
+                      tahminiSure: '30 dk',
+                      ikon: '⚡',
+                      isDefault: true,
+                      konum: u.uzmanlikBasligi,
+                      lat: u.latitude,
+                      lng: u.longitude,
+                    ),
+                  ];
+            result.add(u.copyWith(
+              mesafeMetre: dist > 0 ? dist : 500.0,
+              servisUcreti: effectiveFee,
+              toplamTutar: effectiveFee,
+              ustaHakedis: effectiveFee * 0.85,
+              komisyonTutari: effectiveFee * 0.15,
+              ilanlar: ilanList,
+            ));
           }
         }
       }

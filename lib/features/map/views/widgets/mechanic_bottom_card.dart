@@ -569,9 +569,9 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -1135,7 +1135,7 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Flexible(
+                      Expanded(
                         child: InkWell(
                           onTap: () {
                             setState(() {
@@ -1160,7 +1160,6 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                               ),
                             ),
                             child: Row(
-                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
                                   _hasPhotoAttached
@@ -1172,11 +1171,11 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                                       : AppTheme.customerPrimary,
                                 ),
                                 const SizedBox(width: 5),
-                                Flexible(
+                                Expanded(
                                   child: Text(
                                     _hasPhotoAttached
                                         ? '1 Fotoğraf Eklendi'
-                                        : '+ Fotoğraf / Görsel Ekle (Opsiyonel)',
+                                        : '+ Fotoğraf / Görsel Ekle',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -1193,9 +1192,9 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       const Text(
-                        'Maks 200 karakter',
+                        'Maks 200 kr.',
                         style: TextStyle(
                           fontSize: 10.5,
                           color: Color(0xFF94A3B8),

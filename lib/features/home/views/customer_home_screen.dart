@@ -204,10 +204,13 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           orElse: () => null,
         );
 
+        final finalPhone = matchingUsta != null ? matchingUsta.phone : ustaPhone;
+        if (finalPhone.isEmpty) continue; // Telefonu olmayan geçersiz ilanlar eklenmez!
+
         final ustaModel = matchingUsta ?? NearbyUstaModel(
           ustaId: ustaId,
           fullName: ustaName,
-          phone: ustaPhone.isNotEmpty ? ustaPhone : '05524342069',
+          phone: finalPhone,
           kategori: category,
           uzmanlikBasligi: district,
           latitude: lat,
@@ -287,6 +290,51 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 usta: usta,
                 ilan: ilan,
                 district: ilan.konum ?? usta.uzmanlikBasligi,
+                distanceMeter: distance,
+              ),
+            );
+          }
+        } else {
+          // Eğer ustanın henüz özel ilanı yoksa, taban servis ücretiyle varsayılan hizmet kartını oluştur
+          final effectiveFee = usta.servisUcreti > 0 ? usta.servisUcreti : (usta.toplamTutar > 0 ? usta.toplamTutar : 750.0);
+          final defaultTitle = '${usta.kategori.isNotEmpty ? usta.kategori[0].toUpperCase() + usta.kategori.substring(1) : 'Elektrik'} Hizmeti';
+          final dedupeKey = '${normPhone.isNotEmpty ? normPhone : usta.ustaId}_${defaultTitle.toLowerCase().trim()}';
+          if (!seenKeys.contains(dedupeKey)) {
+            seenKeys.add(dedupeKey);
+            final defaultIlan = UstaHizmetIlan(
+              id: 'hz-${usta.ustaId}',
+              baslik: defaultTitle,
+              aciklama: 'Yerinde arıza tespiti, malzeme kontrolü ve profesyonel müdahale.',
+              fiyat: effectiveFee,
+              tahminiSure: '30 dk',
+              ikon: '⚡',
+              isDefault: true,
+              konum: usta.uzmanlikBasligi,
+              lat: usta.latitude,
+              lng: usta.longitude,
+            );
+            double? distance;
+            if (customerLat != 0.0 && customerLng != 0.0 && usta.latitude != 0.0 && usta.longitude != 0.0) {
+              distance = Geolocator.distanceBetween(customerLat, customerLng, usta.latitude, usta.longitude);
+            }
+            items.add(
+              _ListingCardData(
+                id: defaultIlan.id,
+                title: defaultTitle,
+                description: '${usta.fullName} • ${usta.uzmanlikBasligi}',
+                price: effectiveFee,
+                duration: '30 dk',
+                icon: '⚡',
+                category: usta.kategori,
+                usta: usta.copyWith(
+                  servisUcreti: effectiveFee,
+                  toplamTutar: effectiveFee,
+                  ustaHakedis: effectiveFee * 0.85,
+                  komisyonTutari: effectiveFee * 0.15,
+                  ilanlar: [defaultIlan],
+                ),
+                ilan: defaultIlan,
+                district: usta.uzmanlikBasligi,
                 distanceMeter: distance,
               ),
             );
@@ -1223,7 +1271,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           crossAxisCount: 2,
           crossAxisSpacing: 10,
           mainAxisSpacing: 12,
-          childAspectRatio: 0.58,
+          childAspectRatio: 0.52,
         ),
         delegate: SliverChildBuilderDelegate(
           (context, index) {

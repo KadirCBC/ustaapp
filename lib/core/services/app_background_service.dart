@@ -96,6 +96,72 @@ void onBackgroundServiceStart(ServiceInstance service) async {
 
 void _startPersistentWebSocketListener() async {
   final handledArrivalIds = <String>{};
+  final handledCallIds = <String>{};
+
+  // 1. Ekran kilitliyken veya Wi-Fi uyku modundayken bile çağrıyı kaçırmayan Periyodik Polling Yedekleme Döngüsü
+  Timer.periodic(const Duration(seconds: 5), (_) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final sessionRaw = prefs.getString('app_active_session');
+      if (sessionRaw == null) return;
+      final session = jsonDecode(sessionRaw) as Map<String, dynamic>;
+      final role = session['role']?.toString().toLowerCase();
+      if (role != 'usta') return;
+
+      final myPhone = (session['phone']?.toString() ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+      final myUstaId = (session['id']?.toString() ?? '').trim();
+      if (myPhone.isEmpty && myUstaId.isEmpty) return;
+
+      final customHost = prefs.getString('app_custom_sync_host');
+      final host = (customHost != null && customHost.isNotEmpty)
+          ? customHost.trim()
+          : (Platform.isAndroid ? '192.168.1.101' : 'localhost');
+
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 3);
+      final req = await client.getUrl(Uri.parse('http://$host:8090/api/cagrilar'));
+      final res = await req.close();
+      if (res.statusCode == 200) {
+        final bodyStr = await res.transform(utf8.decoder).join();
+        final list = jsonDecode(bodyStr) as List;
+        for (final item in list) {
+          if (item is Map) {
+            final cMap = Map<String, dynamic>.from(item);
+            final id = cMap['id']?.toString() ?? '';
+            final isPending = cMap['durum'] == 'bekliyor';
+
+            if (isPending && id.isNotEmpty && !handledCallIds.contains(id)) {
+              final cUstaPhone = (cMap['usta_phone']?.toString() ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+              final cUstaId = (cMap['usta_id']?.toString() ?? '').trim();
+
+              bool isForMe = false;
+              if (myPhone.isNotEmpty && cUstaPhone.isNotEmpty) {
+                isForMe = (myPhone == cUstaPhone);
+              } else if (myUstaId.isNotEmpty && cUstaId.isNotEmpty) {
+                isForMe = (myUstaId == cUstaId || myUstaId == 'usta-$cUstaId');
+              }
+
+              if (isForMe) {
+                handledCallIds.add(id);
+                debugPrint('>>> [BackgroundService - Polling] Kilitli ekranda USTA ÇAĞRISI ÇALIYOR: $id');
+                await NotificationService.instance.showIncomingCallNotification(
+                  cagriId: id,
+                  customerName: cMap['musteri_full_name']?.toString() ?? 'Müşteri',
+                  serviceTitle: cMap['adres_tarifi']?.toString() ?? 'Acil Servis & Usta Hizmeti',
+                  price: (cMap['toplam_tutar'] as num?)?.toDouble() ?? (cMap['usta_hakedis'] as num?)?.toDouble() ?? 0.0,
+                  address: cMap['adres_tarifi']?.toString(),
+                );
+              }
+            } else if (!isPending && id.isNotEmpty && handledCallIds.contains(id)) {
+              handledCallIds.remove(id);
+              await NotificationService.instance.cancelCallNotification(id);
+            }
+          }
+        }
+      }
+      client.close();
+    } catch (_) {}
+  });
 
   while (true) {
     try {
@@ -141,17 +207,22 @@ void _startPersistentWebSocketListener() async {
           } else if (event == 'cagri_updated' && data is Map) {
             final cagriMap = Map<String, dynamic>.from(data);
             final id = cagriMap['id']?.toString() ?? '';
-            final isAdreste = cagriMap['durum'] == 'adreste' ||
-                cagriMap['usta_arrived'] == true;
+            final durum = cagriMap['durum']?.toString() ?? '';
+            final isAdreste = durum == 'adreste' || cagriMap['usta_arrived'] == true;
+            final isPending = durum == 'bekliyor';
 
+            final sessionRaw = prefs.getString('app_active_session');
+            Map<String, dynamic>? session;
+            if (sessionRaw != null) {
+              try {
+                session = Map<String, dynamic>.from(jsonDecode(sessionRaw) as Map);
+              } catch (_) {}
+            }
+            final role = session?['role']?.toString().toLowerCase();
+
+            // A) Müşteri için usta varış uyarısı
             if (isAdreste && id.isNotEmpty && !handledArrivalIds.contains(id)) {
               handledArrivalIds.add(id);
-
-              final sessionRaw = prefs.getString('app_active_session');
-              final role = sessionRaw != null
-                  ? (jsonDecode(sessionRaw)['role']?.toString().toLowerCase())
-                  : null;
-
               if (role != 'usta') {
                 final ustaName =
                     cagriMap['usta_name'] ?? cagriMap['ustaName'] ?? 'Ustanız';
@@ -160,6 +231,88 @@ void _startPersistentWebSocketListener() async {
                   cagriId: id,
                   address: cagriMap['address']?.toString(),
                 );
+              }
+            }
+
+            // B) Usta için kilitli ekranda veya uygulama kapalıyken YENİ ÇAĞRI uyarısı (TAM EKRAN ZİL SESİ)
+            if (isPending && id.isNotEmpty && !handledCallIds.contains(id)) {
+              if (role == 'usta') {
+                final myPhone = (session?['phone']?.toString() ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                final myUstaId = (session?['id']?.toString() ?? '').trim();
+                final cUstaPhone = (cagriMap['usta_phone']?.toString() ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                final cUstaId = (cagriMap['usta_id']?.toString() ?? '').trim();
+
+                bool isForMe = false;
+                if (myPhone.isNotEmpty && cUstaPhone.isNotEmpty) {
+                  isForMe = (myPhone == cUstaPhone);
+                } else if (myUstaId.isNotEmpty && cUstaId.isNotEmpty) {
+                  isForMe = (myUstaId == cUstaId || myUstaId == 'usta-$cUstaId');
+                }
+
+                if (isForMe) {
+                  handledCallIds.add(id);
+                  debugPrint('>>> [BackgroundService] Kilitli ekranda USTA ÇAĞRISI ÇALIYOR (WS): $id');
+                  await NotificationService.instance.showIncomingCallNotification(
+                    cagriId: id,
+                    customerName: cagriMap['musteri_full_name']?.toString() ?? 'Müşteri',
+                    serviceTitle: cagriMap['adres_tarifi']?.toString() ?? 'Acil Servis & Usta Hizmeti',
+                    price: (cagriMap['toplam_tutar'] as num?)?.toDouble() ?? (cagriMap['usta_hakedis'] as num?)?.toDouble() ?? 0.0,
+                    address: cagriMap['adres_tarifi']?.toString(),
+                  );
+                }
+              }
+            } else if (!isPending && id.isNotEmpty && handledCallIds.contains(id)) {
+              handledCallIds.remove(id);
+              await NotificationService.instance.cancelCallNotification(id);
+            }
+          } else if (event == 'cagrilar_updated' && data is List) {
+            // Liste güncellendiğinde bekleyen çağrıları kontrol et
+            final sessionRaw = prefs.getString('app_active_session');
+            Map<String, dynamic>? session;
+            if (sessionRaw != null) {
+              try {
+                session = Map<String, dynamic>.from(jsonDecode(sessionRaw) as Map);
+              } catch (_) {}
+            }
+            final role = session?['role']?.toString().toLowerCase();
+
+            if (role == 'usta') {
+              final myPhone = (session?['phone']?.toString() ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+              final myUstaId = (session?['id']?.toString() ?? '').trim();
+
+              for (final item in data) {
+                if (item is Map) {
+                  final cagriMap = Map<String, dynamic>.from(item);
+                  final id = cagriMap['id']?.toString() ?? '';
+                  final isPending = cagriMap['durum'] == 'bekliyor';
+
+                  if (isPending && id.isNotEmpty && !handledCallIds.contains(id)) {
+                    final cUstaPhone = (cagriMap['usta_phone']?.toString() ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                    final cUstaId = (cagriMap['usta_id']?.toString() ?? '').trim();
+
+                    bool isForMe = false;
+                    if (myPhone.isNotEmpty && cUstaPhone.isNotEmpty) {
+                      isForMe = (myPhone == cUstaPhone);
+                    } else if (myUstaId.isNotEmpty && cUstaId.isNotEmpty) {
+                      isForMe = (myUstaId == cUstaId || myUstaId == 'usta-$cUstaId');
+                    }
+
+                    if (isForMe) {
+                      handledCallIds.add(id);
+                      debugPrint('>>> [BackgroundService] Kilitli ekranda USTA ÇAĞRISI ÇALIYOR (WS Liste): $id');
+                      await NotificationService.instance.showIncomingCallNotification(
+                        cagriId: id,
+                        customerName: cagriMap['musteri_full_name']?.toString() ?? 'Müşteri',
+                        serviceTitle: cagriMap['adres_tarifi']?.toString() ?? 'Acil Servis & Usta Hizmeti',
+                        price: (cagriMap['toplam_tutar'] as num?)?.toDouble() ?? (cagriMap['usta_hakedis'] as num?)?.toDouble() ?? 0.0,
+                        address: cagriMap['adres_tarifi']?.toString(),
+                      );
+                    }
+                  } else if (!isPending && id.isNotEmpty && handledCallIds.contains(id)) {
+                    handledCallIds.remove(id);
+                    await NotificationService.instance.cancelCallNotification(id);
+                  }
+                }
               }
             }
           } else if (event == 'system_notification' && data is Map) {

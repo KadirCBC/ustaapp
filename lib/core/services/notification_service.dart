@@ -230,7 +230,7 @@ class NotificationService {
     if (kIsWeb) return;
 
     try {
-      final urgentVibration = Int64List.fromList([0, 1000, 300, 1000, 300, 1500]);
+      final urgentVibration = Int64List.fromList([0, 1000, 300, 1000, 300, 1500, 300, 2000]);
       final androidDetails = AndroidNotificationDetails(
         channelIncomingCallId,
         channelIncomingCallName,
@@ -239,7 +239,7 @@ class NotificationService {
         largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
         color: const Color(0xFFF97316),
         importance: Importance.max,
-        priority: Priority.high,
+        priority: Priority.max,
         playSound: true,
         sound: const RawResourceAndroidNotificationSound('cagri_sesi'),
         enableVibration: true,
@@ -247,6 +247,22 @@ class NotificationService {
         fullScreenIntent: true,
         visibility: NotificationVisibility.public,
         category: AndroidNotificationCategory.call,
+        ongoing: true,
+        autoCancel: false,
+        ticker: '🚨 Yeni Usta Çağrısı Geldi!',
+        actions: const <AndroidNotificationAction>[
+          AndroidNotificationAction(
+            'accept_call',
+            '✅ Hemen İncele & Kabul Et',
+            showsUserInterface: true,
+            cancelNotification: true,
+          ),
+          AndroidNotificationAction(
+            'reject_call',
+            '❌ Reddet',
+            cancelNotification: true,
+          ),
+        ],
         styleInformation: BigTextStyleInformation(
           body,
           contentTitle: title,
@@ -265,7 +281,7 @@ class NotificationService {
         ),
       );
 
-      final notifId = DateTime.now().millisecondsSinceEpoch % 100000;
+      final notifId = cagriId.hashCode.abs() % 100000;
       await _notificationsPlugin.show(
         id: notifId,
         title: title,
@@ -276,6 +292,15 @@ class NotificationService {
     } catch (e) {
       debugPrint('[NotificationService] Gelen çağrı bildirim hatası: $e');
     }
+  }
+
+  /// Belirli bir çağrı bildirimini iptal etme / susturma
+  Future<void> cancelCallNotification(String cagriId) async {
+    if (kIsWeb) return;
+    try {
+      final notifId = cagriId.hashCode.abs() % 100000;
+      await _notificationsPlugin.cancel(id: notifId);
+    } catch (_) {}
   }
 
   /// 📢 ADMİN VEYA SİSTEM DUYURUSU/GÜNCELLEMESİ GELDİĞİNDE ÇAĞRILIR
