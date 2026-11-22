@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ustaapp/core/models/app_notification_model.dart';
@@ -27,6 +28,8 @@ class _ListingCardData {
   final String category;
   final NearbyUstaModel usta;
   final UstaHizmetIlan? ilan;
+  final String? district;
+  final double? distanceMeter;
 
   const _ListingCardData({
     required this.id,
@@ -38,6 +41,8 @@ class _ListingCardData {
     required this.category,
     required this.usta,
     this.ilan,
+    this.district,
+    this.distanceMeter,
   });
 }
 
@@ -54,26 +59,49 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   String _selectedCategory = 'tum';
   bool _isGridView = true; // Alt alta grid görünümü varsayılan
   StreamSubscription? _dataChangedSub;
+  List<_ListingCardData> _directLoadedListings = [];
 
   final List<Map<String, dynamic>> _categories = const [
-    {'key': 'tum', 'label': 'Tüm İlanlar', 'icon': Icons.apps_rounded},
-    {'key': 'elektrik', 'label': 'Elektrik', 'icon': Icons.bolt_rounded},
-    {'key': 'tesisat', 'label': 'Sıhhi Tesisat', 'icon': Icons.water_drop_rounded},
-    {'key': 'cilingir', 'label': 'Çilingir', 'icon': Icons.vpn_key_rounded},
-    {'key': 'kombi', 'label': 'Kombi Servisi', 'icon': Icons.local_fire_department_rounded},
-    {'key': 'klima', 'label': 'Klima Servisi', 'icon': Icons.ac_unit_rounded},
-    {'key': 'boya', 'label': 'Boya', 'icon': Icons.format_paint_rounded},
-    {'key': 'alci', 'label': 'Alçı & Dekorasyon', 'icon': Icons.construction_rounded},
-    {'key': 'marangoz', 'label': 'Mobilya & Marangoz', 'icon': Icons.handyman_rounded},
-    {'key': 'beyazesya', 'label': 'Beyaz Eşya Tamiri', 'icon': Icons.home_repair_service_rounded},
-    {'key': 'tedarikciler', 'label': 'Tedarikçiler / Dükkanlar', 'icon': Icons.storefront_rounded},
+    {'key': 'tum', 'label': 'Tüm İlanlar', 'icon': Icons.apps_rounded, 'color': Color(0xFFEA580C)},
+    {'key': 'elektrik', 'label': 'Elektrik', 'icon': Icons.bolt_rounded, 'color': Color(0xFFF59E0B)},
+    {'key': 'tesisat', 'label': 'Sıhhi Tesisat', 'icon': Icons.water_drop_rounded, 'color': Color(0xFF0284C7)},
+    {'key': 'cilingir', 'label': 'Çilingir', 'icon': Icons.vpn_key_rounded, 'color': Color(0xFFD97706)},
+    {'key': 'kombi', 'label': 'Kombi Servisi', 'icon': Icons.local_fire_department_rounded, 'color': Color(0xFFDC2626)},
+    {'key': 'klima', 'label': 'Klima Servisi', 'icon': Icons.ac_unit_rounded, 'color': Color(0xFF06B6D4)},
+    {'key': 'boya', 'label': 'Boya', 'icon': Icons.format_paint_rounded, 'color': Color(0xFF8B5CF6)},
+    {'key': 'alci', 'label': 'Alçı & Dekorasyon', 'icon': Icons.construction_rounded, 'color': Color(0xFFF97316)},
+    {'key': 'marangoz', 'label': 'Mobilya & Marangoz', 'icon': Icons.handyman_rounded, 'color': Color(0xFF92400E)},
+    {'key': 'beyazesya', 'label': 'Beyaz Eşya Tamiri', 'icon': Icons.home_repair_service_rounded, 'color': Color(0xFF2563EB)},
+    {'key': 'kucukevaletleri', 'label': 'Küçük Ev Aletleri', 'icon': Icons.build_circle_rounded, 'color': Color(0xFF475569)},
+    {'key': 'pimapen', 'label': 'Pimapen & Cam Balkon', 'icon': Icons.window_rounded, 'color': Color(0xFF0284C7)},
+    {'key': 'fayans', 'label': 'Fayans & Seramik', 'icon': Icons.grid_on_rounded, 'color': Color(0xFF059669)},
+    {'key': 'parke', 'label': 'Parke & Zemin', 'icon': Icons.layers_rounded, 'color': Color(0xFFB45309)},
+    {'key': 'cati', 'label': 'Çatı & İzolasyon', 'icon': Icons.roofing_rounded, 'color': Color(0xFFDC2626)},
+    {'key': 'temizlik', 'label': 'Temizlik & İlaçlama', 'icon': Icons.cleaning_services_rounded, 'color': Color(0xFF10B981)},
+    {'key': 'hali', 'label': 'Halı & Koltuk Yıkama', 'icon': Icons.local_laundry_service_rounded, 'color': Color(0xFF0D9488)},
+    {'key': 'kurye', 'label': 'Kurye & Nakliye', 'icon': Icons.local_shipping_rounded, 'color': Color(0xFFEA580C)},
+    {'key': 'otokurtarma', 'label': 'Oto Kurtarma & Çekici', 'icon': Icons.car_repair_rounded, 'color': Color(0xFF475569)},
+    {'key': 'otomekanik', 'label': 'Oto Mekanik & Bakım', 'icon': Icons.directions_car_rounded, 'color': Color(0xFF334155)},
+    {'key': 'elektronik', 'label': 'Elektronik & Güvenlik', 'icon': Icons.security_rounded, 'color': Color(0xFF4F46E5)},
+    {'key': 'bahce', 'label': 'Bahçe & Peyzaj', 'icon': Icons.yard_rounded, 'color': Color(0xFF16A34A)},
+    {'key': 'solar', 'label': 'Güneş Enerjisi & Solar', 'icon': Icons.solar_power_rounded, 'color': Color(0xFFF59E0B)},
+    {'key': 'demir', 'label': 'Demir Doğrama & Ferforje', 'icon': Icons.hardware_rounded, 'color': Color(0xFF64748B)},
+    {'key': 'suaritma', 'label': 'Su Arıtma Servisi', 'icon': Icons.filter_alt_rounded, 'color': Color(0xFF0284C7)},
+    {'key': 'tente', 'label': 'Tente & Gölgelendirme', 'icon': Icons.beach_access_rounded, 'color': Color(0xFF0891B2)},
+    {'key': 'havalandirma', 'label': 'Havalandırma & Baca', 'icon': Icons.air_rounded, 'color': Color(0xFF06B6D4)},
+    {'key': 'dogalgaz', 'label': 'Doğalgaz & Kalorifer', 'icon': Icons.whatshot_rounded, 'color': Color(0xFFDC2626)},
+    {'key': 'klozet', 'label': 'Gömme Rezervuar & Klozet', 'icon': Icons.plumbing_rounded, 'color': Color(0xFF0284C7)},
+    {'key': 'tedarikciler', 'label': 'Yetkili Dükkanlar & Tedarikçiler', 'icon': Icons.storefront_rounded, 'color': Color(0xFF2563EB)},
   ];
 
   @override
   void initState() {
     super.initState();
 
-    // Uygulama açılışında anlık GPS konumunu otomatik başlat
+    // 1. İlanları hemen anında doğrudan yükle
+    _loadDirectListings();
+
+    // 2. Uygulama açılışında anlık GPS konumunu otomatik başlat
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(customerMapControllerProvider.notifier).initCustomerLocationAndSearch();
     });
@@ -84,8 +112,10 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
       });
     });
 
+    // 3. Veri değişikliklerini canlı dinle ve otomatik yenile
     _dataChangedSub = AppDataService.instance.onDataChanged.listen((_) {
       if (mounted) {
+        _loadDirectListings();
         ref.read(customerMapControllerProvider.notifier).fetchNearbyUstalar();
         ref.read(customerMapControllerProvider.notifier).fetchIsletmeler();
       }
@@ -99,23 +129,228 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     super.dispose();
   }
 
+  /// Tüm aktif usta hizmet ilanlarını kalıcı servis ve sync sunucusundan otomatik yükler
+  Future<void> _loadDirectListings() async {
+    try {
+      final List<_ListingCardData> items = [];
+      final Set<String> seenIds = {};
+
+      final activeJobs = await AppDataService.instance.getActiveJobs();
+      final allUstalar = await AppDataService.instance.getUstalar();
+      final customerLat = ref.read(customerMapControllerProvider).currentLat;
+      final customerLng = ref.read(customerMapControllerProvider).currentLng;
+
+      // 1. Canlı ve Aktif Hizmet İlanları (Ustaların eklediği ilanlar)
+      for (final job in activeJobs) {
+        final status = (job['status'] ?? 'Aktif').toString();
+        if (status != 'Aktif') continue;
+
+        final rawId = (job['id'] ?? '').toString();
+        if (rawId.isEmpty || !seenIds.add(rawId)) continue;
+
+        final title = (job['title'] ?? 'Usta Hizmeti').toString();
+        final desc = (job['description'] ?? '').toString();
+        final category = (job['kategori'] ?? job['category'] ?? 'Genel').toString();
+        final district = (job['district'] ?? job['address'] ?? 'Afyonkarahisar').toString();
+        final ustaName = (job['customer_name'] ?? job['usta_name'] ?? 'Usta').toString();
+        final ustaPhone = (job['customer_phone'] ?? job['usta_phone'] ?? '').toString();
+        final ustaId = (job['usta_id'] ?? (ustaPhone.isNotEmpty ? 'usta-$ustaPhone' : 'usta-$rawId')).toString();
+        final icon = (job['icon'] ?? '⚡').toString();
+        final duration = (job['duration'] ?? '30 dk').toString();
+
+        final rawPrice = job['price'];
+        double price = 500.0;
+        if (rawPrice is num) {
+          price = rawPrice.toDouble();
+        } else if (rawPrice is String) {
+          price = double.tryParse(rawPrice.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 500.0;
+        }
+
+        double lat = (job['latitude'] as num?)?.toDouble() ?? 0.0;
+        double lng = (job['longitude'] as num?)?.toDouble() ?? 0.0;
+        if (lat == 0.0 && lng == 0.0) {
+          final resolved = LocationLookupService.resolveSync(district);
+          if (resolved != null) {
+            lat = resolved.lat;
+            lng = resolved.lng;
+          }
+        }
+
+        double? distance;
+        if (customerLat != 0.0 && customerLng != 0.0 && lat != 0.0 && lng != 0.0) {
+          distance = Geolocator.distanceBetween(customerLat, customerLng, lat, lng);
+        }
+
+        final matchingUsta = allUstalar.cast<NearbyUstaModel?>().firstWhere(
+          (u) => u != null && (u.ustaId == ustaId || (ustaPhone.isNotEmpty && AppDataService.normalizePhone(u.phone) == AppDataService.normalizePhone(ustaPhone))),
+          orElse: () => null,
+        );
+
+        final ustaModel = matchingUsta ?? NearbyUstaModel(
+          ustaId: ustaId,
+          fullName: ustaName,
+          phone: ustaPhone.isNotEmpty ? ustaPhone : '05524342069',
+          kategori: category,
+          uzmanlikBasligi: district,
+          latitude: lat,
+          longitude: lng,
+          mesafeMetre: distance ?? 500.0,
+          ustaHakedis: price * 0.85,
+          komisyonOrani: 15.0,
+          komisyonTutari: price * 0.15,
+          toplamTutar: price,
+          isOnline: true,
+          puan: 5.0,
+          tamamlananIsSayisi: 12,
+        );
+
+        final ilanModel = UstaHizmetIlan(
+          id: rawId,
+          baslik: title,
+          kategori: category,
+          aciklama: desc,
+          fiyat: price,
+          tahminiSure: duration,
+          ikon: icon,
+          konum: district,
+          lat: lat,
+          lng: lng,
+        );
+
+        items.add(
+          _ListingCardData(
+            id: rawId,
+            title: title,
+            description: desc.isNotEmpty ? desc : '$ustaName • $district',
+            price: price,
+            duration: duration,
+            icon: icon,
+            category: category,
+            usta: ustaModel,
+            ilan: ilanModel,
+            district: district,
+            distanceMeter: distance,
+          ),
+        );
+      }
+
+      // 2. Kayıtlı ustaların ilanlar listesi
+      for (final usta in allUstalar) {
+        if (usta.ilanlar.isNotEmpty) {
+          for (final ilan in usta.ilanlar) {
+            final cardId = '${usta.ustaId}_${ilan.id}';
+            if (!seenIds.add(cardId) && !seenIds.add(ilan.id)) continue;
+
+            double? distance;
+            final uLat = ilan.lat ?? usta.latitude;
+            final uLng = ilan.lng ?? usta.longitude;
+            if (customerLat != 0.0 && customerLng != 0.0 && uLat != 0.0 && uLng != 0.0) {
+              distance = Geolocator.distanceBetween(customerLat, customerLng, uLat, uLng);
+            }
+
+            items.add(
+              _ListingCardData(
+                id: cardId,
+                title: ilan.baslik,
+                description: ilan.aciklama.isNotEmpty ? ilan.aciklama : '${usta.fullName} • ${usta.uzmanlikBasligi}',
+                price: ilan.fiyat > 0 ? ilan.fiyat : usta.ustaHakedis,
+                duration: ilan.tahminiSure,
+                icon: ilan.ikon,
+                category: (ilan.kategori != null && ilan.kategori!.isNotEmpty) ? ilan.kategori! : usta.kategori,
+                usta: usta,
+                ilan: ilan,
+                district: ilan.konum ?? usta.uzmanlikBasligi,
+                distanceMeter: distance,
+              ),
+            );
+          }
+        } else {
+          if (seenIds.add(usta.ustaId)) {
+            double? distance;
+            if (customerLat != 0.0 && customerLng != 0.0 && usta.latitude != 0.0 && usta.longitude != 0.0) {
+              distance = Geolocator.distanceBetween(customerLat, customerLng, usta.latitude, usta.longitude);
+            }
+
+            items.add(
+              _ListingCardData(
+                id: usta.ustaId,
+                title: usta.uzmanlikBasligi.isNotEmpty ? usta.uzmanlikBasligi : '${usta.kategori} Servisi',
+                description: '${usta.deneyimYili}+ yıl tecrübe • Garantili servis',
+                price: usta.ustaHakedis > 0 ? usta.ustaHakedis : 1500.0,
+                duration: '30-45 dk',
+                icon: usta.kategori.toLowerCase().contains('cilingir')
+                    ? '🔑'
+                    : usta.kategori.toLowerCase().contains('tesisat')
+                        ? '🔧'
+                        : '⚡',
+                category: usta.kategori,
+                usta: usta,
+                ilan: null,
+                district: usta.uzmanlikBasligi,
+                distanceMeter: distance,
+              ),
+            );
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _directLoadedListings = items;
+        });
+      }
+    } catch (e) {
+      debugPrint('İlanlar doğrudan yüklenirken hata: $e');
+    }
+  }
+
   void _onCategorySelected(String categoryKey) {
     setState(() {
       _selectedCategory = categoryKey;
     });
-    // Harita kontrolcüsünü de senkronize tut
     ref.read(customerMapControllerProvider.notifier).setCategory(categoryKey);
   }
 
+  bool _matchesCategory(String itemCategory, String selectedKey) {
+    if (selectedKey == 'tum') return true;
+    final itemCat = itemCategory.trim().toLowerCase();
+    final sel = selectedKey.trim().toLowerCase();
+
+    if (itemCat == sel || itemCat.contains(sel) || sel.contains(itemCat)) return true;
+
+    if (sel == 'tesisat' && (itemCat.contains('tesisat') || itemCat.contains('su') || itemCat.contains('klozet'))) return true;
+    if (sel == 'elektrik' && (itemCat.contains('elektrik') || itemCat.contains('priz') || itemCat.contains('aydınlatma'))) return true;
+    if (sel == 'cilingir' && (itemCat.contains('cilingir') || itemCat.contains('çilingir') || itemCat.contains('kilit') || itemCat.contains('anahtar'))) return true;
+    if (sel == 'kombi' && (itemCat.contains('kombi') || itemCat.contains('petek') || itemCat.contains('ısıtma'))) return true;
+    if (sel == 'klima' && (itemCat.contains('klima') || itemCat.contains('soğutma') || itemCat.contains('gaz'))) return true;
+    if (sel == 'boya' && (itemCat.contains('boya') || itemCat.contains('badana'))) return true;
+    if (sel == 'alci' && (itemCat.contains('alçı') || itemCat.contains('alci') || itemCat.contains('kartonpiyer'))) return true;
+    if (sel == 'marangoz' && (itemCat.contains('marangoz') || itemCat.contains('mobilya') || itemCat.contains('dolap'))) return true;
+    if (sel == 'beyazesya' && (itemCat.contains('beyaz') || itemCat.contains('çamaşır') || itemCat.contains('bulaşık') || itemCat.contains('buzdolabı'))) return true;
+
+    return false;
+  }
+
   List<_ListingCardData> _buildListingItems(CustomerMapState mapState) {
-    final List<_ListingCardData> items = [];
+    final List<_ListingCardData> combined = List.from(_directLoadedListings);
+    final Set<String> seenIds = combined.map((c) => c.id).toSet();
 
     for (final usta in mapState.nearbyUstalar) {
       if (usta.ilanlar.isNotEmpty) {
         for (final ilan in usta.ilanlar) {
-          items.add(
+          final cardId = '${usta.ustaId}_${ilan.id}';
+          if (!seenIds.add(cardId) && !seenIds.add(ilan.id)) continue;
+
+          double? distance;
+          final uLat = ilan.lat ?? usta.latitude;
+          final uLng = ilan.lng ?? usta.longitude;
+          if (mapState.currentLat != 0.0 && mapState.currentLng != 0.0 && uLat != 0.0 && uLng != 0.0) {
+            distance = Geolocator.distanceBetween(mapState.currentLat, mapState.currentLng, uLat, uLng);
+          }
+
+          combined.add(
             _ListingCardData(
-              id: '${usta.ustaId}_${ilan.id}',
+              id: cardId,
               title: ilan.baslik,
               description: ilan.aciklama.isNotEmpty
                   ? ilan.aciklama
@@ -123,42 +358,52 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
               price: ilan.fiyat > 0 ? ilan.fiyat : usta.ustaHakedis,
               duration: ilan.tahminiSure,
               icon: ilan.ikon,
-              category: usta.kategori,
+              category: (ilan.kategori != null && ilan.kategori!.isNotEmpty) ? ilan.kategori! : usta.kategori,
               usta: usta,
               ilan: ilan,
+              district: ilan.konum ?? usta.uzmanlikBasligi,
+              distanceMeter: distance,
             ),
           );
         }
       } else {
-        items.add(
-          _ListingCardData(
-            id: usta.ustaId,
-            title: usta.uzmanlikBasligi,
-            description: '${usta.deneyimYili}+ yıl tecrübe • Garantili servis',
-            price: usta.ustaHakedis,
-            duration: '30-45 dk',
-            icon: usta.kategori == 'cilingir'
-                ? '🔑'
-                : usta.kategori == 'tesisat'
-                    ? '🔧'
-                    : '⚡',
-            category: usta.kategori,
-            usta: usta,
-            ilan: null,
-          ),
-        );
+        if (seenIds.add(usta.ustaId)) {
+          double? distance;
+          if (mapState.currentLat != 0.0 && mapState.currentLng != 0.0 && usta.latitude != 0.0 && usta.longitude != 0.0) {
+            distance = Geolocator.distanceBetween(mapState.currentLat, mapState.currentLng, usta.latitude, usta.longitude);
+          }
+
+          combined.add(
+            _ListingCardData(
+              id: usta.ustaId,
+              title: usta.uzmanlikBasligi.isNotEmpty ? usta.uzmanlikBasligi : '${usta.kategori} Servisi',
+              description: '${usta.deneyimYili}+ yıl tecrübe • Garantili servis',
+              price: usta.ustaHakedis > 0 ? usta.ustaHakedis : 1500.0,
+              duration: '30-45 dk',
+              icon: usta.kategori.toLowerCase().contains('cilingir')
+                  ? '🔑'
+                  : usta.kategori.toLowerCase().contains('tesisat')
+                      ? '🔧'
+                      : '⚡',
+              category: usta.kategori,
+              usta: usta,
+              ilan: null,
+              district: usta.uzmanlikBasligi,
+              distanceMeter: distance,
+            ),
+          );
+        }
       }
     }
 
-    return items;
+    return combined;
   }
 
   List<_ListingCardData> _filterListings(List<_ListingCardData> items) {
-    return items.where((item) {
+    final filtered = items.where((item) {
       // 1. Kategori filtresi
       if (_selectedCategory != 'tum') {
-        final matchesCategory = item.category.toLowerCase().contains(_selectedCategory.toLowerCase()) ||
-            _selectedCategory.toLowerCase().contains(item.category.toLowerCase());
+        final matchesCategory = _matchesCategory(item.category, _selectedCategory);
         if (!matchesCategory) return false;
       }
 
@@ -168,11 +413,21 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         final inDesc = item.description.toLowerCase().contains(_searchQuery);
         final inUstaName = item.usta.fullName.toLowerCase().contains(_searchQuery);
         final inCategory = item.category.toLowerCase().contains(_searchQuery);
-        return inTitle || inDesc || inUstaName || inCategory;
+        final inDistrict = (item.district ?? '').toLowerCase().contains(_searchQuery);
+        return inTitle || inDesc || inUstaName || inCategory || inDistrict;
       }
 
       return true;
     }).toList();
+
+    // Mesafesi biliniyorsa en yakından uzağa sırala
+    filtered.sort((a, b) {
+      final distA = a.distanceMeter ?? 999999.0;
+      final distB = b.distanceMeter ?? 999999.0;
+      return distA.compareTo(distB);
+    });
+
+    return filtered;
   }
 
   List<IsletmeModel> _filterIsletmeler(List<IsletmeModel> isletmeler) {
@@ -431,7 +686,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
 
             // 2. ARAMA VE KATEGORİ ÇUBUĞU
             _buildSearchBar(),
-            _buildCategorySelector(),
+            _buildCategorySelector(rawListings),
 
             // 3. İLAN LİSTESİ / GRİD İÇERİĞİ
             Expanded(
@@ -439,6 +694,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 color: AppTheme.customerPrimary,
                 onRefresh: () async {
                   await Future.wait([
+                    _loadDirectListings(),
                     ref.read(customerMapControllerProvider.notifier).fetchNearbyUstalar(),
                     ref.read(customerMapControllerProvider.notifier).fetchIsletmeler(),
                   ]);
@@ -747,63 +1003,112 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     );
   }
 
-  /// Yatay Kategori Çubuğu
-  Widget _buildCategorySelector() {
+  /// Profesyonel Yatay Kategori Çubuğu (Dinamik sayaç ve canlı gradyan ile)
+  Widget _buildCategorySelector(List<_ListingCardData> allListings) {
     return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.only(bottom: 12),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1.2),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: SizedBox(
-        height: 38,
+        height: 42,
         child: ListView.separated(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
           itemCount: _categories.length,
           separatorBuilder: (_, __) => const SizedBox(width: 8),
           itemBuilder: (context, index) {
             final cat = _categories[index];
-            final isSelected = cat['key'] == _selectedCategory;
+            final catKey = cat['key'] as String;
+            final isSelected = catKey == _selectedCategory;
+            final catColor = (cat['color'] as Color?) ?? AppTheme.customerPrimary;
+            final catIcon = cat['icon'] as IconData;
 
-            return InkWell(
-              onTap: () => _onCategorySelected(cat['key'] as String),
-              borderRadius: BorderRadius.circular(20),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppTheme.customerPrimary : const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected ? AppTheme.customerPrimary : const Color(0xFFE2E8F0),
-                    width: isSelected ? 1.4 : 1.0,
+            // Dinamik ilan sayısı
+            final int count = (catKey == 'tum')
+                ? allListings.length
+                : (catKey == 'tedarikciler')
+                    ? 0
+                    : allListings.where((i) => _matchesCategory(i.category, catKey)).length;
+
+            return Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _onCategorySelected(catKey),
+                borderRadius: BorderRadius.circular(24),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    gradient: isSelected
+                        ? const LinearGradient(
+                            colors: [Color(0xFFEA580C), Color(0xFFF97316)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : null,
+                    color: isSelected ? null : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: isSelected
+                          ? const Color(0xFFEA580C)
+                          : const Color(0xFFE2E8F0),
+                      width: isSelected ? 1.4 : 1.0,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFFEA580C).withValues(alpha: 0.28),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ]
+                        : null,
                   ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: AppTheme.customerPrimary.withValues(alpha: 0.24),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      cat['icon'] as IconData,
-                      size: 15,
-                      color: isSelected ? Colors.white : const Color(0xFF475569),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      cat['label'] as String,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                        color: isSelected ? Colors.white : const Color(0xFF334155),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        catIcon,
+                        size: 16,
+                        color: isSelected ? Colors.white : catColor,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      Text(
+                        cat['label'] as String,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                          color: isSelected ? Colors.white : const Color(0xFF334155),
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      if (count > 0) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? Colors.white
+                                : catColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '$count',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w900,
+                              color: isSelected ? const Color(0xFFEA580C) : catColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             );
@@ -1095,7 +1400,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                             Text(item.icon, style: const TextStyle(fontSize: 12)),
                             const SizedBox(width: 4),
                             Text(
-                              usta.kategori.toUpperCase(),
+                              item.category.toUpperCase(),
                               style: const TextStyle(
                                 fontSize: 9.5,
                                 fontWeight: FontWeight.w800,
@@ -1170,7 +1475,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                       ),
                     ),
 
-                    // Sağ Alt: Tahmini Varış
+                    // Sağ Alt: Tahmini Varış veya Mesafe
                     Positioned(
                       bottom: 6,
                       right: 8,
@@ -1181,7 +1486,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          '${usta.tahminiVarisDakika} dk',
+                          item.distanceMeter != null
+                              ? '${(item.distanceMeter! / 1000).toStringAsFixed(1)} km'
+                              : '${usta.tahminiVarisDakika} dk',
                           style: const TextStyle(
                             fontSize: 9.5,
                             fontWeight: FontWeight.w700,
@@ -1244,7 +1551,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                       ),
                       const SizedBox(height: 4),
 
-                      // Tahmini Süre & Garanti Şeridi
+                      // Tahmini Süre & İlçe / Konum Şeridi
                       Row(
                         children: [
                           const Icon(Icons.schedule_rounded, size: 12, color: Color(0xFF64748B)),
@@ -1257,17 +1564,35 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                               color: Color(0xFF64748B),
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          const Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'Garantili',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF16A34A),
+                          if (item.district != null && item.district!.isNotEmpty) ...[
+                            const SizedBox(width: 4),
+                            const Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                item.district!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF16A34A),
+                                ),
+                              ),
                             ),
-                          ),
+                          ] else ...[
+                            const SizedBox(width: 4),
+                            const Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
+                            const SizedBox(width: 4),
+                            const Text(
+                              'Garantili',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF16A34A),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
 
@@ -1462,21 +1787,37 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                       Row(
                         children: [
                           Text(
-                            '${usta.kategori} • ${item.duration}',
+                            '${item.category} • ${item.duration}',
                             style: const TextStyle(
                               fontSize: 11.5,
                               color: Color(0xFF64748B),
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '• 📍 ${usta.tahminiVarisDakika} dk varış',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF16A34A),
+                          if (item.district != null && item.district!.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                '• 📍 ${item.district!}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF16A34A),
+                                ),
+                              ),
                             ),
-                          ),
+                          ] else ...[
+                            const SizedBox(width: 6),
+                            Text(
+                              '• 📍 ${usta.tahminiVarisDakika} dk varış',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF16A34A),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],
@@ -1663,48 +2004,57 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   Widget _buildEmptyState({String message = 'Bu kategoride veya aramada ilan bulunamadı.'}) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: Color(0xFFF1F5F9),
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
                 shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: const Icon(
                 Icons.search_off_rounded,
-                size: 40,
-                color: Color(0xFF94A3B8),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF475569),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Farklı bir arama yapabilir veya harita üzerinden tüm ustaları inceleyebilirsiniz.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
+                size: 42,
                 color: Color(0xFF94A3B8),
               ),
             ),
             const SizedBox(height: 16),
-            OutlinedButton.icon(
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF334155),
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Farklı bir arama yapabilir veya filtreleri temizleyerek tüm ilanları listeleyebilirsiniz.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12.5,
+                color: Color(0xFF64748B),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 18),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.customerPrimary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              ),
               icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text('Tüm İlanları Göster'),
+              label: const Text('Tüm İlanları Göster', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               onPressed: () {
                 _searchController.clear();
                 _onCategorySelected('tum');
+                _loadDirectListings();
               },
             ),
           ],

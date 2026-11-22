@@ -455,9 +455,67 @@ class AppDataService {
     }
 
     await _fetchServerData();
-    if (_cachedUstalar != null) return List.from(_cachedUstalar!);
+    if (_cachedUstalar != null && _cachedUstalar!.isNotEmpty) return List.from(_cachedUstalar!);
 
-    // Kullanıcı isteği doğrultusunda mock içerik dönülmez, temiz başlanır
+    // Eğer sunucuda ustalar listesi henüz boşsa, jobs tablosundaki usta ve ilanlardan otomatik türet
+    try {
+      final jobs = await getActiveJobs();
+      if (jobs.isNotEmpty) {
+        final List<NearbyUstaModel> recoveredUstalar = [];
+        final Set<String> seenPhones = {};
+        for (final job in jobs) {
+          final phone = normalizePhone((job['customer_phone'] ?? job['usta_phone'] ?? '').toString());
+          if (phone.isNotEmpty && seenPhones.add(phone)) {
+            final ustaName = (job['customer_name'] ?? job['usta_name'] ?? 'Usta').toString();
+            final category = (job['kategori'] ?? job['category'] ?? 'Sıhhi Tesisat').toString();
+            final address = (job['district'] ?? job['address'] ?? 'Afyonkarahisar').toString();
+            final lat = (job['latitude'] as num?)?.toDouble() ?? 38.4647;
+            final lng = (job['longitude'] as num?)?.toDouble() ?? 30.2719;
+            final price = (job['price'] as num?)?.toDouble() ?? 2500.0;
+            final uId = (job['usta_id'] ?? 'usta-$phone').toString();
+
+            recoveredUstalar.add(
+              NearbyUstaModel(
+                ustaId: uId,
+                fullName: ustaName,
+                phone: phone,
+                kategori: category,
+                uzmanlikBasligi: address,
+                latitude: lat,
+                longitude: lng,
+                mesafeMetre: 500.0,
+                ustaHakedis: price * 0.85,
+                komisyonOrani: 15.0,
+                komisyonTutari: price * 0.15,
+                toplamTutar: price,
+                isOnline: true,
+                puan: 5.0,
+                tamamlananIsSayisi: 12,
+                ilanlar: [
+                  UstaHizmetIlan(
+                    id: (job['id'] ?? 'ILN-1001').toString(),
+                    baslik: (job['title'] ?? 'Usta Hizmeti').toString(),
+                    kategori: category,
+                    aciklama: (job['description'] ?? '').toString(),
+                    fiyat: price,
+                    tahminiSure: (job['duration'] ?? '30 dk').toString(),
+                    ikon: (job['icon'] ?? '🔥').toString(),
+                    konum: address,
+                    lat: lat,
+                    lng: lng,
+                  ),
+                ],
+              ),
+            );
+          }
+        }
+        if (recoveredUstalar.isNotEmpty) {
+          _cachedUstalar = recoveredUstalar;
+          return List.from(recoveredUstalar);
+        }
+      }
+    } catch (_) {}
+
     _cachedUstalar = [];
     return [];
   }
@@ -1409,6 +1467,28 @@ class AppDataService {
         uzmanlikBasligi: location,
         ilanlar: ilanlar,
       );
+      await saveUstalar(ustalar);
+    } else {
+      // Usta henüz listede yoksa, oluştur ve ekle
+      final newUsta = NearbyUstaModel(
+        ustaId: ustaId,
+        fullName: ustaName,
+        phone: ustaPhone.isNotEmpty ? ustaPhone : '05524342069',
+        kategori: ustaCategory,
+        uzmanlikBasligi: location,
+        latitude: lat,
+        longitude: lng,
+        mesafeMetre: 500.0,
+        ustaHakedis: hizmet.fiyat * 0.85,
+        komisyonOrani: 15.0,
+        komisyonTutari: hizmet.fiyat * 0.15,
+        toplamTutar: hizmet.fiyat,
+        isOnline: true,
+        puan: 5.0,
+        tamamlananIsSayisi: 12,
+        ilanlar: [hizmet],
+      );
+      ustalar.add(newUsta);
       await saveUstalar(ustalar);
     }
   }

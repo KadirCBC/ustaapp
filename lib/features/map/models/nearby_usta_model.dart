@@ -111,6 +111,7 @@ class NearbyUstaModel {
   final List<String> guvenceler;
   final List<UstaHizmetIlan> ilanlar;
   final bool isOnline;
+  final bool isOnayli;
 
   NearbyUstaModel({
     required this.ustaId,
@@ -142,6 +143,7 @@ class NearbyUstaModel {
     ],
     this.ilanlar = const [],
     this.isOnline = true,
+    this.isOnayli = false,
   });
 
   factory NearbyUstaModel.fromJson(Map<String, dynamic> json) {
@@ -214,8 +216,20 @@ class NearbyUstaModel {
       guvenceler: parsedGuvenceler,
       ilanlar: parsedIlanlar,
       isOnline: json['is_online'] as bool? ?? json['isOnline'] as bool? ?? true,
+      isOnayli: json['is_onayli'] as bool? ??
+          json['isOnayli'] as bool? ??
+          json['is_verified'] as bool? ??
+          false,
     );
   }
+
+  /// Onaylı üye mi? (Yalnızca vergi/kimlik/yönetici onayı almış ustalarda true döner)
+  bool get isApprovedMember =>
+      isOnayli ||
+      guvenceler.any((g) {
+        final lower = g.toLowerCase();
+        return lower.contains('vergi') || lower.contains('onay') || lower.contains('yetkili');
+      });
 
   /// Harita pini üzerinde kompakt isim (Örn: "Ahmet U.")
   String get shortDisplayName {
@@ -274,6 +288,7 @@ class NearbyUstaModel {
     'ilanlar': ilanlar.map((e) => e.toJson()).toList(),
     'is_online': isOnline,
     'isOnline': isOnline,
+    'is_onayli': isOnayli,
   };
 
   NearbyUstaModel copyWith({
@@ -302,6 +317,7 @@ class NearbyUstaModel {
     List<String>? guvenceler,
     List<UstaHizmetIlan>? ilanlar,
     bool? isOnline,
+    bool? isOnayli,
   }) {
     return NearbyUstaModel(
       ustaId: ustaId ?? this.ustaId,
@@ -329,6 +345,7 @@ class NearbyUstaModel {
       guvenceler: guvenceler ?? this.guvenceler,
       ilanlar: ilanlar ?? this.ilanlar,
       isOnline: isOnline ?? this.isOnline,
+      isOnayli: isOnayli ?? this.isOnayli,
     );
   }
 }
