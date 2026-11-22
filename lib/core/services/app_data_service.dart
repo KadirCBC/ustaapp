@@ -437,18 +437,33 @@ class AppDataService {
   // 1. USTALAR & HARİTA VERİSİ (CRUD)
   // ==========================================
 
-  Future<List<NearbyUstaModel>> getUstalar() async {
-    if (_cachedUstalar != null) return List.from(_cachedUstalar!);
+  Future<void> fetchServerData() => _fetchServerData();
+
+  Future<List<NearbyUstaModel>> getUstalar({bool forceRefresh = false}) async {
+    if (_cachedUstalar != null && !forceRefresh) return List.from(_cachedUstalar!);
+
+    if (forceRefresh) {
+      await _fetchServerData();
+      if (_cachedUstalar != null && _cachedUstalar!.isNotEmpty) {
+        return List.from(_cachedUstalar!);
+      }
+    }
 
     try {
       final prefs = await SharedPreferences.getInstance();
+      final deletedList = prefs.getStringList('deleted_usta_ids') ?? <String>[];
       final raw = prefs.getString(_kUstalarKey);
       if (raw != null) {
         final List list = jsonDecode(raw);
-        _cachedUstalar = list
+        final loaded = list
             .map((item) => NearbyUstaModel.fromJson(Map<String, dynamic>.from(item)))
+            .where((u) {
+              final p = normalizePhone(u.phone);
+              return !deletedList.contains(u.ustaId) && (p.isEmpty || !deletedList.contains(p));
+            })
             .toList();
-        return List.from(_cachedUstalar!);
+        _cachedUstalar = loaded;
+        return List.from(loaded);
       }
     } catch (e) {
       debugPrint('Ustalar yüklenirken hata: $e');
@@ -1354,16 +1369,32 @@ class AppDataService {
   // 4. AKTİF İŞ / ÇAĞRI LİSTESİ (CRUD)
   // ==========================================
 
-  Future<List<Map<String, dynamic>>> getActiveJobs() async {
-    if (_cachedJobs != null) return List.from(_cachedJobs!);
+  Future<List<Map<String, dynamic>>> getActiveJobs({bool forceRefresh = false}) async {
+    if (_cachedJobs != null && !forceRefresh) return List.from(_cachedJobs!);
+
+    if (forceRefresh) {
+      await _fetchServerData();
+      if (_cachedJobs != null && _cachedJobs!.isNotEmpty) {
+        return List.from(_cachedJobs!);
+      }
+    }
 
     try {
       final prefs = await SharedPreferences.getInstance();
+      final deletedList = prefs.getStringList('deleted_usta_ids') ?? <String>[];
       final raw = prefs.getString(_kJobsKey);
       if (raw != null) {
         final List list = jsonDecode(raw);
-        _cachedJobs = list.map((e) => Map<String, dynamic>.from(e)).toList();
-        return List.from(_cachedJobs!);
+        final loaded = list
+            .map((e) => Map<String, dynamic>.from(e))
+            .where((j) {
+              final uId = (j['usta_id'] ?? '').toString();
+              final uPhone = normalizePhone((j['customer_phone'] ?? j['usta_phone'] ?? '').toString());
+              return !deletedList.contains(uId) && (uPhone.isEmpty || !deletedList.contains(uPhone));
+            })
+            .toList();
+        _cachedJobs = loaded;
+        return List.from(loaded);
       }
     } catch (e) {
       debugPrint('İlanlar yüklenirken hata: $e');

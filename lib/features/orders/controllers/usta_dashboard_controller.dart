@@ -8,6 +8,7 @@ import 'package:ustaapp/core/constants/app_constants.dart';
 import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/core/services/location_service.dart';
+import 'package:ustaapp/core/services/notification_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:ustaapp/features/orders/models/cagri_model.dart';
@@ -647,6 +648,13 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       incomingCall: demoCagri,
       pendingCalls: [demoCagri, ...state.pendingCalls.where((c) => c.id != demoId)],
     );
+    NotificationService.instance.showIncomingCallNotification(
+      cagriId: demoCagri.id,
+      customerName: demoCagri.musteriFullName ?? 'Müşteri',
+      serviceTitle: demoCagri.adresTarifi ?? 'Acil Usta Çağrısı',
+      price: demoCagri.toplamTutar ?? demoCagri.ustaHakedis ?? fee,
+      address: demoCagri.adresTarifi,
+    );
   }
 
   /// Ustanın çalışma bölgesini / ilçesini ve koordinatlarını günceller
@@ -905,6 +913,13 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
         '>>> [UstaDashboardController] Gelen çağrı bulundu: ${active.id}, Tutar: ${active.toplamTutar}',
       );
       state = state.copyWith(incomingCall: active);
+      NotificationService.instance.showIncomingCallNotification(
+        cagriId: active.id,
+        customerName: active.musteriFullName ?? 'Müşteri',
+        serviceTitle: active.adresTarifi ?? 'Acil Servis & Usta Hizmeti',
+        price: active.toplamTutar ?? active.ustaHakedis ?? 0,
+        address: active.adresTarifi,
+      );
     } catch (e) {
       debugPrint(
         '[UstaDashboardController] _checkIncomingCallsFromSyncService error: $e',

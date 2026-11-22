@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ustaapp/core/models/app_notification_model.dart';
 import 'package:ustaapp/core/services/app_data_service.dart';
@@ -133,10 +134,14 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   Future<void> _loadDirectListings() async {
     try {
       final List<_ListingCardData> items = [];
+      final Set<String> seenKeys = {};
       final Set<String> seenIds = {};
 
-      final activeJobs = await AppDataService.instance.getActiveJobs();
-      final allUstalar = await AppDataService.instance.getUstalar();
+      final prefs = await SharedPreferences.getInstance();
+      final deletedList = (prefs.getStringList('deleted_usta_ids') ?? <String>[]).toSet();
+
+      final activeJobs = await AppDataService.instance.getActiveJobs(forceRefresh: true);
+      final allUstalar = await AppDataService.instance.getUstalar(forceRefresh: true);
       final customerLat = ref.read(customerMapControllerProvider).currentLat;
       final customerLng = ref.read(customerMapControllerProvider).currentLng;
 
@@ -146,15 +151,28 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         if (status != 'Aktif') continue;
 
         final rawId = (job['id'] ?? '').toString();
-        if (rawId.isEmpty || !seenIds.add(rawId)) continue;
-
         final title = (job['title'] ?? 'Usta Hizmeti').toString();
         final desc = (job['description'] ?? '').toString();
         final category = (job['kategori'] ?? job['category'] ?? 'Genel').toString();
         final district = (job['district'] ?? job['address'] ?? 'Afyonkarahisar').toString();
         final ustaName = (job['customer_name'] ?? job['usta_name'] ?? 'Usta').toString();
         final ustaPhone = (job['customer_phone'] ?? job['usta_phone'] ?? '').toString();
-        final ustaId = (job['usta_id'] ?? (ustaPhone.isNotEmpty ? 'usta-$ustaPhone' : 'usta-$rawId')).toString();
+        final normPhone = AppDataService.normalizePhone(ustaPhone);
+        final ustaId = (job['usta_id'] ?? (normPhone.isNotEmpty ? 'usta-$normPhone' : 'usta-$rawId')).toString();
+
+        // Silinmiş usta kontrolü (Silinen ustalar haritada ve ilanlarda kesinlikle görünmez)
+        if (deletedList.contains(ustaId) || (normPhone.isNotEmpty && deletedList.contains(normPhone))) {
+          continue;
+        }
+
+        // Tekillik kontrolü (Aynı ustanın aynı ilanı çift eklenemez)
+        final dedupeKey = '${normPhone.isNotEmpty ? normPhone : ustaId}_${title.toLowerCase().trim()}';
+        if (seenKeys.contains(dedupeKey) || (rawId.isNotEmpty && seenIds.contains(rawId))) {
+          continue;
+        }
+        seenKeys.add(dedupeKey);
+        if (rawId.isNotEmpty) seenIds.add(rawId);
+
         final icon = (job['icon'] ?? '⚡').toString();
         final duration = (job['duration'] ?? '30 dk').toString();
 
@@ -182,7 +200,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         }
 
         final matchingUsta = allUstalar.cast<NearbyUstaModel?>().firstWhere(
-          (u) => u != null && (u.ustaId == ustaId || (ustaPhone.isNotEmpty && AppDataService.normalizePhone(u.phone) == AppDataService.normalizePhone(ustaPhone))),
+          (u) => u != null && (u.ustaId == ustaId || (normPhone.isNotEmpty && AppDataService.normalizePhone(u.phone) == normPhone)),
           orElse: () => null,
         );
 
@@ -201,7 +219,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           toplamTutar: price,
           isOnline: true,
           puan: 5.0,
-          tamamlananIsSayisi: 12,
+          tamamlananIsSayisi: 0,
         );
 
         final ilanModel = UstaHizmetIlan(
@@ -234,12 +252,21 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         );
       }
 
-      // 2. Kayıtlı ustaların ilanlar listesi
+      // 2. Kayıtlı ustaların eklediği diğer ilanlar (activeJobs'ta bulunmayanlar varsa)
       for (final usta in allUstalar) {
+        final normPhone = AppDataService.normalizePhone(usta.phone);
+        if (deletedList.contains(usta.ustaId) || (normPhone.isNotEmpty && deletedList.contains(normPhone))) {
+          continue;
+        }
+
         if (usta.ilanlar.isNotEmpty) {
           for (final ilan in usta.ilanlar) {
-            final cardId = '${usta.ustaId}_${ilan.id}';
-            if (!seenIds.add(cardId) && !seenIds.add(ilan.id)) continue;
+            final dedupeKey = '${normPhone.isNotEmpty ? normPhone : usta.ustaId}_${ilan.baslik.toLowerCase().trim()}';
+            if (seenKeys.contains(dedupeKey) || (ilan.id.isNotEmpty && seenIds.contains(ilan.id))) {
+              continue; // activeJobs'tan veya önceki adımdan zaten eklendi, tekrar ekleme
+            }
+            seenKeys.add(dedupeKey);
+            if (ilan.id.isNotEmpty) seenIds.add(ilan.id);
 
             double? distance;
             final uLat = ilan.lat ?? usta.latitude;
@@ -250,7 +277,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
 
             items.add(
               _ListingCardData(
-                id: cardId,
+                id: ilan.id,
                 title: ilan.baslik,
                 description: ilan.aciklama.isNotEmpty ? ilan.aciklama : '${usta.fullName} • ${usta.uzmanlikBasligi}',
                 price: ilan.fiyat > 0 ? ilan.fiyat : usta.ustaHakedis,
@@ -260,33 +287,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 usta: usta,
                 ilan: ilan,
                 district: ilan.konum ?? usta.uzmanlikBasligi,
-                distanceMeter: distance,
-              ),
-            );
-          }
-        } else {
-          if (seenIds.add(usta.ustaId)) {
-            double? distance;
-            if (customerLat != 0.0 && customerLng != 0.0 && usta.latitude != 0.0 && usta.longitude != 0.0) {
-              distance = Geolocator.distanceBetween(customerLat, customerLng, usta.latitude, usta.longitude);
-            }
-
-            items.add(
-              _ListingCardData(
-                id: usta.ustaId,
-                title: usta.uzmanlikBasligi.isNotEmpty ? usta.uzmanlikBasligi : '${usta.kategori} Servisi',
-                description: '${usta.deneyimYili}+ yıl tecrübe • Garantili servis',
-                price: usta.ustaHakedis > 0 ? usta.ustaHakedis : 1500.0,
-                duration: '30-45 dk',
-                icon: usta.kategori.toLowerCase().contains('cilingir')
-                    ? '🔑'
-                    : usta.kategori.toLowerCase().contains('tesisat')
-                        ? '🔧'
-                        : '⚡',
-                category: usta.kategori,
-                usta: usta,
-                ilan: null,
-                district: usta.uzmanlikBasligi,
                 distanceMeter: distance,
               ),
             );
@@ -332,71 +332,39 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   }
 
   List<_ListingCardData> _buildListingItems(CustomerMapState mapState) {
-    final List<_ListingCardData> combined = List.from(_directLoadedListings);
-    final Set<String> seenIds = combined.map((c) => c.id).toSet();
-
-    for (final usta in mapState.nearbyUstalar) {
-      if (usta.ilanlar.isNotEmpty) {
-        for (final ilan in usta.ilanlar) {
-          final cardId = '${usta.ustaId}_${ilan.id}';
-          if (!seenIds.add(cardId) && !seenIds.add(ilan.id)) continue;
-
-          double? distance;
-          final uLat = ilan.lat ?? usta.latitude;
-          final uLng = ilan.lng ?? usta.longitude;
-          if (mapState.currentLat != 0.0 && mapState.currentLng != 0.0 && uLat != 0.0 && uLng != 0.0) {
-            distance = Geolocator.distanceBetween(mapState.currentLat, mapState.currentLng, uLat, uLng);
-          }
-
-          combined.add(
-            _ListingCardData(
-              id: cardId,
-              title: ilan.baslik,
-              description: ilan.aciklama.isNotEmpty
-                  ? ilan.aciklama
-                  : '${usta.fullName} • ${usta.uzmanlikBasligi}',
-              price: ilan.fiyat > 0 ? ilan.fiyat : usta.ustaHakedis,
-              duration: ilan.tahminiSure,
-              icon: ilan.ikon,
-              category: (ilan.kategori != null && ilan.kategori!.isNotEmpty) ? ilan.kategori! : usta.kategori,
-              usta: usta,
-              ilan: ilan,
-              district: ilan.konum ?? usta.uzmanlikBasligi,
-              distanceMeter: distance,
-            ),
-          );
-        }
-      } else {
-        if (seenIds.add(usta.ustaId)) {
-          double? distance;
-          if (mapState.currentLat != 0.0 && mapState.currentLng != 0.0 && usta.latitude != 0.0 && usta.longitude != 0.0) {
-            distance = Geolocator.distanceBetween(mapState.currentLat, mapState.currentLng, usta.latitude, usta.longitude);
-          }
-
-          combined.add(
-            _ListingCardData(
-              id: usta.ustaId,
-              title: usta.uzmanlikBasligi.isNotEmpty ? usta.uzmanlikBasligi : '${usta.kategori} Servisi',
-              description: '${usta.deneyimYili}+ yıl tecrübe • Garantili servis',
-              price: usta.ustaHakedis > 0 ? usta.ustaHakedis : 1500.0,
-              duration: '30-45 dk',
-              icon: usta.kategori.toLowerCase().contains('cilingir')
-                  ? '🔑'
-                  : usta.kategori.toLowerCase().contains('tesisat')
-                      ? '🔧'
-                      : '⚡',
-              category: usta.kategori,
-              usta: usta,
-              ilan: null,
-              district: usta.uzmanlikBasligi,
-              distanceMeter: distance,
-            ),
-          );
-        }
-      }
+    if (_directLoadedListings.isNotEmpty) {
+      return _directLoadedListings;
     }
 
-    return combined;
+    final List<_ListingCardData> fallback = [];
+    final Set<String> seenKeys = {};
+    final Set<String> seenIds = {};
+
+    for (final usta in mapState.nearbyUstalar) {
+      for (final ilan in usta.ilanlar) {
+        final key = '${usta.phone}_${ilan.baslik.toLowerCase().trim()}';
+        if (seenKeys.contains(key) || (ilan.id.isNotEmpty && seenIds.contains(ilan.id))) {
+          continue;
+        }
+        seenKeys.add(key);
+        if (ilan.id.isNotEmpty) seenIds.add(ilan.id);
+        fallback.add(
+          _ListingCardData(
+            id: ilan.id,
+            title: ilan.baslik,
+            description: ilan.aciklama,
+            price: ilan.fiyat,
+            duration: ilan.tahminiSure,
+            icon: ilan.ikon,
+            category: ilan.kategori ?? usta.kategori,
+            usta: usta,
+            ilan: ilan,
+            district: ilan.konum ?? usta.uzmanlikBasligi,
+          ),
+        );
+      }
+    }
+    return fallback;
   }
 
   List<_ListingCardData> _filterListings(List<_ListingCardData> items) {
@@ -1255,7 +1223,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           crossAxisCount: 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 14,
-          childAspectRatio: 0.62,
+          childAspectRatio: 0.71,
         ),
         delegate: SliverChildBuilderDelegate(
           (context, index) {
@@ -1306,18 +1274,26 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   /// Tekil Profesyonel Grid Kartı
   Widget _buildGridCard(_ListingCardData item) {
     final usta = item.usta;
+    final isApproved = usta.isApprovedMember;
     final photoUrl = _getUstaAvatarUrl(usta);
+    final distanceKm = item.distanceMeter != null
+        ? (item.distanceMeter! / 1000).toStringAsFixed(1)
+        : (usta.mesafeMetre / 1000).toStringAsFixed(1);
+    final completedCount = usta.tamamlananIsSayisi;
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isApproved ? const Color(0xFFD1FAE5) : const Color(0xFFE2E8F0),
+          width: isApproved ? 1.5 : 1.0,
+        ),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0E0F172A),
-            blurRadius: 14,
-            offset: Offset(0, 4),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -1325,348 +1301,304 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () => _openBookingSheet(usta, ilan: item.ilan),
-          borderRadius: BorderRadius.circular(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 1. ÜST: USTA PROFİL RESMİ VE ROZETLER
-              SizedBox(
-                height: 114,
-                child: Stack(
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. Üst Bar: Kategori Rozeti + Puan
+                Row(
                   children: [
-                    // Usta Profil Fotoğrafı
-                    Positioned.fill(
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-                        child: _buildUstaImage(photoUrl, height: 114, fit: BoxFit.cover),
-                      ),
-                    ),
-
-                    // Üst Karartma Gradyanı (Rozetlerin net okunması için)
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: 48,
+                    Expanded(
                       child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
                         decoration: BoxDecoration(
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.black.withValues(alpha: 0.55),
-                              Colors.transparent,
-                            ],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Alt Karartma Gradyanı
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: 42,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withValues(alpha: 0.65),
-                            ],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Sol Üst: Kategori İkonu ve Adı
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xCC0F172A),
+                          color: const Color(0xFFFFF7ED),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white24, width: 0.8),
+                          border: Border.all(color: const Color(0xFFFFEDD5)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(item.icon, style: const TextStyle(fontSize: 12)),
+                            Text(item.icon, style: const TextStyle(fontSize: 11)),
                             const SizedBox(width: 4),
-                            Text(
-                              item.category.toUpperCase(),
-                              style: const TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: 0.3,
+                            Flexible(
+                              child: Text(
+                                item.category.toUpperCase(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFFC2410C),
+                                  letterSpacing: 0.3,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-
-                    // Sağ Üst: Puan Rozeti
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black26, blurRadius: 4),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.star_rounded, size: 13, color: Color(0xFFD97706)),
-                            const SizedBox(width: 2),
-                            Text(
-                              usta.puan.toStringAsFixed(1),
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF0F172A),
-                              ),
-                            ),
-                          ],
-                        ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(7),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
                       ),
-                    ),
-
-                    // Sol Alt: Onaylı Usta Rozeti
-                    Positioned(
-                      bottom: 6,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981),
-                          borderRadius: BorderRadius.circular(6),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black26, blurRadius: 4),
-                          ],
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.verified_user_rounded, size: 10, color: Colors.white),
-                            SizedBox(width: 3),
-                            Text(
-                              'Onaylı Usta',
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star_rounded, size: 13, color: Color(0xFFD97706)),
+                          const SizedBox(width: 2),
+                          Text(
+                            usta.puan.toStringAsFixed(1),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFB45309),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Sağ Alt: Tahmini Varış veya Mesafe
-                    Positioned(
-                      bottom: 6,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xCC0F172A),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          item.distanceMeter != null
-                              ? '${(item.distanceMeter! / 1000).toStringAsFixed(1)} km'
-                              : '${usta.tahminiVarisDakika} dk',
-                          style: const TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
                           ),
-                        ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 10),
 
-              // 2. ORTA: USTA BİLGİSİ, BAŞLIK VE AYRINTILAR
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                // 2. Usta Profil Alanı: Avatar + İsim + Onaylı Üye Rozeti (Sadece Onaylıysa)
+                Row(
+                  children: [
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isApproved ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
+                              width: 2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.06),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: _buildUstaImage(photoUrl, width: 44, height: 44, fit: BoxFit.cover),
+                          ),
+                        ),
+                        if (usta.isOnline)
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            usta.fullName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          // Onaylı üye rozeti - SADECE ONAYLI ÜYELERDE GÖRÜNÜR
+                          if (isApproved)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFECFDF5),
+                                borderRadius: BorderRadius.circular(5),
+                                border: Border.all(color: const Color(0xFFA7F3D0)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.verified_rounded, size: 10, color: Color(0xFF059669)),
+                                  SizedBox(width: 3),
+                                  Text(
+                                    'Onaylı Üye',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF059669),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            Text(
+                              '${usta.deneyimYili} Yıl Deneyim',
+                              style: const TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // 3. İlan Başlığı (2 Satır, Net, Kalın ve Profesyonel)
+                Text(
+                  item.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1E293B),
+                    height: 1.25,
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // 4. Profesyonel Metrikler: Başarılı İşlem & Varış Süresi
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFF1F5F9)),
+                  ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Usta Adı ve Doğrulama
+                      // Başarılı İşlem Sayısı
                       Row(
                         children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: _buildUstaImage(photoUrl, width: 18, height: 18),
-                          ),
-                          const SizedBox(width: 6),
+                          const Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF10B981)),
+                          const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              usta.fullName,
+                              completedCount > 0 ? '$completedCount Başarılı İşlem' : 'Yeni Kayıtlı Usta',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 11.5,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w700,
                                 color: Color(0xFF334155),
                               ),
                             ),
                           ),
-                          const Icon(
-                            Icons.check_circle_rounded,
-                            size: 13,
-                            color: Color(0xFF10B981),
-                          ),
                         ],
-                      ),
-                      const SizedBox(height: 5),
-
-                      // İlan Başlığı (2 Satır, Net ve Kalın)
-                      Text(
-                        item.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
-                          height: 1.22,
-                        ),
                       ),
                       const SizedBox(height: 4),
-
-                      // Tahmini Süre & İlçe / Konum Şeridi
+                      // Varış Süresi & Mesafe
                       Row(
                         children: [
-                          const Icon(Icons.schedule_rounded, size: 12, color: Color(0xFF64748B)),
+                          const Icon(Icons.bolt_rounded, size: 12, color: Color(0xFFEA580C)),
                           const SizedBox(width: 3),
-                          Text(
-                            item.duration,
-                            style: const TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF64748B),
+                          Expanded(
+                            child: Text(
+                              '${usta.tahminiVarisSuresi} varış • $distanceKm km',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF64748B),
+                              ),
                             ),
                           ),
-                          if (item.district != null && item.district!.isNotEmpty) ...[
-                            const SizedBox(width: 4),
-                            const Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                item.district!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF16A34A),
-                                ),
-                              ),
-                            ),
-                          ] else ...[
-                            const SizedBox(width: 4),
-                            const Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
-                            const SizedBox(width: 4),
-                            const Text(
-                              'Garantili',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF16A34A),
-                              ),
-                            ),
-                          ],
                         ],
                       ),
+                    ],
+                  ),
+                ),
 
-                      const Spacer(),
+                const Spacer(),
 
-                      // 3. ALT: FİYAT VE ÇAĞIR BUTONU
+                // 5. Taban Fiyat & Çağır Butonu
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'TABAN',
+                            style: TextStyle(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF64748B),
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          Text(
+                            '${item.price.toStringAsFixed(0)} ₺',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF15803D),
+                              height: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          color: const Color(0xFF0F172A),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text(
-                                  'TABAN',
-                                  style: TextStyle(
-                                    fontSize: 8.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF94A3B8),
-                                    letterSpacing: 0.4,
-                                  ),
-                                ),
-                                Text(
-                                  '${item.price.toStringAsFixed(0)} ₺',
-                                  style: const TextStyle(
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xFF15803D),
-                                    height: 1.1,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0F172A),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'Çağır',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  SizedBox(width: 3),
-                                  Icon(
-                                    Icons.arrow_forward_rounded,
-                                    size: 12,
-                                    color: Colors.white,
-                                  ),
-                                ],
+                            Text(
+                              'Çağır',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
                               ),
                             ),
+                            SizedBox(width: 3),
+                            Icon(Icons.arrow_forward_rounded, size: 12, color: Colors.white),
                           ],
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1676,13 +1608,21 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   /// Tekil Profesyonel Liste Kartı
   Widget _buildListCard(_ListingCardData item) {
     final usta = item.usta;
+    final isApproved = usta.isApprovedMember;
     final photoUrl = _getUstaAvatarUrl(usta);
+    final distanceKm = item.distanceMeter != null
+        ? (item.distanceMeter! / 1000).toStringAsFixed(1)
+        : (usta.mesafeMetre / 1000).toStringAsFixed(1);
+    final completedCount = usta.tamamlananIsSayisi;
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isApproved ? const Color(0xFFD1FAE5) : const Color(0xFFE2E8F0),
+          width: isApproved ? 1.5 : 1.0,
+        ),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0A0F172A),
@@ -1700,60 +1640,55 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                // Sol Usta Portre Fotoğrafı (Rozetli)
+                // Sol: Usta Profil Resmi (Online Noktası ve Çerçeve)
                 Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: _buildUstaImage(photoUrl, width: 82, height: 82),
-                    ),
-                    Positioned(
-                      top: 4,
-                      left: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xCC0F172A),
-                          borderRadius: BorderRadius.circular(6),
+                    Container(
+                      width: 58,
+                      height: 58,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isApproved ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
+                          width: 2.2,
                         ),
-                        child: Text(
-                          item.icon,
-                          style: const TextStyle(fontSize: 11),
-                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: _buildUstaImage(photoUrl, width: 58, height: 58, fit: BoxFit.cover),
                       ),
                     ),
-                    Positioned(
-                      bottom: 4,
-                      right: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(6),
-                          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.star_rounded, size: 12, color: Color(0xFFD97706)),
-                            const SizedBox(width: 1),
-                            Text(
-                              usta.puan.toStringAsFixed(1),
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                            ),
-                          ],
+                    if (usta.isOnline)
+                      Positioned(
+                        bottom: 1,
+                        right: 1,
+                        child: Container(
+                          width: 14,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2.2),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(width: 12),
 
-                // Orta Metinler
+                // Orta: Usta Adı, Rozet, Başlık ve Metrikler
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Usta Adı + Onaylı Üye Rozeti + Puan
                       Row(
                         children: [
                           Flexible(
@@ -1762,59 +1697,143 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF475569),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF10B981)),
+                          if (isApproved) ...[
+                            const SizedBox(width: 5),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFECFDF5),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: const Color(0xFFA7F3D0)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.verified_rounded, size: 9.5, color: Color(0xFF059669)),
+                                  SizedBox(width: 2),
+                                  Text(
+                                    'Onaylı',
+                                    style: TextStyle(
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF059669),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          const Spacer(),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.star_rounded, size: 14, color: Color(0xFFD97706)),
+                              const SizedBox(width: 2),
+                              Text(
+                                usta.puan.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 3),
+
+                      // İlan Başlığı
                       Text(
                         item.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 13.5,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
+                          color: Color(0xFF1E293B),
                         ),
                       ),
                       const SizedBox(height: 4),
+
+                      // Kategori & Başarılı İşlem
                       Row(
                         children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF7ED),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: const Color(0xFFFFEDD5)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(item.icon, style: const TextStyle(fontSize: 10)),
+                                const SizedBox(width: 2),
+                                Text(
+                                  item.category,
+                                  style: const TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFC2410C),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Icon(Icons.check_circle_rounded, size: 11, color: Color(0xFF10B981)),
+                          const SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              completedCount > 0 ? '$completedCount Başarılı İşlem' : 'Yeni Usta',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF475569),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+
+                      // Varış Süresi ve Mesafe
+                      Row(
+                        children: [
+                          const Icon(Icons.bolt_rounded, size: 12, color: Color(0xFFEA580C)),
+                          const SizedBox(width: 2),
                           Text(
-                            '${item.category} • ${item.duration}',
+                            '${usta.tahminiVarisSuresi} varış • $distanceKm km',
                             style: const TextStyle(
-                              fontSize: 11.5,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
                               color: Color(0xFF64748B),
                             ),
                           ),
                           if (item.district != null && item.district!.isNotEmpty) ...[
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 4),
+                            const Text('•', style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 10)),
+                            const SizedBox(width: 4),
                             Flexible(
                               child: Text(
-                                '• 📍 ${item.district!}',
+                                item.district!,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 10.5,
                                   fontWeight: FontWeight.w600,
                                   color: Color(0xFF16A34A),
                                 ),
-                              ),
-                            ),
-                          ] else ...[
-                            const SizedBox(width: 6),
-                            Text(
-                              '• 📍 ${usta.tahminiVarisDakika} dk varış',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF16A34A),
                               ),
                             ),
                           ],
@@ -1823,26 +1842,37 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
 
-                // Sağ Fiyat & Çağır Butonu
+                // Sağ: Taban Fiyat & Hemen Çağır
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    const Text(
+                      'TABAN',
+                      style: TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF94A3B8),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
                     Text(
                       '${item.price.toStringAsFixed(0)} ₺',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
                         color: Color(0xFF15803D),
+                        height: 1.1,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
                         color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1850,7 +1880,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                           Text(
                             'Çağır',
                             style: TextStyle(
-                              fontSize: 11.5,
+                              fontSize: 11,
                               fontWeight: FontWeight.w800,
                               color: Colors.white,
                             ),

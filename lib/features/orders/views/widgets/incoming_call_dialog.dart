@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,30 +22,49 @@ class _IncomingCallDialogState extends ConsumerState<IncomingCallDialog> {
   int _remainingMs = _totalSeconds * 1000;
   Timer? _countdownTimer;
   Timer? _alertLoopTimer;
+  AudioPlayer? _audioPlayer;
   bool _isProcessing = false;
   bool _isClosing = false;
 
   @override
   void initState() {
     super.initState();
-    _triggerSoundAndVibration();
-    _startAlertLoop();
+    _playCustomRingtone();
     _startSmoothCountdown();
   }
 
-  /// Sesli ve titreşimli acil çağrı uyarısı
-  void _triggerSoundAndVibration() {
-    HapticFeedback.heavyImpact();
-    SystemSound.play(SystemSoundType.alert);
+  /// Özel UstaGelio çağrı zil sesini loop olarak çalar
+  Future<void> _playCustomRingtone() async {
+    try {
+      HapticFeedback.heavyImpact();
+      _audioPlayer = AudioPlayer();
+      await _audioPlayer!.setReleaseMode(ReleaseMode.loop);
+      await _audioPlayer!.play(AssetSource('sounds/cagri_sesi.mp3'));
+    } catch (e) {
+      debugPrint('[IncomingCallDialog] Özel zil sesi çalma hatası: $e');
+      _triggerSoundAndVibrationFallback();
+    }
   }
 
-  /// Modal açıkken her 2.5 saniyede bir ses ve titreşimi yineler
-  void _startAlertLoop() {
+  /// Ses çalınamazsa sistem bip ve titreşimi ile yedek döngü
+  void _triggerSoundAndVibrationFallback() {
+    HapticFeedback.heavyImpact();
+    SystemSound.play(SystemSoundType.alert);
     _alertLoopTimer = Timer.periodic(const Duration(milliseconds: 2500), (_) {
       if (mounted && !_isProcessing && !_isClosing) {
-        _triggerSoundAndVibration();
+        HapticFeedback.heavyImpact();
+        SystemSound.play(SystemSoundType.alert);
       }
     });
+  }
+
+  /// Zil sesini anında durdurur
+  void _stopRingtone() {
+    try {
+      _audioPlayer?.stop();
+      _audioPlayer?.dispose();
+      _audioPlayer = null;
+    } catch (_) {}
   }
 
   /// 30 saniyelik akıcı dairesel geri sayım sayacı
@@ -59,6 +79,7 @@ class _IncomingCallDialogState extends ConsumerState<IncomingCallDialog> {
       if (_remainingMs <= 100) {
         timer.cancel();
         _alertLoopTimer?.cancel();
+        _stopRingtone();
         if (!_isProcessing && !_isClosing) {
           _isClosing = true;
           await ref
@@ -78,6 +99,7 @@ class _IncomingCallDialogState extends ConsumerState<IncomingCallDialog> {
   void dispose() {
     _countdownTimer?.cancel();
     _alertLoopTimer?.cancel();
+    _stopRingtone();
     super.dispose();
   }
 
@@ -93,6 +115,7 @@ class _IncomingCallDialogState extends ConsumerState<IncomingCallDialog> {
         _isClosing = true;
         _countdownTimer?.cancel();
         _alertLoopTimer?.cancel();
+        _stopRingtone();
         if (mounted) {
           Navigator.of(context, rootNavigator: true).pop();
         }
@@ -358,6 +381,7 @@ class _IncomingCallDialogState extends ConsumerState<IncomingCallDialog> {
                               });
                               _countdownTimer?.cancel();
                               _alertLoopTimer?.cancel();
+                              _stopRingtone();
                               await controller.rejectIncomingCall(cagri.id);
                               if (mounted) {
                                 rootNavigator.pop();
@@ -392,6 +416,7 @@ class _IncomingCallDialogState extends ConsumerState<IncomingCallDialog> {
                               });
                               _countdownTimer?.cancel();
                               _alertLoopTimer?.cancel();
+                              _stopRingtone();
                               final success = await controller.acceptIncomingCall(cagri.id);
                               if (mounted) {
                                 rootNavigator.pop();

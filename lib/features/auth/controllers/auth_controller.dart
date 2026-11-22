@@ -112,7 +112,8 @@ class PhoneAuthController extends StateNotifier<PhoneAuthState> {
   }
 
   /// Telefon numarasına OTP gönder
-  Future<bool> sendOtp() async {
+  /// [requireRegistered]: Giriş ekranından çağrıldığında kullanıcının kayıtlı olması zorunludur.
+  Future<bool> sendOtp({bool requireRegistered = true}) async {
     final raw = state.formattedPhone;
     if (!PhoneFormatter.isValidTrPhone(raw)) {
       state = state.copyWith(
@@ -130,6 +131,14 @@ class PhoneAuthController extends StateNotifier<PhoneAuthState> {
 
     // Telefonun sistemde daha önce kayıtlı olup olmadığını kontrol et
     final existingUser = await _appDataService.findUserByPhone(raw);
+    if (requireRegistered && existingUser == null) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Bu telefon numarasıyla kayıtlı bir hesap bulunamadı. Lütfen önce Müşteri veya Usta olarak üye olunuz.',
+      );
+      return false;
+    }
+
     if (existingUser != null) {
       final role = UserRole.fromDbValue(existingUser['role'] ?? 'musteri');
       state = state.copyWith(
@@ -262,7 +271,7 @@ class PhoneAuthController extends StateNotifier<PhoneAuthState> {
   }
 
   /// Yeni kullanıcı için isim ve rol kaydını tamamla
-  Future<bool> completeRegistration() async {
+  Future<bool> completeRegistration({String category = 'Elektrik'}) async {
     if (state.fullName.trim().isEmpty) {
       state = state.copyWith(
         errorMessage: 'Lütfen adınızı ve soyadınızı giriniz.',
@@ -285,6 +294,20 @@ class PhoneAuthController extends StateNotifier<PhoneAuthState> {
       fullName: state.fullName.trim(),
       role: state.selectedRole!.toDbValue(),
     );
+
+    if (state.selectedRole == UserRole.usta) {
+      final parts = state.fullName.trim().split(' ');
+      final firstName = parts.first;
+      final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : 'Usta';
+      await _appDataService.registerUsta(
+        phone: state.formattedPhone,
+        firstName: firstName,
+        lastName: lastName,
+        category: category,
+        cityDistrict: 'İstanbul',
+        address: 'Merkez',
+      );
+    }
 
     final currentUser = _supabaseService.currentUser;
     if (currentUser != null) {

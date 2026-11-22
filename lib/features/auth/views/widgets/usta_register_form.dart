@@ -31,11 +31,32 @@ class _UstaRegisterFormState extends ConsumerState<UstaRegisterForm> {
   late final TextEditingController _ibanController;
   late final TextEditingController _baseFeeController;
 
-  final String _selectedCategory = 'Genel Usta';
+  String _selectedCategory = 'Elektrik';
   int _experienceYears = 5;
   bool _hasMyk = true;
   final double _workRadiusKm = 15.0;
   bool _contractAccepted = true;
+
+  static const List<Map<String, String>> _categoryOptions = [
+    {'name': 'Elektrik', 'icon': '⚡'},
+    {'name': 'Sıhhi Tesisat', 'icon': '🔧'},
+    {'name': 'Çilingir', 'icon': '🔑'},
+    {'name': 'Kombi Servisi', 'icon': '🔥'},
+    {'name': 'Klima Servisi', 'icon': '❄️'},
+    {'name': 'Boya & Badana', 'icon': '🎨'},
+    {'name': 'Alçı & Dekorasyon', 'icon': '🛠️'},
+    {'name': 'Beyaz Eşya Servisi', 'icon': '📱'},
+    {'name': 'Marangoz & Mobilya', 'icon': '🚪'},
+    {'name': 'Fayans & Seramik', 'icon': '🧱'},
+    {'name': 'Çatı & Yalıtım', 'icon': '🪵'},
+    {'name': 'Cam & Balkon', 'icon': '🪟'},
+    {'name': 'Kaynak & Demir Doğrama', 'icon': '🏗️'},
+    {'name': 'Temizlik & İlaçlama', 'icon': '🧹'},
+    {'name': 'Nakliyat', 'icon': '🚛'},
+    {'name': 'Oto Çilingir & Yol Yardım', 'icon': '🚗'},
+    {'name': 'Güvenlik & Kamera', 'icon': '📹'},
+    {'name': 'Genel Usta', 'icon': '⚙️'},
+  ];
 
   static const List<int> _experienceOptions = [2, 5, 8];
 
@@ -232,7 +253,48 @@ class _UstaRegisterFormState extends ConsumerState<UstaRegisterForm> {
             ),
             const SizedBox(height: 14),
 
-            // 2. İLETİŞİM BİLGİLERİ (Telefon + E-posta)
+            // 2. MESLEK / UZMANLIK ALANI (KATEGORİ SEÇİMİ)
+            _buildFieldLabel('Mesleğiniz / Hizmet Kategoriniz *'),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedCategory,
+                  isExpanded: true,
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFFEA580C)),
+                  items: _categoryOptions.map((c) {
+                    return DropdownMenuItem<String>(
+                      value: c['name'],
+                      child: Row(
+                        children: [
+                          Text(c['icon']!, style: const TextStyle(fontSize: 16)),
+                          const SizedBox(width: 10),
+                          Text(
+                            c['name']!,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _selectedCategory = val);
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // 3. İLETİŞİM BİLGİLERİ (Telefon + E-posta)
             _buildFieldLabel('Cep Telefonu Numarası *'),
             TextFormField(
               controller: _phoneController,

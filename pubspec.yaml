@@ -25,6 +25,7 @@ dependencies:
   image_picker: ^1.2.4
   flutter_local_notifications: ^23.0.3
   flutter_background_service: ^5.1.0
+  audioplayers: ^6.8.1
 dependency_overrides:
   mapbox_maps_flutter: 3.34.2
   mapbox_maps_flutter_mobile: 3.34.2
@@ -39,3 +40,4 @@ flutter:
   assets:
     - .env
     - assets/images/
+    - assets/sounds/

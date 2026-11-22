@@ -12,6 +12,21 @@ class RoleSelectionStep extends ConsumerStatefulWidget {
 
 class _RoleSelectionStepState extends ConsumerState<RoleSelectionStep> {
   late final TextEditingController _nameController;
+  String _selectedCategory = 'Elektrik';
+
+  static const List<Map<String, String>> _categories = [
+    {'name': 'Elektrik', 'icon': '⚡'},
+    {'name': 'Sıhhi Tesisat', 'icon': '🔧'},
+    {'name': 'Çilingir', 'icon': '🔑'},
+    {'name': 'Kombi Servisi', 'icon': '🔥'},
+    {'name': 'Klima Servisi', 'icon': '❄️'},
+    {'name': 'Boya & Badana', 'icon': '🎨'},
+    {'name': 'Alçı & Dekorasyon', 'icon': '🛠️'},
+    {'name': 'Beyaz Eşya Servisi', 'icon': '📱'},
+    {'name': 'Marangoz & Mobilya', 'icon': '🚪'},
+    {'name': 'Fayans & Seramik', 'icon': '🧱'},
+    {'name': 'Genel Usta', 'icon': '⚙️'},
+  ];
 
   @override
   void initState() {
@@ -218,6 +233,77 @@ class _RoleSelectionStepState extends ConsumerState<RoleSelectionStep> {
                     onTap: () => controller.selectRole(UserRole.usta),
                   ),
 
+                  // Usta seçildiğinde sorulacak meslek / kategori alanı
+                  if (state.selectedRole == UserRole.usta) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFFED7AA)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.handyman_rounded, size: 16, color: Color(0xFFEA580C)),
+                              SizedBox(width: 6),
+                              Text(
+                                'MESLEĞİNİZ / HİZMET KATEGORİNİZ *',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFC2410C),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF7ED),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFFFEDD5)),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _selectedCategory,
+                                isExpanded: true,
+                                icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFFEA580C)),
+                                items: _categories.map((c) {
+                                  return DropdownMenuItem<String>(
+                                    value: c['name'],
+                                    child: Row(
+                                      children: [
+                                        Text(c['icon']!, style: const TextStyle(fontSize: 15)),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          c['name']!,
+                                          style: const TextStyle(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  if (val != null) setState(() => _selectedCategory = val);
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   if (state.errorMessage != null) ...[
                     const SizedBox(height: 14),
                     Container(
@@ -264,7 +350,7 @@ class _RoleSelectionStepState extends ConsumerState<RoleSelectionStep> {
                       color: Colors.transparent,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
-                        onTap: state.isLoading ? null : () => controller.completeRegistration(),
+                        onTap: state.isLoading ? null : () => controller.completeRegistration(category: _selectedCategory),
                         child: Center(
                           child: state.isLoading
                               ? const SizedBox(

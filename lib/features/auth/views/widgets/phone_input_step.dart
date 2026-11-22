@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
+import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/utils/phone_formatter.dart';
 import 'package:ustaapp/features/auth/controllers/auth_controller.dart';
 import 'package:ustaapp/features/auth/models/user_role.dart';
@@ -113,6 +114,171 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
         ),
       ),
     );
+  }
+
+  /// Kayıtsız numara uyarısı ve üyelik adımlarına yönlendirme modalı
+  void _showUnregisteredUserDialog(String rawPhone) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFFDE68A), width: 2),
+                ),
+                child: const Icon(
+                  Icons.person_search_rounded,
+                  color: Color(0xFFD97706),
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Kayıtlı Hesap Bulunamadı',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18.5,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text.rich(
+                TextSpan(
+                  text: 'Girdiğiniz ',
+                  children: [
+                    TextSpan(
+                      text: '+90 $rawPhone ',
+                      style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                    ),
+                    const TextSpan(
+                      text: 'numarasına ait kayıtlı bir üyelik bulunamadı.\n\nUstaGelio ailesine katılmak için lütfen Müşteri veya Usta olarak kayıt oluşturunuz.',
+                    ),
+                  ],
+                ),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF64748B),
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 22),
+
+              // 1. Müşteri Kaydı Butonu
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    ref.read(phoneAuthControllerProvider.notifier).setPhone(rawPhone);
+                    ref.read(phoneAuthControllerProvider.notifier).selectRole(UserRole.musteri);
+                    setState(() {
+                      _currentTab = AuthScreenTab.customerRegister;
+                    });
+                  },
+                  icon: const Icon(Icons.people_alt_rounded, size: 18),
+                  label: const Text(
+                    'Müşteri Olarak Kayıt Ol',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F172A),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // 2. Usta Kaydı Butonu
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    ref.read(phoneAuthControllerProvider.notifier).setPhone(rawPhone);
+                    ref.read(phoneAuthControllerProvider.notifier).selectRole(UserRole.usta);
+                    setState(() {
+                      _currentTab = AuthScreenTab.ustaRegister;
+                    });
+                  },
+                  icon: const Icon(Icons.handyman_rounded, size: 18),
+                  label: const Text(
+                    'Usta Olarak Kayıt Ol',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEA580C),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text(
+                  'Vazgeç',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF94A3B8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Giriş Yap kontrolü: Numara kayıtlı değilse 2. ve 3. ekranlara ASLA geçmez
+  Future<void> _handleLoginSubmit() async {
+    final rawPhone = _phoneController.text.trim();
+    if (!PhoneFormatter.isValidTrPhone(rawPhone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Lütfen geçerli bir cep telefonu numarası giriniz (5XX XXX XX XX).'),
+          backgroundColor: Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
+    final cleanPhone = PhoneFormatter.clean(rawPhone);
+    final appData = AppDataService.instance;
+
+    // Sistemde kayıtlı mı kontrol et
+    final existingUser = await appData.findUserByPhone(cleanPhone);
+
+    if (existingUser == null) {
+      // Kayıtlı değilse SMS (2. ekran) veya Profil tamamlama (3. ekran) açılmaz, uyarı ve yönlendirme çıkar
+      _showUnregisteredUserDialog(rawPhone);
+      return;
+    }
+
+    // Kayıtlı kullanıcı ise güvenle OTP gönder
+    final controller = ref.read(phoneAuthControllerProvider.notifier);
+    controller.setPhone(rawPhone);
+    await controller.sendOtp(requireRegistered: true);
   }
 
   @override
@@ -264,17 +430,18 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      // Sola dayalı logo (Görselin ÜSTÜNDE yer alır - 52px)
+                                      // Sola dayalı logo (4. Görseldeki yeni UstaGelio Logosu)
                                       SizedBox(
-                                        height: 52,
+                                        height: 48,
                                         child: OverflowBox(
                                           alignment: Alignment.centerLeft,
-                                          maxWidth: 340,
-                                          maxHeight: 52,
+                                          maxWidth: 280,
+                                          maxHeight: 48,
                                           child: Image.asset(
                                             'assets/images/app_logo.png',
-                                            height: 52,
+                                            height: 48,
                                             fit: BoxFit.contain,
+                                            alignment: Alignment.centerLeft,
                                           ),
                                         ),
                                       ),
@@ -524,7 +691,7 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                                             setState(() {});
                                           },
                                           onSubmitted: (_) {
-                                            if (!state.isLoading) controller.sendOtp();
+                                            if (!state.isLoading) _handleLoginSubmit();
                                           },
                                         ),
                                       ),
@@ -604,7 +771,7 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                               SizedBox(
                                 height: 52,
                                 child: ElevatedButton(
-                                  onPressed: state.isLoading ? null : () => controller.sendOtp(),
+                                  onPressed: state.isLoading ? null : _handleLoginSubmit,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFFF59E0B),
                                     foregroundColor: const Color(0xFF0F172A),

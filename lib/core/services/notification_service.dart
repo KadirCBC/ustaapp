@@ -24,6 +24,11 @@ class NotificationService {
   static const String channelUrgentDesc =
       'Ustanız adrese ulaştığında veya acil durumlarda sesli ve kilit ekranı uyarısı verir.';
 
+  static const String channelIncomingCallId = 'ustam_incoming_call';
+  static const String channelIncomingCallName = '🔔 Gelen Usta Çağrıları';
+  static const String channelIncomingCallDesc =
+      'Müşterilerden yeni bir acil servis veya arıza çağrısı geldiğinde özel zil sesi ile çalar.';
+
   static const String channelBroadcastId = 'ustam_broadcasts';
   static const String channelBroadcastName = '📢 UstaGelio Duyurular & Güncellemeler';
   static const String channelBroadcastDesc =
@@ -86,7 +91,20 @@ class NotificationService {
           showBadge: true,
         );
 
-        // 3. Genel Duyuru ve Güncelleme Kanalı
+        // 3. Gelen Usta Çağrısı Özel Zil Sesi Kanalı
+        final AndroidNotificationChannel callChannel = AndroidNotificationChannel(
+          channelIncomingCallId,
+          channelIncomingCallName,
+          description: channelIncomingCallDesc,
+          importance: Importance.max,
+          playSound: true,
+          sound: const RawResourceAndroidNotificationSound('cagri_sesi'),
+          enableVibration: true,
+          vibrationPattern: urgentVibration,
+          showBadge: true,
+        );
+
+        // 4. Genel Duyuru ve Güncelleme Kanalı
         final AndroidNotificationChannel broadcastChannel = AndroidNotificationChannel(
           channelBroadcastId,
           channelBroadcastName,
@@ -98,6 +116,7 @@ class NotificationService {
         );
 
         await androidImplementation?.createNotificationChannel(urgentChannel);
+        await androidImplementation?.createNotificationChannel(callChannel);
         await androidImplementation?.createNotificationChannel(broadcastChannel);
       }
 
@@ -182,6 +201,80 @@ class NotificationService {
       );
     } catch (e) {
       debugPrint('[NotificationService] Usta bildirim hatası: $e');
+    }
+  }
+
+  /// 🔔 YENİ MÜŞTERİ ÇAĞRISI GELDİĞİNDE ÖZEL ZİL SESİYLE ÇAĞRILIR
+  Future<void> showIncomingCallNotification({
+    required String cagriId,
+    required String customerName,
+    required String serviceTitle,
+    required double price,
+    String? address,
+  }) async {
+    final title = '🔔 YENİ ÇAĞRI: $serviceTitle';
+    final body = '$customerName acil usta çağırıyor! Tutar: ${price.toStringAsFixed(0)} ₺${address != null && address.isNotEmpty ? " • $address" : ""}';
+
+    final notif = AppNotificationModel(
+      id: 'call_${DateTime.now().millisecondsSinceEpoch}',
+      title: title,
+      message: body,
+      type: 'call',
+      target: 'ustalar',
+      isUrgent: true,
+      createdAt: DateTime.now(),
+      data: {'cagri_id': cagriId, 'customer_name': customerName, 'price': price, 'address': address},
+    );
+    await addNotification(notif);
+
+    if (kIsWeb) return;
+
+    try {
+      final urgentVibration = Int64List.fromList([0, 1000, 300, 1000, 300, 1500]);
+      final androidDetails = AndroidNotificationDetails(
+        channelIncomingCallId,
+        channelIncomingCallName,
+        channelDescription: channelIncomingCallDesc,
+        icon: '@drawable/ic_notification',
+        largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+        color: const Color(0xFFF97316),
+        importance: Importance.max,
+        priority: Priority.high,
+        playSound: true,
+        sound: const RawResourceAndroidNotificationSound('cagri_sesi'),
+        enableVibration: true,
+        vibrationPattern: urgentVibration,
+        fullScreenIntent: true,
+        visibility: NotificationVisibility.public,
+        category: AndroidNotificationCategory.call,
+        styleInformation: BigTextStyleInformation(
+          body,
+          contentTitle: title,
+          summaryText: 'UstaGelio Yeni Çağrı',
+        ),
+      );
+
+      final notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentSound: true,
+          sound: 'cagri_sesi.mp3',
+          presentBadge: true,
+          interruptionLevel: InterruptionLevel.critical,
+        ),
+      );
+
+      final notifId = DateTime.now().millisecondsSinceEpoch % 100000;
+      await _notificationsPlugin.show(
+        id: notifId,
+        title: title,
+        body: body,
+        notificationDetails: notificationDetails,
+        payload: jsonEncode(notif.toJson()),
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] Gelen çağrı bildirim hatası: $e');
     }
   }
 
