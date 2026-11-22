@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ustaapp/core/constants/app_constants.dart';
+import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
@@ -832,19 +833,54 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
     _showIsletmeDetailSheet(context, isletme);
   }
 
+  void _selectUstaFromIsletme(IsletmeModel isletme) {
+    final mapNotifier = ref.read(customerMapControllerProvider.notifier);
+    final mapState = ref.read(customerMapControllerProvider);
+
+    NearbyUstaModel? matched = mapState.nearbyUstalar.cast<NearbyUstaModel?>().firstWhere(
+      (u) =>
+          u != null &&
+          (u.fullName == isletme.ad ||
+              AppDataService.normalizePhone(u.phone) ==
+                  AppDataService.normalizePhone(isletme.telefon)),
+      orElse: () => null,
+    );
+
+    matched ??= NearbyUstaModel(
+      ustaId: 'isletme-${isletme.id}',
+      fullName: isletme.ad,
+      phone: isletme.telefon,
+      kategori: isletme.kategori.toLowerCase().contains('elektrik')
+          ? 'elektrik'
+          : (isletme.kategori.toLowerCase().contains('tesisat')
+              ? 'tesisat'
+              : 'cilingir'),
+      uzmanlikBasligi: isletme.adres,
+      puan: 5.0,
+      tamamlananIsSayisi: 24,
+      latitude: isletme.latitude,
+      longitude: isletme.longitude,
+      mesafeMetre: isletme.mesafeMetre,
+      ustaHakedis: 750.0,
+      komisyonOrani: 15.0,
+      komisyonTutari: 112.5,
+      toplamTutar: 862.5,
+      servisUcreti: 750.0,
+    );
+
+    mapNotifier.selectUsta(matched);
+  }
+
   Future<void> _makePhoneCall(String phone) async {
-    final clean = phone.replaceAll(RegExp(r'[^0-9+]'), '');
-    if (clean.isEmpty) return;
-    final uri = Uri.parse('tel:$clean');
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-      } else {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
-    } catch (e) {
-      debugPrint('Telefon arama hatası: $e');
-    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Gizlilik ve güvenlik gereği doğrudan telefonla arama yapılamaz. Lütfen uygulama üzerinden güvenli çağrı oluşturun.',
+        ),
+        backgroundColor: Color(0xFFD97706),
+      ),
+    );
   }
 
   Future<void> _openDirections(double lat, double lng, String label) async {
@@ -1049,49 +1085,80 @@ class _CustomerMapScreenState extends ConsumerState<CustomerMapScreen> {
                   ),
                   const SizedBox(height: 10),
                 ],
-                // Telefon Bilgisi
+                // Telefon Bilgisi (Gizli Numara)
                 if (isletme.telefon.isNotEmpty) ...[
                   Row(
                     children: [
                       const Icon(
-                        Icons.phone_outlined,
+                        Icons.phone_locked_outlined,
                         size: 19,
                         color: Color(0xFF64748B),
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        isletme.telefon,
+                        AppDataService.maskPhone(isletme.telefon),
                         style: const TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF334155),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFFDE68A)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.lock_rounded, size: 11, color: Color(0xFFD97706)),
+                            SizedBox(width: 3),
+                            Text(
+                              'Gizli Numara',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFFB45309),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '🔒 Numara güvenliği için telefon bilgileri gizlenir. Çağrı ve ödeme başlatıldığında aktif olur.',
+                    style: TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
                   ),
                   const SizedBox(height: 16),
                 ],
-                // Aksiyon Butonları (Telefonla Ara + Yol Tarifi Al)
+                // Aksiyon Butonları (Güvenli Çağır + Yol Tarifi Al)
                 Row(
                   children: [
-                    if (isletme.telefon.isNotEmpty)
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _makePhoneCall(isletme.telefon),
-                          icon: const Icon(Icons.phone_rounded, size: 18),
-                          label: const Text('Telefonla Ara'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF059669),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 13),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            elevation: 0,
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _selectUstaFromIsletme(isletme);
+                        },
+                        icon: const Icon(Icons.flash_on_rounded, size: 18),
+                        label: const Text('Güvenli Çağır'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0F172A),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
+                          elevation: 0,
                         ),
                       ),
-                    if (isletme.telefon.isNotEmpty) const SizedBox(width: 10),
+                    ),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () => _openDirections(

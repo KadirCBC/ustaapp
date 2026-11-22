@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/payment_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/map/controllers/map_controller.dart';
@@ -120,11 +121,6 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
   }
 
   Future<void> _onCallUstaPressed(NearbyUstaModel usta) async {
-    final mapController = ref.read(customerMapControllerProvider.notifier);
-    final paymentService = ref.read(paymentServiceProvider);
-    final messenger = ScaffoldMessenger.of(context);
-    final router = GoRouter.of(context);
-
     final pricing = _calculatePricing(usta);
 
     // Yapılandırılmış profesyonel adres ve arıza notu
@@ -149,33 +145,73 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
       noteBuffer.writeln('📷 Fotoğraf: 1 Adet Görsel Eklendi');
     }
 
-    final updatedUsta = usta.copyWith(
-      ustaHakedis: pricing.servicePrice,
-      komisyonTutari: pricing.commission,
-      toplamTutar: pricing.total,
+    await _showPaymentCheckoutSheet(
+      context: context,
+      usta: usta,
+      serviceTitle: _selectedIlan?.baslik ?? 'Standart Servis & Arıza Tespiti',
+      pricing: pricing,
+      addressAndNote: noteBuffer.toString().trim(),
     );
+  }
 
-    final cagriId = await mapController.createCagri(
-      usta: updatedUsta,
-      adresTarifi: noteBuffer.toString().trim(),
+  /// Güvenli Ödeme ve Provizyon Onay Adımı (Ödeme adımı tamamlanmadan çağrı BAŞLATILAMAZ)
+  Future<void> _showPaymentCheckoutSheet({
+    required BuildContext context,
+    required NearbyUstaModel usta,
+    required String serviceTitle,
+    required ({double servicePrice, double commission, double total}) pricing,
+    required String addressAndNote,
+  }) async {
+    final mapController = ref.read(customerMapControllerProvider.notifier);
+    final paymentService = ref.read(paymentServiceProvider);
+    final router = GoRouter.of(context);
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetCtx) {
+        return _PaymentCheckoutModal(
+          usta: usta,
+          serviceTitle: serviceTitle,
+          pricing: pricing,
+          addressAndNote: addressAndNote,
+          onConfirmPayment: () async {
+            // 1. Önce İyzico ön provizyonu bloke et (Ödeme adımı tamamlanmadan çağrı BAŞLATILAMAZ!)
+            final tempAuthId = 'pre-auth-${DateTime.now().millisecondsSinceEpoch}';
+            final preAuthResult = await paymentService.createPreAuth(cagriId: tempAuthId);
+
+            if (!preAuthResult.success) {
+              throw Exception(
+                preAuthResult.error ?? 'Ön provizyon alınamadı. Lütfen kart limitinizi kontrol ediniz.',
+              );
+            }
+
+            // 2. Sadece provizyon onaylandıktan SONRA çağrı oluştur ve ustaya ilet!
+            final updatedUsta = usta.copyWith(
+              ustaHakedis: pricing.servicePrice,
+              komisyonTutari: pricing.commission,
+              toplamTutar: pricing.total,
+            );
+
+            final cagriId = await mapController.createCagri(
+              usta: updatedUsta,
+              adresTarifi: addressAndNote,
+            );
+
+            if (cagriId == null) {
+              throw Exception('Çağrı oluşturulamadı. Lütfen tekrar deneyiniz.');
+            }
+
+            if (bottomSheetCtx.mounted) {
+              Navigator.of(bottomSheetCtx).pop();
+            }
+
+            router.push('/customer/active-call/$cagriId');
+          },
+        );
+      },
     );
-
-    if (cagriId == null || !mounted) return;
-
-    final preAuthResult = await paymentService.createPreAuth(cagriId: cagriId);
-    if (!mounted) return;
-
-    if (!preAuthResult.success) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(preAuthResult.error ?? 'Karttan provizyon alınamadı.'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-      return;
-    }
-
-    router.push('/customer/active-call/$cagriId');
   }
 
   @override
@@ -1268,8 +1304,8 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                   : const Icon(Icons.lock_rounded, size: 18),
               label: Text(
                 mapState.isCreatingCall
-                    ? 'Çağrı Başlatılıyor...'
-                    : 'Hemen Çağır (${pricing.total.toStringAsFixed(0)} ₺ ile Güvenceli Öde)',
+                    ? 'Provizyon Doğrulanıyor...'
+                    : 'Güvenli Ödeme ile Çağır (${pricing.total.toStringAsFixed(0)} ₺)',
                 style: const TextStyle(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w800,
@@ -1369,6 +1405,438 @@ class _PriceLine extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// İyzico 3D Güvenli Ödeme & Ön Provizyon Onay Sayfası
+class _PaymentCheckoutModal extends StatefulWidget {
+  final NearbyUstaModel usta;
+  final String serviceTitle;
+  final ({double servicePrice, double commission, double total}) pricing;
+  final String addressAndNote;
+  final Future<void> Function() onConfirmPayment;
+
+  const _PaymentCheckoutModal({
+    required this.usta,
+    required this.serviceTitle,
+    required this.pricing,
+    required this.addressAndNote,
+    required this.onConfirmPayment,
+  });
+
+  @override
+  State<_PaymentCheckoutModal> createState() => _PaymentCheckoutModalState();
+}
+
+class _PaymentCheckoutModalState extends State<_PaymentCheckoutModal> {
+  bool _isProcessing = false;
+  String? _errorMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 24,
+            offset: Offset(0, -6),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        14,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Başlık & İyzico Güvence Rozeti
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF7ED),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFFFEDD5)),
+                    ),
+                    child: const Icon(
+                      Icons.shield_outlined,
+                      color: AppTheme.customerPrimary,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Güvenli Ödeme & Provizyon',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'İyzico 256-Bit SSL • Koruma Havuz Hesabı',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+
+              // Temsili Kayıtlı Kredi Kartı Görünümü
+              Container(
+                height: 130,
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'İyzico Korumalı Kart',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          'Mastercard',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Text(
+                      '••••  ••••  ••••  4242',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          widget.usta.fullName.toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const Text(
+                          '12/28',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Hizmet ve Fiyat Dökümü
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            widget.serviceTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${widget.pricing.servicePrice.toStringAsFixed(0)} ₺',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Platform Güvence & İyzico Sigortası',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                        Text(
+                          '${widget.pricing.commission.toStringAsFixed(0)} ₺',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.phone_locked_rounded,
+                          size: 14,
+                          color: Color(0xFFD97706),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Usta Tel: ${AppDataService.maskPhone(widget.usta.phone)}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                        const Spacer(),
+                        const Text(
+                          '(İş Kabul Edilince Açılır)',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFD97706),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 18, color: Color(0xFFE2E8F0)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Toplam Provizyon Tutarı',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          '${widget.pricing.total.toStringAsFixed(0)} ₺',
+                          style: const TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w900,
+                            color: AppTheme.customerPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Güvenlik Açıklaması
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFBBF7D0)),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.verified_user_rounded,
+                      size: 18,
+                      color: Color(0xFF166534),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Bu tutar kartınızda sadece bloke (ön provizyon) edilir. Usta işi teslim edip siz onay vermeden ustanın hesabına aktarılmaz. Çağrı iptalinde anında açılır.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF166534),
+                          height: 1.35,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFECACA)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(fontSize: 12, color: Colors.redAccent, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 20),
+
+              // Onay Butonu
+              ElevatedButton(
+                onPressed: _isProcessing
+                    ? null
+                    : () async {
+                        setState(() {
+                          _isProcessing = true;
+                          _errorMessage = null;
+                        });
+                        try {
+                          await widget.onConfirmPayment();
+                        } catch (e) {
+                          if (mounted) {
+                            setState(() {
+                              _isProcessing = false;
+                              _errorMessage = e.toString().replaceAll('Exception:', '').trim();
+                            });
+                          }
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.customerPrimary,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                child: _isProcessing
+                    ? const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            'İyzico 3D Güvenli Provizyon Alınıyor...',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        'Ödemeyi Onayla ve Ustayla Başlat (${widget.pricing.total.toStringAsFixed(0)} ₺)',
+                        style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800),
+                      ),
+              ),
+              const SizedBox(height: 10),
+
+              // Vazgeç Butonu
+              TextButton(
+                onPressed: _isProcessing ? null : () => Navigator.of(context).pop(),
+                child: const Text(
+                  'Vazgeç / İptal',
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

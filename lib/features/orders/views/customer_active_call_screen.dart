@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/orders/controllers/active_order_controller.dart';
 import 'package:ustaapp/features/orders/models/cagri_model.dart';
@@ -134,7 +135,7 @@ class CustomerActiveCallScreen extends ConsumerWidget {
             if (cagri.isPending)
               _buildPendingRadarCard(cagri, controller, state)
             else
-              _buildUstaInfoCard(cagri),
+              _buildUstaInfoCard(context, cagri),
 
             const SizedBox(height: 20),
 
@@ -368,7 +369,7 @@ class CustomerActiveCallScreen extends ConsumerWidget {
   }
 
   /// Atanan Usta Bilgi Kartı
-  Widget _buildUstaInfoCard(CagriModel cagri) {
+  Widget _buildUstaInfoCard(BuildContext context, CagriModel cagri) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -393,7 +394,9 @@ class CustomerActiveCallScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  cagri.ustaPhone ?? 'İletişim numarası',
+                  (cagri.isAccepted || cagri.isOnTheWay || cagri.isAtAddress)
+                      ? (cagri.ustaPhone ?? 'İletişim numarası')
+                      : '🔒 ${AppDataService.maskPhone(cagri.ustaPhone)} (Usta Onaylayınca Açılır)',
                   style: const TextStyle(fontSize: 13, color: AppTheme.customerTextMuted),
                 ),
               ],
@@ -401,13 +404,33 @@ class CustomerActiveCallScreen extends ConsumerWidget {
           ),
           Container(
             decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.12),
+              color: (cagri.isAccepted || cagri.isOnTheWay || cagri.isAtAddress)
+                  ? Colors.green.withValues(alpha: 0.12)
+                  : Colors.grey.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: IconButton(
-              icon: const Icon(Icons.phone, color: Colors.green),
+              icon: Icon(
+                Icons.phone,
+                color: (cagri.isAccepted || cagri.isOnTheWay || cagri.isAtAddress)
+                    ? Colors.green
+                    : Colors.grey,
+              ),
               onPressed: () {
-                // Telefon araması
+                if (cagri.isAccepted || cagri.isOnTheWay || cagri.isAtAddress) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${cagri.ustaFullName ?? 'Usta'} aranıyor: ${cagri.ustaPhone ?? ''}'),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Usta çağrınızı onaylayıp yola çıktığında doğrudan telefon görüşmesi yapabilirsiniz.'),
+                      backgroundColor: Color(0xFFD97706),
+                    ),
+                  );
+                }
               },
             ),
           ),

@@ -2024,6 +2024,16 @@ class AppDataService {
     return digits;
   }
 
+  /// Telefon numarasını gizlilik için maskeler (Örn: 0552 424 20 69 -> 0552 *** ** 69)
+  static String maskPhone(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return '05** *** ** **';
+    final norm = normalizePhone(raw);
+    if (norm.length != 10) return '05** *** ** **';
+    final prefix = norm.substring(0, 3);
+    final lastTwo = norm.substring(norm.length - 2);
+    return '0$prefix *** ** $lastTwo';
+  }
+
   /// Kayıtlı kullanıcıları getirir (telefon -> kullanıcı profili)
   Future<Map<String, Map<String, dynamic>>> getRegisteredUsers() async {
     if (_cachedRegisteredUsers != null) return Map.from(_cachedRegisteredUsers!);
