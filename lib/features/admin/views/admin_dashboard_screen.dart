@@ -2440,6 +2440,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     final defaultRateCtrl = TextEditingController(text: defaultRate.toStringAsFixed(0));
     final singleRateCtrl = TextEditingController(text: '15');
+    double earlyPayoutRate = (settings['early_payout_rate'] as num?)?.toDouble() ?? 5.0;
+    final earlyPayoutRateCtrl = TextEditingController(text: earlyPayoutRate.toStringAsFixed(0));
+    bool isEarlyPayoutEnabled = settings['is_early_payout_enabled'] as bool? ?? false;
 
     final List<String> standardCategories = AppDataService.defaultAppCategories
         .map((c) => (c['name'] ?? c['title'] ?? '').toString())
@@ -2761,6 +2764,164 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         ),
                       ),
                     ],
+                    const SizedBox(height: 18),
+                    Divider(height: 1, color: _borderSecondary),
+                    const SizedBox(height: 16),
+
+                    // 3. 7 GÜN BEKLEMEDEN ERKEN ÇEKİM / AVANS KESİNTİ ORANI (AKTİF / PASİF)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isEarlyPayoutEnabled
+                            ? const Color(0xFF16A34A).withValues(alpha: 0.08)
+                            : const Color(0xFF64748B).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isEarlyPayoutEnabled
+                              ? const Color(0xFF86EFAC)
+                              : _borderSecondary,
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isEarlyPayoutEnabled ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.bolt_rounded,
+                              size: 20,
+                              color: isEarlyPayoutEnabled ? const Color(0xFF15803D) : const Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Erken Çekim Sistemi',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: _textPrimary),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isEarlyPayoutEnabled ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        isEarlyPayoutEnabled ? 'AKTİF' : 'PASİF (KAPALI)',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: isEarlyPayoutEnabled ? const Color(0xFF15803D) : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  isEarlyPayoutEnabled
+                                      ? 'Açık • Ustalar kesinti karşılığında 7 gün beklemeden FAST ile erken çekim yapabilir.'
+                                      : 'Kapalı • Ustalar 7 gün dolmadan çekim yapamaz, yasal provizyon süresi beklenir.',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isEarlyPayoutEnabled ? const Color(0xFF15803D) : _textSecondary,
+                                    fontWeight: isEarlyPayoutEnabled ? FontWeight.w600 : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: isEarlyPayoutEnabled,
+                            activeColor: const Color(0xFF16A34A),
+                            onChanged: (val) => setDlgState(() => isEarlyPayoutEnabled = val),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    if (isEarlyPayoutEnabled) ...[
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.bolt_rounded, size: 16, color: Color(0xFFD97706)),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '7 Gün Beklemeden Erken Çekim Kesintisi (%)',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary),
+                                ),
+                                Text(
+                                  'Blokeli bakiyeden erken çekim yapan ustalardan alınacak ek komisyon',
+                                  style: TextStyle(fontSize: 11, color: _textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: earlyPayoutRateCtrl,
+                        keyboardType: TextInputType.number,
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary),
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.bolt_rounded, color: Color(0xFFD97706), size: 18),
+                          suffixText: '% Erken Kesinti',
+                          hintText: 'Örn: 15',
+                          filled: true,
+                          fillColor: _bgPrimary,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _borderSecondary)),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _borderSecondary)),
+                        ),
+                        onChanged: (val) => setDlgState(() {}),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Usta 7 gün beklemeden erken çekim istediğinde bu kesinti uygulanır, kesinti şirketimiz platformuna ek gelir olarak kalır.',
+                        style: TextStyle(fontSize: 11, color: _textSecondary),
+                      ),
+                    ] else ...[
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: _borderSecondary),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline_rounded, color: Color(0xFF64748B), size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Erken çekim kapalıyken usta cüzdanında erken çekim butonları gösterilmez. İstediğiniz zaman bu anahtarı açarak erken çekim komisyonunu aktif edebilirsiniz.',
+                                style: TextStyle(fontSize: 11, color: _textSecondary),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -2773,11 +2934,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ElevatedButton(
                 onPressed: () async {
                   final parsedDefault = double.tryParse(defaultRateCtrl.text.trim()) ?? 15.0;
+                  final parsedEarly = double.tryParse(earlyPayoutRateCtrl.text.trim()) ?? 5.0;
                   final newSettings = {
                     'default_rate': parsedDefault,
                     'is_category_based': isCategoryBased,
                     'category_rates': categoryRates,
                     'hold_days': 7,
+                    'early_payout_rate': parsedEarly,
+                    'is_early_payout_enabled': isEarlyPayoutEnabled,
                   };
 
                   await AppDataService().saveCommissionSettings(newSettings);
@@ -2788,7 +2952,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   }
 
                   setState(() {});
-                  _showSuccessToast('Komisyon oranları ve 7 günlük bloke kuralı başarıyla kaydedildi!');
+                  _showSuccessToast('Komisyon oranları ve erken çekim kuralları başarıyla kaydedildi!');
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF16A34A),

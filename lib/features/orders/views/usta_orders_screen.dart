@@ -659,40 +659,68 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Flexible(
-              child: Text(
-                'Usta Paneli',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 17,
-                  color: Color(0xFF0F172A),
-                ),
-                overflow: TextOverflow.ellipsis,
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: AppTheme.ustaPrimary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.handyman_rounded,
+                size: 19,
+                color: AppTheme.ustaPrimary,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
+            const Text(
+              'Usta Paneli',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+                letterSpacing: -0.3,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
               decoration: BoxDecoration(
                 color: state.isOnline
                     ? const Color(0xFFDCFCE7)
                     : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: state.isOnline
                       ? const Color(0xFF86EFAC)
                       : const Color(0xFFE2E8F0),
                 ),
               ),
-              child: Text(
-                state.isOnline ? 'ONLINE' : 'OFFLINE',
-                style: TextStyle(
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w900,
-                  color: state.isOnline
-                      ? const Color(0xFF15803D)
-                      : const Color(0xFF64748B),
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: state.isOnline
+                          ? const Color(0xFF16A34A)
+                          : const Color(0xFF94A3B8),
+                    ),
+                  ),
+                  const SizedBox(width: 4.5),
+                  Text(
+                    state.isOnline ? 'ONLINE' : 'OFFLINE',
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.3,
+                      color: state.isOnline
+                          ? const Color(0xFF15803D)
+                          : const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -716,61 +744,51 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                 child: Divider(height: 1, color: Color(0xFFE2E8F0)),
               ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.account_balance_wallet_rounded, color: AppTheme.ustaPrimary),
-            tooltip: 'Cüzdanım & Hakediş',
-            onPressed: () => context.push('/usta/wallet'),
-          ),
+          // Bildirimler Butonu (Sayaç / Dot ile)
           ValueListenableBuilder<List<AppNotificationModel>>(
             valueListenable: NotificationService.instance.notificationsNotifier,
             builder: (context, notifs, _) {
               final unread = notifs.any((n) => !n.isRead);
-              return Stack(
-                alignment: Alignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications_none_rounded),
-                    tooltip: 'Bildirimler',
-                    onPressed: () => NotificationSheet.show(context),
+              return InkWell(
+                onTap: () => NotificationSheet.show(context),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
-                  if (unread)
-                    Positioned(
-                      top: 10,
-                      right: 10,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Colors.redAccent,
-                          shape: BoxShape.circle,
-                        ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      const Icon(
+                        Icons.notifications_none_rounded,
+                        size: 21,
+                        color: Color(0xFF334155),
                       ),
-                    ),
-                ],
+                      if (unread)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEF4444),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               );
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Yenile',
-            onPressed: () => controller.loadDashboardData(forceRefresh: true),
-          ),
-          IconButton(
-            icon: const Icon(Icons.person_rounded),
-            tooltip: 'Profil',
-            onPressed: () => context.push('/profile'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Çıkış Yap',
-            onPressed: () async {
-              await ref.read(authStateProvider.notifier).signOut();
-              ref.read(phoneAuthControllerProvider.notifier).reset();
-              if (context.mounted) {
-                context.go('/auth');
-              }
-            },
-          ),
+          const SizedBox(width: 14),
         ],
       ),
       body: RefreshIndicator(
@@ -810,6 +828,318 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
               // 5. GELEN ACİL ÇAĞRILAR & CANLI İŞ AKIŞI
               _buildLiveCallsSection(state, controller),
             ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: _buildUstaBottomNav(),
+    );
+  }
+
+  void _showExploreOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Row(
+              children: [
+                Icon(Icons.explore_rounded, color: Color(0xFF2563EB), size: 22),
+                SizedBox(width: 8),
+                Text(
+                  'Harita & Liste Keşfi',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Usta olarak bölgenizdeki diğer ustaları, toptancı & tedarikçileri ve müşteri ilanlarını inceleyin:',
+              style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B), height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            InkWell(
+              onTap: () {
+                Navigator.pop(ctx);
+                context.push('/customer/map');
+              },
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.map_rounded, color: Color(0xFF2563EB), size: 24),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Canlı Müşteri & Usta Haritası',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E40AF)),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Harita üzerindeki tüm ustaları, dükkanları ve malzeme tedarikçilerini görün',
+                            style: TextStyle(fontSize: 11.5, color: Color(0xFF3B82F6)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF2563EB)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: () {
+                Navigator.pop(ctx);
+                context.push('/customer/home');
+              },
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFBBF7D0)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.grid_view_rounded, color: Color(0xFF16A34A), size: 24),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tüm Hizmetler & İlan Listesi',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF166534)),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            '28 farklı meslek kategorisini, müşteri ilanlarını ve fiyat tarifelerini listeleyin',
+                            style: TextStyle(fontSize: 11.5, color: Color(0xFF15803D)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF16A34A)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text('Çıkış Yapılsın mı?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        content: const Text('Oturumunuz kapatılacaktır. Tekrar giriş yapmak istediğinizde telefon numaranızla giriş yapabilirsiniz.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Vazgeç', style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(authStateProvider.notifier).signOut();
+              ref.read(phoneAuthControllerProvider.notifier).reset();
+              if (context.mounted) {
+                context.go('/auth');
+              }
+            },
+            child: const Text('Çıkış Yap', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUstaBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+        border: const Border(
+          top: BorderSide(color: Color(0xFFF1F5F9), width: 1.2),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.07),
+            blurRadius: 20,
+            offset: const Offset(0, -6),
+          ),
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(
+                icon: Icons.dashboard_rounded,
+                label: 'Usta Paneli',
+                isSelected: true,
+                onTap: () {},
+              ),
+              _buildNavItem(
+                icon: Icons.map_rounded,
+                label: 'Harita',
+                isSelected: false,
+                onTap: () => context.push('/customer/map'),
+              ),
+              _buildNavItem(
+                icon: Icons.grid_view_rounded,
+                label: 'İlanlar & Liste',
+                isSelected: false,
+                onTap: () => context.push('/customer/home'),
+              ),
+              _buildNavItem(
+                icon: Icons.account_balance_wallet_rounded,
+                label: 'Cüzdanım',
+                isSelected: false,
+                onTap: () => context.push('/usta/wallet'),
+              ),
+              _buildNavItem(
+                icon: Icons.person_rounded,
+                label: 'Profil',
+                isSelected: false,
+                onTap: () => context.push('/profile'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    Widget? badge,
+  }) {
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          splashColor: AppTheme.ustaPrimary.withValues(alpha: 0.1),
+          highlightColor: Colors.transparent,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isSelected ? 14 : 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppTheme.ustaPrimary.withValues(alpha: 0.12)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                        icon,
+                        size: 22,
+                        color: isSelected
+                            ? AppTheme.ustaPrimary
+                            : const Color(0xFF64748B),
+                      ),
+                    ),
+                    if (badge != null)
+                      Positioned(
+                        top: -2,
+                        right: isSelected ? 4 : 0,
+                        child: badge,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                    color: isSelected
+                        ? AppTheme.ustaPrimary
+                        : const Color(0xFF64748B),
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: isSelected ? 4.5 : 0,
+                  height: 4.5,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.ustaPrimary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

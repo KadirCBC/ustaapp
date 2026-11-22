@@ -1,9 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import '../../../core/services/app_data_service.dart';
-import '../controllers/usta_dashboard_controller.dart';
 
 class UstaWalletScreen extends ConsumerStatefulWidget {
   const UstaWalletScreen({super.key});
@@ -27,22 +27,31 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
 
   // Mali Veriler (7 Gün Kuralı ile Ayrıştırılmış)
   double _availableBalance = 42000.0; // 7 gün provizyon süresi dolmuş, çekilebilir net bakiye
-  double _blockedBalance = 23004.0;   // Son 7 günde tamamlanan, 7 gün blokeli bakiye
+  double _blockedBalance = 70004.0;   // Son 7 günde tamamlanan, 7 gün blokeli bakiye
   double _totalWithdrawn = 55700.0;   // Bugüne kadar bankaya aktarılan
+  double _earlyPayoutRate = 5.0;      // 7 gün beklemeden erken çekim kesinti oranı (%5)
+  bool _isEarlyPayoutEnabled = false; // Admin panelinden açılıp kapatılabilen erken çekim aktif/pasif kuralı
 
   List<Map<String, dynamic>> _jobEarnings = [];
   List<Map<String, dynamic>> _payoutRequests = [];
   String _searchQuery = '';
+  StreamSubscription? _changesSubscription;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadWalletData();
+    _changesSubscription = _dataService.changesStream.listen((_) {
+      if (mounted) {
+        _loadWalletData();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _changesSubscription?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -69,6 +78,10 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
           ? ibanData['ad_soyad']!
           : fullName;
 
+      // Erken çekim komisyon kesinti oranını ve aktiflik durumunu yükle
+      final earlyRate = await _dataService.getEarlyPayoutRate();
+      final isEarlyEnabled = await _dataService.isEarlyPayoutEnabled();
+
       // 2. Geçmiş Çekim Taleplerini Çek
       final payouts = await _dataService.getUstaPayoutRequests(phone);
 
@@ -88,27 +101,28 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
       }
 
       double totalWithdrawnCalc = 0.0;
+      double earlyPayoutGrossDeduction = 0.0;
       for (final p in payouts) {
-        if ((p['durum'] ?? '').toString().contains('Tamamlandı')) {
-          totalWithdrawnCalc += (p['tutar'] as num?)?.toDouble() ?? 0.0;
+        final amt = (p['tutar'] as num?)?.toDouble() ?? 0.0;
+        if ((p['durum'] ?? '').toString().contains('Tamamlandı') ||
+            (p['durum'] ?? '').toString().contains('Aktarıldı')) {
+          totalWithdrawnCalc += amt;
+        }
+        if (p['is_early_payout'] == true) {
+          final brut = (p['brut_tutar'] as num?)?.toDouble() ?? amt;
+          earlyPayoutGrossDeduction += brut;
         }
       }
 
-      // Paneldeki toplam hakediş (65.004 ₺) veya hesaplanan toplam
-      final dashboardState = ref.read(ustaDashboardControllerProvider);
-      final double totalTarget = dashboardState.weeklyEarnings > 0
-          ? dashboardState.weeklyEarnings
-          : 65004.0;
+      double baseBlocked = blockedSum > 0 ? blockedSum : 70004.0;
+      double calculatedBlocked = baseBlocked - earlyPayoutGrossDeduction;
+      if (calculatedBlocked < 0) calculatedBlocked = 0.0;
 
-      double calculatedBlocked = blockedSum > 0 ? blockedSum : 23004.0;
-      double calculatedAvailable = totalTarget - calculatedBlocked;
-      if (calculatedAvailable < 0) {
-        calculatedAvailable = unblockedSum > 0 ? unblockedSum : 42000.0;
-      }
+      double calculatedAvailable = unblockedSum > 0 ? unblockedSum : 42000.0;
 
       // Eğer devam eden işlemde çekim varsa kullanılabilir bakiyeden düş
       for (final p in payouts) {
-        if ((p['durum'] ?? '').toString().contains('İşlemde')) {
+        if ((p['durum'] ?? '').toString().contains('İşlemde') && p['is_early_payout'] != true) {
           final amt = (p['tutar'] as num?)?.toDouble() ?? 0.0;
           if (calculatedAvailable >= amt) {
             calculatedAvailable -= amt;
@@ -118,6 +132,8 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
 
       if (mounted) {
         setState(() {
+          _earlyPayoutRate = earlyRate;
+          _isEarlyPayoutEnabled = isEarlyEnabled;
           _payoutRequests = payouts;
           _jobEarnings = jobs;
           _availableBalance = calculatedAvailable;
@@ -447,7 +463,7 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
           ),
           const SizedBox(height: 16),
 
-          // Para Çekme Butonu
+          // Para Çekme Butonları (Standart & Erken Çekim)
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -471,6 +487,35 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
               ),
             ),
           ),
+
+          // ⚡ 7 Gün Beklemeden Erken Çekim Butonu (Admin tarafından aktif edilmişse gösterilir)
+          if (_blockedBalance > 0 && _isEarlyPayoutEnabled) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _showEarlyPayoutBottomSheet,
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                  foregroundColor: const Color(0xFFFDE68A),
+                  side: const BorderSide(color: Color(0xFFF59E0B), width: 1.2),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: const Icon(Icons.bolt_rounded, size: 20, color: Color(0xFFFBBF24)),
+                label: Text(
+                  '⚡ 7 Gün Bekleme: Erken Çekim Yap (${_formatCurrency(_blockedBalance)} ₺ Blokeli)',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFFDE68A),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -503,11 +548,11 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   '7 Günlük Provizyon Blokesi & Güvence Kuralı',
                   style: TextStyle(
                     fontSize: 13,
@@ -515,8 +560,8 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
                     color: Color(0xFF92400E),
                   ),
                 ),
-                SizedBox(height: 3),
-                Text(
+                const SizedBox(height: 3),
+                const Text(
                   'Tamamlanan işlerin hakedişi, müşteri memnuniyeti ve güvence gereği en az 7 gün İyzico provizyon havuzunda blokeli kalır. 7 günü dolan işlerin tutarı otomatik olarak çekilebilir bakiyenize geçer ve anında IBAN\'ınıza aktarabilirsiniz.',
                   style: TextStyle(
                     fontSize: 11.5,
@@ -524,6 +569,72 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
                     height: 1.35,
                   ),
                 ),
+                if (_blockedBalance > 0) ...[
+                  const SizedBox(height: 10),
+                  if (_isEarlyPayoutEnabled) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.bolt_rounded, color: Color(0xFFD97706), size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '7 gün beklemeden %${_earlyPayoutRate.toStringAsFixed(0)} erken kesinti ile anında FAST çekim yapabilirsiniz.',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF92400E),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          ElevatedButton(
+                            onPressed: _showEarlyPayoutBottomSheet,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD97706),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              elevation: 0,
+                            ),
+                            child: const Text('Erken Çek', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.shield_outlined, color: Color(0xFF64748B), size: 18),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '7 günlük güvenlik provizyon süresi tamamlandığında hakedişiniz otomatik olarak çekilebilir bakiyenize aktarılacaktır.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ],
             ),
           ),
@@ -1075,8 +1186,12 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
             final status = item['durum'] ?? 'Tamamlandı';
             final bank = item['banka'] ?? _banka;
             final ibanStr = item['iban'] ?? _iban;
-            final isCompleted = status.toString().contains('Tamamlandı');
+            final isCompleted = status.toString().contains('Tamamlandı') || status.toString().contains('Aktarıldı');
             final dekontNo = item['dekont_no'] ?? 'EFT-0000';
+            final isEarly = item['is_early_payout'] == true;
+            final grossAmount = (item['brut_tutar'] as num?)?.toDouble() ?? amount;
+            final feeRate = (item['erken_kesinti_orani'] as num?)?.toDouble() ?? _earlyPayoutRate;
+            final feeAmount = (item['kesinti_tutari'] as num?)?.toDouble() ?? (isEarly ? (grossAmount * (feeRate / 100)) : 0.0);
 
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -1084,7 +1199,10 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(
+                  color: isEarly ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0),
+                  width: isEarly ? 1.4 : 1.0,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1099,18 +1217,24 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: isCompleted
-                                    ? const Color(0xFFDCFCE7)
-                                    : const Color(0xFFFEF3C7),
+                                color: isEarly
+                                    ? const Color(0xFFFEF3C7)
+                                    : (isCompleted
+                                        ? const Color(0xFFDCFCE7)
+                                        : const Color(0xFFFEF3C7)),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
-                                isCompleted
-                                    ? Icons.check_circle_rounded
-                                    : Icons.access_time_filled_rounded,
-                                color: isCompleted
-                                    ? const Color(0xFF16A34A)
-                                    : const Color(0xFFD97706),
+                                isEarly
+                                    ? Icons.bolt_rounded
+                                    : (isCompleted
+                                        ? Icons.check_circle_rounded
+                                        : Icons.access_time_filled_rounded),
+                                color: isEarly
+                                    ? const Color(0xFFD97706)
+                                    : (isCompleted
+                                        ? const Color(0xFF16A34A)
+                                        : const Color(0xFFD97706)),
                                 size: 18,
                               ),
                             ),
@@ -1119,14 +1243,39 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    'Talep: #$reqId',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 13.5,
-                                      color: Color(0xFF0F172A),
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          'Talep: #$reqId',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 13.5,
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (isEarly) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFEF3C7),
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: Border.all(color: const Color(0xFFFDE68A)),
+                                          ),
+                                          child: Text(
+                                            '⚡ Erken (%${feeRate.toStringAsFixed(0)})',
+                                            style: const TextStyle(
+                                              fontSize: 9.5,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFFB45309),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                   Text(
                                     date,
@@ -1154,20 +1303,32 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
                               color: Color(0xFF0F172A),
                             ),
                           ),
+                          if (isEarly) ...[
+                            Text(
+                              'Brüt: ${_formatCurrency(grossAmount)} ₺ (-${_formatCurrency(feeAmount)} ₺)',
+                              style: const TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFDC2626),
+                              ),
+                            ),
+                          ],
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: isCompleted
+                              color: isEarly
                                   ? const Color(0xFFDCFCE7)
-                                  : const Color(0xFFFEF3C7),
+                                  : (isCompleted
+                                      ? const Color(0xFFDCFCE7)
+                                      : const Color(0xFFFEF3C7)),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              isCompleted ? 'Hesaba Aktarıldı' : 'İşlemde / Sırada',
+                              isEarly ? '⚡ FAST İle Aktarıldı' : (isCompleted ? 'Hesaba Aktarıldı' : 'İşlemde / Sırada'),
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                                color: isCompleted
+                                color: isEarly || isCompleted
                                   ? const Color(0xFF15803D)
                                   : const Color(0xFFB45309),
                               ),
@@ -1183,13 +1344,15 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
 
                   // Alt Satır: IBAN & Dekont No (0 Overflow Garantili)
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(Icons.account_balance_rounded, size: 13, color: Color(0xFF64748B)),
                             const SizedBox(width: 4),
-                            Flexible(
+                            Expanded(
                               child: Text(
                                 '$bank • ${_maskIbanCompact(ibanStr)}',
                                 style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
@@ -1200,12 +1363,17 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Dekont: $dekontNo',
-                        style: const TextStyle(
-                          fontSize: 10.5,
-                          fontFamily: 'monospace',
-                          color: Color(0xFF94A3B8),
+                      Flexible(
+                        child: Text(
+                          'Dekont: $dekontNo',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontFamily: 'monospace',
+                            color: Color(0xFF94A3B8),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.end,
                         ),
                       ),
                     ],
@@ -1530,6 +1698,431 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
                       child: const Text(
                         'Talebi Onayla ve Hesaba Aktar',
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // =========================================================================
+  // 7.1. 7 GÜN BEKLEMEDEN ERKEN ÇEKİM (ANINDA AVANS) BOTTOM SHEET
+  // =========================================================================
+  Future<void> _showEarlyPayoutBottomSheet() async {
+    final isEarlyEnabled = await _dataService.isEarlyPayoutEnabled();
+    if (!isEarlyEnabled) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Erken çekim özelliği şu an kapalıdır. 7 günlük müşteri güvence provizyonu geçerlidir.'),
+            backgroundColor: Color(0xFFDC2626),
+          ),
+        );
+      }
+      return;
+    }
+
+    final freshRate = await _dataService.getEarlyPayoutRate();
+    if (mounted) {
+      setState(() {
+        _earlyPayoutRate = freshRate;
+        _isEarlyPayoutEnabled = isEarlyEnabled;
+      });
+    }
+
+    final amountController = TextEditingController();
+    double selectedGross = _blockedBalance;
+    amountController.text = selectedGross > 0 ? selectedGross.toStringAsFixed(0) : '0';
+
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final enteredGross = double.tryParse(amountController.text.replaceAll(',', '.')) ?? 0.0;
+            final feeRate = _earlyPayoutRate;
+            final feeAmount = enteredGross * (feeRate / 100.0);
+            final netPayout = (enteredGross - feeAmount).clamp(0.0, double.infinity);
+
+            return Container(
+              padding: EdgeInsets.only(
+                top: 20,
+                left: 20,
+                right: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+              ),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFCBD5E1),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.bolt_rounded,
+                            color: Color(0xFFD97706),
+                            size: 26,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '7 Gün Beklemeden Erken Çekim',
+                                style: TextStyle(
+                                  fontSize: 16.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              Text(
+                                'Blokeli havuzdan FAST ile 7/24 anında nakit',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Erken Ödeme Kuralları & Kesinti Bilgi Kutusu
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFFD97706)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '%${feeRate.toStringAsFixed(0)} Erken Ödeme Kesintisi Uygulanır',
+                                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '7 günlük müşteri güvence provizyon bekleme süresi kaldırılır. Çektiğiniz tutardan sadece %${feeRate.toStringAsFixed(0)} erken finansman kesintisi düşülerek kalan net tutar anında IBAN\'ınıza gönderilir.',
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFFB45309)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Blokeli Bakiye Göstergesi
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.lock_clock_rounded, size: 15, color: Color(0xFFD97706)),
+                              SizedBox(width: 6),
+                              Text(
+                                'Kullanılabilir Blokeli Bakiye:',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF334155),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            '${_formatCurrency(_blockedBalance)} ₺',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFD97706),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Çekilmek İstenen Tutar Girişi
+                    const Text(
+                      'Erken Çekmek İstediğiniz Tutar (₺)',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: amountController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF0F172A),
+                      ),
+                      onChanged: (_) => setSheetState(() {}),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 14),
+                          child: Text(
+                            '₺',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFFD97706),
+                            ),
+                          ),
+                        ),
+                        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFD97706), width: 2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Hızlı Tutar Butonları
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildQuickAmountChip('Tümü (${_formatCurrency(_blockedBalance)} ₺)', _blockedBalance, amountController, setSheetState),
+                        _buildQuickAmountChip('%50', _blockedBalance * 0.5, amountController, setSheetState),
+                        _buildQuickAmountChip('20.000 ₺', 20000.0, amountController, setSheetState),
+                        _buildQuickAmountChip('10.000 ₺', 10000.0, amountController, setSheetState),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Canlı Hesaplama Dökümü Kartı (Gross - Fee = Net)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Çekilen Blokeli Tutar:', style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+                              Text('${_formatCurrency(enteredGross)} ₺', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Erken Ödeme Kesintisi (%${feeRate.toStringAsFixed(0)}):', style: const TextStyle(fontSize: 12.5, color: Color(0xFFDC2626))),
+                              Text('-${_formatCurrency(feeAmount)} ₺', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFFDC2626))),
+                            ],
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Hesabınıza Geçecek Net Tutar:',
+                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                                  ),
+                                  Text(
+                                    'FAST 7/24 Anında Aktarım',
+                                    style: TextStyle(fontSize: 10.5, color: Color(0xFF16A34A), fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                '${_formatCurrency(netPayout)} ₺',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF15803D),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Hedef IBAN Önizleme
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.account_balance_rounded, size: 18, color: Color(0xFF475569)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '$_banka • $_adSoyad',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF1E293B),
+                                  ),
+                                ),
+                                Text(
+                                  _maskIbanFull(_iban),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontFamily: 'monospace',
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _showEditIbanBottomSheet();
+                            },
+                            child: const Text('Değiştir', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppTheme.ustaPrimary)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Onayla ve Erken Çek Butonu
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (enteredGross <= 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Lütfen geçerli bir tutar giriniz.')),
+                          );
+                          return;
+                        }
+                        if (enteredGross > _blockedBalance) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Erken çekebileceğiniz blokeli bakiyeniz en fazla ${_formatCurrency(_blockedBalance)} ₺\'dir.',
+                              ),
+                              backgroundColor: const Color(0xFFDC2626),
+                            ),
+                          );
+                          return;
+                        }
+
+                        Navigator.pop(ctx);
+
+                        // Erken Çekim Talebi Oluştur
+                        final success = await _dataService.createUstaPayoutRequest(
+                          _activePhone,
+                          amount: netPayout,
+                          iban: _iban,
+                          banka: _banka,
+                          adSoyad: _adSoyad,
+                          isEarlyPayout: true,
+                          grossAmount: enteredGross,
+                          feeRate: feeRate,
+                          feeAmount: feeAmount,
+                        );
+
+                        if (success) {
+                          await _loadWalletData();
+                          if (mounted) {
+                            _showSuccessDialog(
+                              netPayout,
+                              isEarlyPayout: true,
+                              grossAmount: enteredGross,
+                              feeAmount: feeAmount,
+                              feeRate: feeRate,
+                            );
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD97706),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text(
+                        '⚡ Erken Çekimi Onayla ve ${_formatCurrency(netPayout)} ₺ Aktar',
+                        style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800),
                       ),
                     ),
                   ],
@@ -1995,9 +2588,15 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
   }
 
   // =========================================================================
-  // 10. BAŞARILI ÇEKİM BİLDİRİMİ
+  // 10. BAŞARILI ÇEKİM BİLDİRİMİ (STANDART & ERKEN ÇEKİM)
   // =========================================================================
-  void _showSuccessDialog(double amount) {
+  void _showSuccessDialog(
+    double amount, {
+    bool isEarlyPayout = false,
+    double grossAmount = 0.0,
+    double feeAmount = 0.0,
+    double feeRate = 5.0,
+  }) {
     showDialog(
       context: context,
       builder: (ctx) {
@@ -2009,35 +2608,82 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
             children: [
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFDCFCE7),
+                decoration: BoxDecoration(
+                  color: isEarlyPayout ? const Color(0xFFFEF3C7) : const Color(0xFFDCFCE7),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.check_circle_rounded,
-                  color: Color(0xFF16A34A),
+                child: Icon(
+                  isEarlyPayout ? Icons.bolt_rounded : Icons.check_circle_rounded,
+                  color: isEarlyPayout ? const Color(0xFFD97706) : const Color(0xFF16A34A),
                   size: 48,
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Çekim Talebiniz Alındı!',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+              Text(
+                isEarlyPayout ? '⚡ Erken Çekim Başarılı!' : 'Çekim Talebiniz Alındı!',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              Text(
-                '${_formatCurrency(amount)} ₺ tutarındaki çekilebilir hakediş talebiniz işleme alınmıştır. En geç 15 dakika içerisinde FAST altyapısı ile $_banka hesabınıza aktarılacaktır.',
-                style: const TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
-                textAlign: TextAlign.center,
-              ),
+              if (isEarlyPayout) ...[
+                Text(
+                  '7 günlük provizyon bekleme süresi kaldırıldı. FAST altyapısı ile net ${_formatCurrency(amount)} ₺ tutar $_banka hesabınıza anında aktarılmıştır.',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Çekilen Blokeli Tutar:', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                          Text('${_formatCurrency(grossAmount)} ₺', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Erken Kesinti (%${feeRate.toStringAsFixed(0)}):', style: const TextStyle(fontSize: 12, color: Color(0xFFDC2626))),
+                          Text('-${_formatCurrency(feeAmount)} ₺', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
+                        ],
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 6),
+                        child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Hesaba Aktarılan Net:', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF15803D))),
+                          Text('${_formatCurrency(amount)} ₺', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF15803D))),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                Text(
+                  '${_formatCurrency(amount)} ₺ tutarındaki çekilebilir hakediş talebiniz işleme alınmıştır. En geç 15 dakika içerisinde FAST altyapısı ile $_banka hesabınıza aktarılacaktır.',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
+                  textAlign: TextAlign.center,
+                ),
+              ],
               const SizedBox(height: 18),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(ctx),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.ustaPrimary,
+                    backgroundColor: isEarlyPayout ? const Color(0xFFD97706) : AppTheme.ustaPrimary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),

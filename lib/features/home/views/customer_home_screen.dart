@@ -7,8 +7,10 @@ import 'package:ustaapp/core/models/app_notification_model.dart';
 import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/core/services/notification_service.dart';
+import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/core/widgets/notification_sheet.dart';
+import 'package:ustaapp/features/auth/models/user_role.dart';
 import 'package:ustaapp/features/map/controllers/map_controller.dart';
 import 'package:ustaapp/features/map/models/isletme_model.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
@@ -611,6 +613,38 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             ),
           ),
           const SizedBox(width: 10),
+
+          // Usta olarak giriş yapmışsa Usta Paneline Hızlı Dönüş Butonu
+          if (ref.watch(authStateProvider).role == UserRole.usta) ...[
+            InkWell(
+              onTap: () => context.go('/usta/orders'),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFED7AA)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.dashboard_rounded, size: 16, color: AppTheme.ustaPrimary),
+                    SizedBox(width: 4),
+                    Text(
+                      'Usta Paneli',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.ustaPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
 
           // Bildirim Butonu (Canlı Sayaç ve Bildirim Merkezi)
           ValueListenableBuilder<List<AppNotificationModel>>(

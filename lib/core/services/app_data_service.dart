@@ -40,6 +40,7 @@ class AppDataService {
 
   final StreamController<void> _changesStreamController = StreamController<void>.broadcast();
   Stream<void> get onDataChanged => _changesStreamController.stream;
+  Stream<void> get changesStream => _changesStreamController.stream;
 
   StreamSubscription? _wsSubscription;
   bool _isConnectingWs = false;
@@ -153,6 +154,18 @@ class AppDataService {
         } catch (_) {}
       }
     }
+
+    try {
+      final cRes = await http.get(Uri.parse('$_syncBaseUrl/api/commission_settings')).timeout(const Duration(seconds: 2));
+      if (cRes.statusCode == 200) {
+        final cData = jsonDecode(cRes.body);
+        if (cData is Map<String, dynamic> && cData.isNotEmpty) {
+          _cachedCommissionSettings = Map<String, dynamic>.from(cData);
+          _persistCommissionSettingsToPrefs(_cachedCommissionSettings!);
+          _changesStreamController.add(null);
+        }
+      }
+    } catch (_) {}
   }
 
   void _handleWsMessage(dynamic raw) {
@@ -195,6 +208,10 @@ class AppDataService {
           if (data['cagrilar'] is List) {
             _cachedCagrilar = List<Map<String, dynamic>>.from(data['cagrilar']);
             _syncCallsToDemoRepo(_cachedCagrilar!);
+          }
+          if (data['commission_settings'] is Map && (data['commission_settings'] as Map).isNotEmpty) {
+            _cachedCommissionSettings = Map<String, dynamic>.from(data['commission_settings']);
+            _persistCommissionSettingsToPrefs(_cachedCommissionSettings!);
           }
           _changesStreamController.add(null);
         }
@@ -260,6 +277,10 @@ class AppDataService {
       } else if (event == 'cagrilar_updated' && data is List) {
         _cachedCagrilar = List<Map<String, dynamic>>.from(data);
         _syncCallsToDemoRepo(_cachedCagrilar!);
+        _changesStreamController.add(null);
+      } else if (event == 'commission_settings_updated' && data is Map) {
+        _cachedCommissionSettings = Map<String, dynamic>.from(data);
+        _persistCommissionSettingsToPrefs(_cachedCommissionSettings!);
         _changesStreamController.add(null);
       } else if (event == 'cagri_updated' && data is Map) {
         _cachedCagrilar ??= [];
@@ -410,6 +431,7 @@ class AppDataService {
   List<Map<String, dynamic>>? _cachedCagrilar;
   Map<String, dynamic>? _cachedActiveSession;
   Map<String, Map<String, dynamic>>? _cachedRegisteredUsers;
+  Map<String, dynamic>? _cachedCommissionSettings;
 
   // ==========================================
   // 1. USTALAR & HARİTA VERİSİ (CRUD)
@@ -2577,13 +2599,31 @@ class AppDataService {
   static const String _kCommissionSettingsKey = 'app_commission_settings';
 
   Future<Map<String, dynamic>> getCommissionSettings() async {
+    if (_cachedCommissionSettings != null && _cachedCommissionSettings!.isNotEmpty) {
+      return Map<String, dynamic>.from(_cachedCommissionSettings!);
+    }
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final str = prefs.getString(_kCommissionSettingsKey);
       if (str != null) {
         final decoded = jsonDecode(str);
-        if (decoded is Map) {
-          return Map<String, dynamic>.from(decoded);
+        if (decoded is Map && decoded.isNotEmpty) {
+          _cachedCommissionSettings = Map<String, dynamic>.from(decoded);
+          return Map<String, dynamic>.from(_cachedCommissionSettings!);
+        }
+      }
+    } catch (_) {}
+
+    // Sunucudan çekmeyi dene
+    try {
+      final res = await http.get(Uri.parse('$_syncBaseUrl/api/commission_settings')).timeout(const Duration(seconds: 2));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is Map<String, dynamic> && data.isNotEmpty) {
+          _cachedCommissionSettings = Map<String, dynamic>.from(data);
+          _persistCommissionSettingsToPrefs(_cachedCommissionSettings!);
+          return Map<String, dynamic>.from(_cachedCommissionSettings!);
         }
       }
     } catch (_) {}
@@ -2596,16 +2636,33 @@ class AppDataService {
       }
     }
 
-    return {
+    final defaultSettings = {
       'default_rate': 15.0, // Varsayılan genel komisyon oranı %15
       'is_category_based': false, // Tüm kategoriler için genel oran mı yoksa kategoriye özel mi
       'category_rates': initialCategoryRates,
       'hold_days': 7, // 7 gün blokeli kalma kuralı
+      'early_payout_rate': 5.0, // Erken ödeme / erken çekim kesinti oranı (%5)
+      'is_early_payout_enabled': false, // Erken çekim aktif/pasif (ilk yıl kapalı)
     };
+    _cachedCommissionSettings = defaultSettings;
+    return Map<String, dynamic>.from(defaultSettings);
+  }
+
+  /// 7 gün beklemeden erken çekim özelliğinin aktif olup olmadığını döner (varsayılan: pasif)
+  Future<bool> isEarlyPayoutEnabled() async {
+    final settings = await getCommissionSettings();
+    return settings['is_early_payout_enabled'] == true;
+  }
+
+  /// 7 gün beklemeden erken çekim yapmak isteyen ustalar için belirlenen kesinti oranı
+  Future<double> getEarlyPayoutRate() async {
+    final settings = await getCommissionSettings();
+    return (settings['early_payout_rate'] as num?)?.toDouble() ?? 5.0;
   }
 
   Future<void> saveCommissionSettings(Map<String, dynamic> settings) async {
     try {
+      _cachedCommissionSettings = Map<String, dynamic>.from(settings);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kCommissionSettingsKey, jsonEncode(settings));
       _changesStreamController.add(null);
@@ -2613,6 +2670,13 @@ class AppDataService {
     } catch (e) {
       debugPrint('[AppDataService] Komisyon ayarları kaydetme hatası: $e');
     }
+  }
+
+  void _persistCommissionSettingsToPrefs(Map<String, dynamic> settings) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kCommissionSettingsKey, jsonEncode(settings));
+    } catch (_) {}
   }
 
   Future<double> getCommissionRateForCategory(String? category) async {
@@ -2750,13 +2814,17 @@ class AppDataService {
     return defaultPayouts;
   }
 
-  /// Yeni çekim talebi oluşturur
+  /// Yeni çekim talebi oluşturur (Standart veya 7 Gün Beklemeden Erken Çekim)
   Future<bool> createUstaPayoutRequest(
     String phoneOrUstaId, {
     required double amount,
     required String iban,
     required String banka,
     required String adSoyad,
+    bool isEarlyPayout = false,
+    double grossAmount = 0.0,
+    double feeRate = 0.0,
+    double feeAmount = 0.0,
   }) async {
     final list = await getUstaPayoutRequests(phoneOrUstaId);
     final randomId = 'WD-${1000 + DateTime.now().millisecond + list.length * 10}';
@@ -2766,13 +2834,18 @@ class AppDataService {
 
     final newRequest = {
       'id': randomId,
-      'tutar': amount,
+      'tutar': amount, // Net hesaba aktarılan
       'iban': iban,
       'banka': banka,
       'ad_soyad': adSoyad,
       'tarih': dateStr,
-      'durum': 'İşlemde (Bankaya İletildi)',
+      'durum': isEarlyPayout ? 'Tamamlandı (FAST Anında Aktarıldı)' : 'İşlemde (Bankaya İletildi)',
       'dekont_no': 'EFT-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${1000 + list.length}',
+      'is_early_payout': isEarlyPayout,
+      'brut_tutar': isEarlyPayout ? grossAmount : amount,
+      'erken_kesinti_orani': feeRate,
+      'kesinti_tutari': feeAmount,
+      'tur': isEarlyPayout ? '⚡ Erken Hakediş Çekimi' : 'Standart Hakediş Çekimi',
     };
 
     list.insert(0, newRequest);

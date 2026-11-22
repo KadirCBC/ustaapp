@@ -271,7 +271,19 @@ class NotificationService {
   }
 
   Future<void> addNotification(AppNotificationModel notif) async {
-    final list = List<AppNotificationModel>.from(notificationsNotifier.value);
+    final List<AppNotificationModel> list = [];
+    final dynamic rawList = notificationsNotifier.value;
+    if (rawList is Iterable) {
+      for (final dynamic item in rawList) {
+        if (item is AppNotificationModel) {
+          list.add(item);
+        } else if (item is Map) {
+          try {
+            list.add(AppNotificationModel.fromJson(Map<String, dynamic>.from(item)));
+          } catch (_) {}
+        }
+      }
+    }
     // Duplicate ID kontrolü
     if (list.any((item) => item.id == notif.id)) {
       return;
@@ -309,11 +321,18 @@ class NotificationService {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_prefsKey);
       if (raw != null && raw.isNotEmpty) {
-        final decoded = jsonDecode(raw) as List;
-        final list = decoded
-            .map((item) => AppNotificationModel.fromJson(Map<String, dynamic>.from(item)))
-            .toList();
-        notificationsNotifier.value = list;
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          final List<AppNotificationModel> list = [];
+          for (final item in decoded) {
+            if (item is Map) {
+              try {
+                list.add(AppNotificationModel.fromJson(Map<String, dynamic>.from(item)));
+              } catch (_) {}
+            }
+          }
+          notificationsNotifier.value = list;
+        }
       }
     } catch (e) {
       debugPrint('[NotificationService] Bildirimleri yükleme hatası: $e');

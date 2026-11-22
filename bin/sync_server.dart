@@ -28,6 +28,7 @@ Future<void> _loadDataFromFile() async {
       _data['financial_transactions'] ??= [];
       _data['cagrilar'] ??= [];
       _data['notifications'] ??= [];
+      _data['commission_settings'] ??= {};
       stdout.writeln('[Sync Server] Mevcut veriler dosyadan yüklendi.');
       return;
     } catch (e) {
