@@ -1,5 +1,6 @@
-package com.example.ustaapp
+package com.example.call_screen
 
+import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
@@ -7,20 +8,32 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.view.WindowManager
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.MethodChannel.MethodCallHandler
+import io.flutter.plugin.common.MethodChannel.Result
 
-class CallScreenPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
+class CallScreenPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     companion object {
         const val CHANNEL = "com.example.ustaapp/call_screen"
         var pluginInstance: CallScreenPlugin? = null
         var appContext: Context? = null
+        var currentActivity: Activity? = null
         var pendingCallId: String? = null
         var activeChannel: MethodChannel? = null
 
+        fun stopRinging() {
+            // Audio players handled via Flutter layers
+        }
+
         fun wakeAndLaunch(context: Context, cagriId: String) {
             pendingCallId = cagriId
+
+            // 1. Ekranı ve İşlemciyi Güçlü Şekilde Uyandır (WakeLock)
             try {
                 val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
                 @Suppress("DEPRECATION")
@@ -30,13 +43,14 @@ class CallScreenPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                     PowerManager.ON_AFTER_RELEASE,
                     "ustaapp:call_wake_lock"
                 )
-                wl?.acquire(35000) // 35 saniye ekranı aydınlat ve işlemciyi uyanık tut
+                wl?.acquire(35000) // 35 saniye ekranı aydınlat
             } catch (e: Exception) {
                 e.printStackTrace()
             }
 
+            // 2. MainActivity'yi Tam Ekran Olarak Doğrudan Öne Getir
             try {
-                val intent = Intent(context, MainActivity::class.java).apply {
+                val intent = Intent(context, Class.forName("com.example.ustaapp.MainActivity")).apply {
                     action = "com.example.ustaapp.INCOMING_CALL"
                     addFlags(
                         Intent.FLAG_ACTIVITY_NEW_TASK or
@@ -51,6 +65,7 @@ class CallScreenPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                 e.printStackTrace()
             }
 
+            // 3. UI motoru açıksa anında event gönder
             try {
                 activeChannel?.invokeMethod("onIncomingCall", cagriId)
             } catch (e: Exception) {
@@ -61,9 +76,9 @@ class CallScreenPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     private var channel: MethodChannel? = null
 
-    override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        appContext = binding.applicationContext
-        channel = MethodChannel(binding.binaryMessenger, CHANNEL)
+    override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+        appContext = flutterPluginBinding.applicationContext
+        channel = MethodChannel(flutterPluginBinding.binaryMessenger, CHANNEL)
         activeChannel = channel
         channel?.setMethodCallHandler(this)
         pluginInstance = this
@@ -77,9 +92,50 @@ class CallScreenPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         }
     }
 
-    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        currentActivity = binding.activity
+        applyLockScreenFlags(binding.activity)
+    }
+
+    override fun onDetachedFromActivityForConfigChanges() {
+        currentActivity = null
+    }
+
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+        currentActivity = binding.activity
+        applyLockScreenFlags(binding.activity)
+    }
+
+    override fun onDetachedFromActivity() {
+        currentActivity = null
+    }
+
+    private fun applyLockScreenFlags(activity: Activity) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+                val keyguardManager = activity.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                keyguardManager?.requestDismissKeyguard(activity, null)
+            }
+            @Suppress("DEPRECATION")
+            activity.window.addFlags(
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    override fun onMethodCall(call: MethodCall, result: Result) {
         val ctx = appContext
         when (call.method) {
+            "getPlatformVersion" -> {
+                result.success("Android ${Build.VERSION.RELEASE}")
+            }
             "wakeScreenAndUnlock" -> {
                 val callId = call.argument<String>("cagri_id") ?: ""
                 if (ctx != null) {
@@ -88,6 +144,10 @@ class CallScreenPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                 } else {
                     result.success(false)
                 }
+            }
+            "stopRinging" -> {
+                stopRinging()
+                result.success(true)
             }
             "getPendingCallId" -> {
                 val id = pendingCallId

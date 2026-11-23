@@ -6,6 +6,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ustaapp/core/router/app_router.dart';
+import 'package:ustaapp/core/services/app_data_service.dart';
+import 'package:ustaapp/features/orders/models/cagri_model.dart';
 import '../models/app_notification_model.dart';
 
 class NotificationService {
@@ -26,7 +28,7 @@ class NotificationService {
   static const String channelUrgentDesc =
       'Ustanız adrese ulaştığında veya acil durumlarda sesli ve kilit ekranı uyarısı verir.';
 
-  static const String channelIncomingCallId = 'ustam_incoming_call_v4';
+  static const String channelIncomingCallId = 'ustam_incoming_call_v5';
   static const String channelIncomingCallName = '🔔 Gelen Usta Çağrıları';
   static const String channelIncomingCallDesc =
       'Müşterilerden yeni bir acil servis veya arıza çağrısı geldiğinde özel zil sesi ile çalar.';
@@ -68,8 +70,12 @@ class NotificationService {
       await _notificationsPlugin.initialize(
         settings: initSettings,
         onDidReceiveNotificationResponse: (NotificationResponse details) {
-          debugPrint('[NotificationService] Bildirime tıklandı: ${details.payload}');
-          _handleNotificationPayload(details.payload);
+          debugPrint('[NotificationService] Bildirime tıklandı: ${details.payload}, actionId: ${details.actionId}');
+          if (details.actionId == 'reject_call') {
+            _handleRejectAction(details.payload);
+          } else {
+            _handleNotificationPayload(details.payload);
+          }
         },
       );
 
@@ -174,8 +180,6 @@ class NotificationService {
         channelUrgentId,
         channelUrgentName,
         channelDescription: channelUrgentDesc,
-        icon: '@drawable/ic_notification',
-        largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
         color: const Color(0xFFF97316),
         importance: Importance.max,
         priority: Priority.high,
@@ -223,8 +227,22 @@ class NotificationService {
     required double price,
     String? address,
   }) async {
-    final title = '🔔 YENİ ÇAĞRI: $serviceTitle';
-    final body = '$customerName acil usta çağırıyor! Tutar: ${price.toStringAsFixed(0)} ₺${address != null && address.isNotEmpty ? " • $address" : ""}';
+    // 1. Hizmet başlığını profesyonelce temizle
+    String cleanService = serviceTitle
+        .replaceAll(RegExp(r'📋\s*Seçilen Hizmet:\s*', caseSensitive: false), '')
+        .trim();
+    cleanService = cleanService.replaceAll(RegExp(r'\(\s*\d+\s*₺?\s*\)'), '').trim();
+    if (cleanService.isEmpty) cleanService = 'Acil Usta Hizmeti';
+
+    final priceStr = price > 0 ? '${price.toStringAsFixed(0)} ₺' : '';
+    final title = '⚡ Yeni Çağrı: $cleanService';
+
+    String cleanAddr = (address != null && address.trim().isNotEmpty) ? address.trim() : '';
+    if (cleanAddr.startsWith('📍')) cleanAddr = cleanAddr.substring(1).trim();
+
+    final body = cleanAddr.isNotEmpty
+        ? 'Müşteri: $customerName • $priceStr\n📍 $cleanAddr'
+        : 'Müşteri: $customerName • $priceStr';
 
     final notif = AppNotificationModel(
       id: 'call_${DateTime.now().millisecondsSinceEpoch}',
@@ -253,8 +271,6 @@ class NotificationService {
         channelIncomingCallId,
         channelIncomingCallName,
         channelDescription: channelIncomingCallDesc,
-        icon: '@mipmap/ic_launcher',
-        largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
         color: const Color(0xFFF97316),
         importance: Importance.max,
         priority: Priority.max,
@@ -268,24 +284,24 @@ class NotificationService {
         audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
         ongoing: true,
         autoCancel: false,
-        ticker: '🚨 Yeni Usta Çağrısı Geldi!',
+        ticker: '🚨 Yeni Usta Çağrısı: $cleanService',
         actions: const <AndroidNotificationAction>[
           AndroidNotificationAction(
             'accept_call',
-            '✅ Hemen İncele & Kabul Et',
+            'Kabul Et',
             showsUserInterface: true,
             cancelNotification: true,
           ),
           AndroidNotificationAction(
             'reject_call',
-            '❌ Reddet',
+            'Reddet',
             cancelNotification: true,
           ),
         ],
         styleInformation: BigTextStyleInformation(
           body,
           contentTitle: title,
-          summaryText: 'UstaGelio Yeni Çağrı',
+          summaryText: priceStr.isNotEmpty ? 'Kazanç: $priceStr' : 'Yeni İş Fırsatı',
         ),
       );
 
@@ -308,8 +324,36 @@ class NotificationService {
         notificationDetails: notificationDetails,
         payload: jsonEncode(notif.toJson()),
       );
+
+      // Sunucuya bildirimin başarıyla basıldığını ilet
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final customHost = prefs.getString('app_custom_sync_host');
+        final host = (customHost != null && customHost.isNotEmpty)
+            ? customHost.trim()
+            : (Platform.isAndroid ? '192.168.1.101' : 'localhost');
+        final client = HttpClient();
+        client.connectionTimeout = const Duration(seconds: 2);
+        final req = await client.getUrl(Uri.parse('http://$host:8090/api/debug_log?msg=NOTIF_SHOW_OK_$cagriId'));
+        final res = await req.close();
+        await res.drain();
+        client.close();
+      } catch (_) {}
     } catch (e) {
       debugPrint('[NotificationService] Gelen çağrı bildirim hatası: $e');
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final customHost = prefs.getString('app_custom_sync_host');
+        final host = (customHost != null && customHost.isNotEmpty)
+            ? customHost.trim()
+            : (Platform.isAndroid ? '192.168.1.101' : 'localhost');
+        final client = HttpClient();
+        client.connectionTimeout = const Duration(seconds: 2);
+        final req = await client.getUrl(Uri.parse('http://$host:8090/api/debug_log?msg=NOTIF_SHOW_ERR_${Uri.encodeComponent(e.toString())}'));
+        final res = await req.close();
+        await res.drain();
+        client.close();
+      } catch (_) {}
     }
   }
 
@@ -319,6 +363,16 @@ class NotificationService {
     try {
       final notifId = cagriId.hashCode.abs() % 100000;
       await _notificationsPlugin.cancel(id: notifId);
+    } catch (_) {}
+    try {
+      final service = FlutterBackgroundService();
+      if (await service.isRunning()) {
+        service.invoke('stop_bg_sound');
+      }
+    } catch (_) {}
+    try {
+      const MethodChannel('com.example.ustaapp/call_screen')
+          .invokeMethod('stopRinging');
     } catch (_) {}
   }
 
@@ -347,8 +401,6 @@ class NotificationService {
         channelId,
         channelName,
         channelDescription: channelDesc,
-        icon: '@drawable/ic_notification',
-        largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
         color: const Color(0xFFF97316),
         importance: notif.isUrgent ? Importance.max : Importance.high,
         priority: notif.isUrgent ? Priority.high : Priority.defaultPriority,
@@ -502,6 +554,19 @@ class NotificationService {
             GoRouter.of(ctx).push('/usta/incoming-call/$cagriId');
           }
         }
+      }
+    } catch (_) {}
+  }
+
+  void _handleRejectAction(String? payload) {
+    if (payload == null || payload.isEmpty) return;
+    try {
+      final map = jsonDecode(payload) as Map<String, dynamic>;
+      final data = map['data'] as Map<String, dynamic>?;
+      final cagriId = data?['cagri_id']?.toString() ?? map['cagri_id']?.toString();
+      if (cagriId != null && cagriId.isNotEmpty) {
+        cancelCallNotification(cagriId);
+        AppDataService.instance.updateCagriStatus(cagriId, CagriDurumu.iptal);
       }
     } catch (_) {}
   }

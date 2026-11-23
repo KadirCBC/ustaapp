@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +14,34 @@ import '../models/app_notification_model.dart';
 import 'notification_service.dart';
 
 Map<String, dynamic>? _cachedBackgroundSession;
+AudioPlayer? _bgAudioPlayer;
+
+Future<void> _playBgCallSound() async {
+  try {
+    _bgAudioPlayer ??= AudioPlayer();
+    await _bgAudioPlayer!.setReleaseMode(ReleaseMode.loop);
+    await _bgAudioPlayer!.setAudioContext(AudioContext(
+      android: AudioContextAndroid(
+        isSpeakerphoneOn: true,
+        stayAwake: true,
+        contentType: AndroidContentType.sonification,
+        usageType: AndroidUsageType.notificationRingtone,
+        audioFocus: AndroidAudioFocus.gainTransientExclusive,
+      ),
+    ));
+    await _bgAudioPlayer!.play(AssetSource('sounds/cagri_sesi.mp3'));
+  } catch (e) {
+    debugPrint('[BackgroundService] Ses çalma hatası: $e');
+  }
+}
+
+Future<void> _stopBgCallSound() async {
+  try {
+    await _bgAudioPlayer?.stop();
+    await _bgAudioPlayer?.dispose();
+    _bgAudioPlayer = null;
+  } catch (_) {}
+}
 
 String _cleanPhone(String raw) {
   String digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
@@ -165,6 +194,11 @@ void onBackgroundServiceStart(ServiceInstance service) async {
     }
   });
 
+  // UI tarafından zil sesini susturma isteği
+  service.on('stop_bg_sound').listen((_) {
+    _stopBgCallSound();
+  });
+
   debugPrint('[BackgroundService] Arka plan dinleyici izolatı aktif edildi.');
   await sendBgDiagnostic('bg_service_ready_listening');
 
@@ -285,11 +319,15 @@ void _startPersistentWebSocketListener() async {
                 if (isForMe) {
                   handledCallIds.add(id);
                   sendDiagnostic('CALL_RINGING_NOW_$id');
+                  unawaited(_playBgCallSound());
                   debugPrint('>>> [BackgroundService - Polling] Kilitli ekranda USTA ÇAĞRISI ÇALIYOR: $id');
                   try {
-                    const MethodChannel('com.example.ustaapp/call_screen')
+                    final res = await const MethodChannel('com.example.ustaapp/call_screen')
                         .invokeMethod('wakeScreenAndUnlock', {'cagri_id': id});
-                  } catch (_) {}
+                    sendDiagnostic('WAKE_SCREEN_OK_$res');
+                  } catch (wErr) {
+                    sendDiagnostic('WAKE_SCREEN_ERR_$wErr');
+                  }
                   await NotificationService.instance.showIncomingCallNotification(
                     cagriId: id,
                     customerName: cMap['musteri_full_name']?.toString() ?? 'Müşteri',
@@ -301,6 +339,7 @@ void _startPersistentWebSocketListener() async {
               }
             } else if (!isPending && id.isNotEmpty && handledCallIds.contains(id)) {
               handledCallIds.remove(id);
+              unawaited(_stopBgCallSound());
               await NotificationService.instance.cancelCallNotification(id);
             }
           }
@@ -433,11 +472,15 @@ void _startPersistentWebSocketListener() async {
               if (isForMe) {
                 handledCallIds.add(id);
                 sendDiagnostic('CALL_RINGING_NOW_WS_$id');
+                unawaited(_playBgCallSound());
                 debugPrint('>>> [BackgroundService] Kilitli ekranda USTA ÇAĞRISI ÇALIYOR (WS): $id');
                 try {
-                  const MethodChannel('com.example.ustaapp/call_screen')
+                  final res = await const MethodChannel('com.example.ustaapp/call_screen')
                       .invokeMethod('wakeScreenAndUnlock', {'cagri_id': id});
-                } catch (_) {}
+                  sendDiagnostic('WAKE_SCREEN_OK_$res');
+                } catch (wErr) {
+                  sendDiagnostic('WAKE_SCREEN_ERR_$wErr');
+                }
                 await NotificationService.instance.showIncomingCallNotification(
                   cagriId: id,
                   customerName: cagriMap['musteri_full_name']?.toString() ?? 'Müşteri',
@@ -448,6 +491,7 @@ void _startPersistentWebSocketListener() async {
               }
             } else if (!isPending && id.isNotEmpty && handledCallIds.contains(id)) {
               handledCallIds.remove(id);
+              unawaited(_stopBgCallSound());
               await NotificationService.instance.cancelCallNotification(id);
             }
           } else if (event == 'cagrilar_updated' && data is List) {
@@ -513,11 +557,15 @@ void _startPersistentWebSocketListener() async {
                   if (isForMe) {
                     handledCallIds.add(id);
                     sendDiagnostic('CALL_RINGING_NOW_WS_LIST_$id');
+                    unawaited(_playBgCallSound());
                     debugPrint('>>> [BackgroundService] Kilitli ekranda USTA ÇAĞRISI ÇALIYOR (WS Liste): $id');
                     try {
-                      const MethodChannel('com.example.ustaapp/call_screen')
+                      final res = await const MethodChannel('com.example.ustaapp/call_screen')
                           .invokeMethod('wakeScreenAndUnlock', {'cagri_id': id});
-                    } catch (_) {}
+                      sendDiagnostic('WAKE_SCREEN_OK_$res');
+                    } catch (wErr) {
+                      sendDiagnostic('WAKE_SCREEN_ERR_$wErr');
+                    }
                     await NotificationService.instance.showIncomingCallNotification(
                       cagriId: id,
                       customerName: cagriMap['musteri_full_name']?.toString() ?? 'Müşteri',
@@ -528,6 +576,7 @@ void _startPersistentWebSocketListener() async {
                   }
                 } else if (!isPending && id.isNotEmpty && handledCallIds.contains(id)) {
                   handledCallIds.remove(id);
+                  unawaited(_stopBgCallSound());
                   await NotificationService.instance.cancelCallNotification(id);
                 }
               }

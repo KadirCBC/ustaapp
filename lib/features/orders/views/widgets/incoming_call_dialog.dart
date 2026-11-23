@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
@@ -64,6 +65,13 @@ class _IncomingCallDialogState extends ConsumerState<IncomingCallDialog> {
       _audioPlayer?.stop();
       _audioPlayer?.dispose();
       _audioPlayer = null;
+    } catch (_) {}
+    try {
+      FlutterBackgroundService().invoke('stop_bg_sound');
+    } catch (_) {}
+    try {
+      const MethodChannel('com.example.ustaapp/call_screen')
+          .invokeMethod('stopRinging');
     } catch (_) {}
   }
 

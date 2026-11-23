@@ -76,6 +76,7 @@ class UstaGelioApp extends ConsumerStatefulWidget {
 class _UstaGelioAppState extends ConsumerState<UstaGelioApp> {
   static const MethodChannel _callChannel =
       MethodChannel('com.example.ustaapp/call_screen');
+  String? _currentHandledCallId;
 
   @override
   void initState() {
@@ -84,12 +85,27 @@ class _UstaGelioAppState extends ConsumerState<UstaGelioApp> {
   }
 
   void _setupNativeCallListener() {
+    void openCallScreen(String cid) {
+      if (!mounted || cid.isEmpty) return;
+      if (_currentHandledCallId == cid) {
+        debugPrint('>>> [MainActivity -> Flutter] Çağrı ekranı zaten açık veya açıldı: $cid');
+        return;
+      }
+      _currentHandledCallId = cid;
+      debugPrint('>>> [MainActivity -> Flutter] Gelen çağrı ekranı açılıyor: $cid');
+      ref.read(appRouterProvider).push('/usta/incoming-call/$cid');
+      Future.delayed(const Duration(seconds: 10), () {
+        if (_currentHandledCallId == cid) {
+          _currentHandledCallId = null;
+        }
+      });
+    }
+
     _callChannel.setMethodCallHandler((call) async {
       if (call.method == 'onIncomingCall') {
         final cid = call.arguments?.toString();
-        if (cid != null && cid.isNotEmpty && mounted) {
-          debugPrint('>>> [MainActivity -> Flutter] Gelen çağrı ekranı açılıyor: $cid');
-          ref.read(appRouterProvider).push('/usta/incoming-call/$cid');
+        if (cid != null && cid.isNotEmpty) {
+          openCallScreen(cid);
         }
       }
     });
@@ -98,9 +114,8 @@ class _UstaGelioAppState extends ConsumerState<UstaGelioApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         final pendingId = await _callChannel.invokeMethod<String>('getPendingCallId');
-        if (pendingId != null && pendingId.isNotEmpty && mounted) {
-          debugPrint('>>> [MainActivity -> Flutter] Bekleyen çağrı açılıyor: $pendingId');
-          ref.read(appRouterProvider).push('/usta/incoming-call/$pendingId');
+        if (pendingId != null && pendingId.isNotEmpty) {
+          openCallScreen(pendingId);
         }
       } catch (_) {}
     });
