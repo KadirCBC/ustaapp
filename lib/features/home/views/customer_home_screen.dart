@@ -471,6 +471,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
               nearbyUstalar: state.nearbyUstalar,
               selectedUsta: state.selectedUsta ?? usta,
               isLoadingUstalar: state.isLoadingUstalar,
+              initialIlan: ilan,
               onQuickPickUsta: (u) => ref.read(customerMapControllerProvider.notifier).selectUsta(u),
               onClearSelection: () => Navigator.of(ctx).pop(),
             );

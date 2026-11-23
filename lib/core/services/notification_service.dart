@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ustaapp/core/router/app_router.dart';
 import '../models/app_notification_model.dart';
@@ -485,9 +486,13 @@ class NotificationService {
       final data = map['data'] as Map<String, dynamic>?;
       final cagriId = data?['cagri_id']?.toString() ?? map['cagri_id']?.toString();
       if ((type == 'call' || cagriId != null) && cagriId != null && cagriId.isNotEmpty) {
-        final nav = rootNavigatorKey.currentState;
-        if (nav != null && nav.mounted) {
-          nav.pushNamed('/usta/incoming-call/$cagriId');
+        if (globalGoRouter != null) {
+          globalGoRouter!.push('/usta/incoming-call/$cagriId');
+        } else {
+          final ctx = rootNavigatorKey.currentContext;
+          if (ctx != null) {
+            GoRouter.of(ctx).push('/usta/incoming-call/$cagriId');
+          }
         }
       }
     } catch (_) {}

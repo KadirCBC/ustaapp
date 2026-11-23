@@ -29,11 +29,12 @@ final appRouterNotifierProvider = Provider<AppRouterNotifier>((ref) {
 });
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
+GoRouter? globalGoRouter;
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(appRouterNotifierProvider);
 
-  return GoRouter(
+  final router = GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
     refreshListenable: notifier,
@@ -165,4 +166,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  globalGoRouter = router;
+  return router;
 });

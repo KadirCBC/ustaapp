@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -176,7 +177,7 @@ void _startPersistentWebSocketListener() async {
 
       final client = HttpClient();
       client.connectionTimeout = const Duration(seconds: 3);
-      final req = await client.getUrl(Uri.parse('http://$host:8090/api/cagrilar'));
+      final req = await client.getUrl(Uri.parse('http://$host:8090/api/cagrilar?phone=$myPhone&role=$role&id=$myUstaId'));
       final res = await req.close();
       if (res.statusCode == 200) {
         final bodyStr = await res.transform(utf8.decoder).join();
@@ -187,7 +188,7 @@ void _startPersistentWebSocketListener() async {
             final id = cMap['id']?.toString() ?? '';
             final isPending = cMap['durum'] == 'bekliyor';
 
-            if (isPending && id.isNotEmpty && !handledCallIds.contains(id)) {
+            if (isPending && id.isNotEmpty) {
               final cUstaPhone = _cleanPhone(cMap['usta_phone']?.toString() ?? '');
               final cUstaId = (cMap['usta_id']?.toString() ?? '').trim();
               final cUstaName = (cMap['usta_full_name']?.toString() ?? '').trim().toLowerCase();
@@ -201,16 +202,30 @@ void _startPersistentWebSocketListener() async {
                 isForMe = true;
               }
 
-              if (isForMe) {
-                handledCallIds.add(id);
-                debugPrint('>>> [BackgroundService - Polling] Kilitli ekranda USTA ÇAĞRISI ÇALIYOR: $id');
-                await NotificationService.instance.showIncomingCallNotification(
-                  cagriId: id,
-                  customerName: cMap['musteri_full_name']?.toString() ?? 'Müşteri',
-                  serviceTitle: cMap['adres_tarifi']?.toString() ?? 'Acil Servis & Usta Hizmeti',
-                  price: (cMap['toplam_tutar'] as num?)?.toDouble() ?? (cMap['usta_hakedis'] as num?)?.toDouble() ?? 0.0,
-                  address: cMap['adres_tarifi']?.toString(),
-                );
+              if (!handledCallIds.contains(id)) {
+                // Sunucu terminaline anlık debug logu fırlat
+                try {
+                  final debugReq = await client.getUrl(Uri.parse(
+                      'http://$host:8090/api/debug_log?msg=call_${id}_for_${cUstaPhone}_me_${myPhone}_match_$isForMe'));
+                  final dRes = await debugReq.close();
+                  await dRes.drain();
+                } catch (_) {}
+
+                if (isForMe) {
+                  handledCallIds.add(id);
+                  debugPrint('>>> [BackgroundService - Polling] Kilitli ekranda USTA ÇAĞRISI ÇALIYOR: $id');
+                  try {
+                    const MethodChannel('com.example.ustaapp/call_screen')
+                        .invokeMethod('wakeScreenAndUnlock', {'cagri_id': id});
+                  } catch (_) {}
+                  await NotificationService.instance.showIncomingCallNotification(
+                    cagriId: id,
+                    customerName: cMap['musteri_full_name']?.toString() ?? 'Müşteri',
+                    serviceTitle: cMap['adres_tarifi']?.toString() ?? 'Acil Servis & Usta Hizmeti',
+                    price: (cMap['toplam_tutar'] as num?)?.toDouble() ?? (cMap['usta_hakedis'] as num?)?.toDouble() ?? 0.0,
+                    address: cMap['adres_tarifi']?.toString(),
+                  );
+                }
               }
             } else if (!isPending && id.isNotEmpty && handledCallIds.contains(id)) {
               handledCallIds.remove(id);
@@ -326,6 +341,10 @@ void _startPersistentWebSocketListener() async {
                 if (isForMe) {
                   handledCallIds.add(id);
                   debugPrint('>>> [BackgroundService] Kilitli ekranda USTA ÇAĞRISI ÇALIYOR (WS): $id');
+                  try {
+                    const MethodChannel('com.example.ustaapp/call_screen')
+                        .invokeMethod('wakeScreenAndUnlock', {'cagri_id': id});
+                  } catch (_) {}
                   await NotificationService.instance.showIncomingCallNotification(
                     cagriId: id,
                     customerName: cagriMap['musteri_full_name']?.toString() ?? 'Müşteri',
@@ -380,6 +399,10 @@ void _startPersistentWebSocketListener() async {
                     if (isForMe) {
                       handledCallIds.add(id);
                       debugPrint('>>> [BackgroundService] Kilitli ekranda USTA ÇAĞRISI ÇALIYOR (WS Liste): $id');
+                      try {
+                        const MethodChannel('com.example.ustaapp/call_screen')
+                            .invokeMethod('wakeScreenAndUnlock', {'cagri_id': id});
+                      } catch (_) {}
                       await NotificationService.instance.showIncomingCallNotification(
                         cagriId: id,
                         customerName: cagriMap['musteri_full_name']?.toString() ?? 'Müşteri',

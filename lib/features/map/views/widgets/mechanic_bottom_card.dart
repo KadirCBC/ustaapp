@@ -18,6 +18,7 @@ class MechanicBottomCard extends ConsumerStatefulWidget {
   final bool isLoadingUstalar;
   final ValueChanged<NearbyUstaModel> onQuickPickUsta;
   final VoidCallback onClearSelection;
+  final UstaHizmetIlan? initialIlan;
 
   const MechanicBottomCard({
     super.key,
@@ -26,6 +27,7 @@ class MechanicBottomCard extends ConsumerStatefulWidget {
     required this.isLoadingUstalar,
     required this.onQuickPickUsta,
     required this.onClearSelection,
+    this.initialIlan,
   });
 
   @override
@@ -44,7 +46,11 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
     super.initState();
     _buildingDetailController = TextEditingController();
     _faultNoteController = TextEditingController();
-    _initSelectedIlan(widget.selectedUsta);
+    if (widget.initialIlan != null) {
+      _selectedIlan = widget.initialIlan;
+    } else {
+      _initSelectedIlan(widget.selectedUsta);
+    }
   }
 
   void _initSelectedIlan(NearbyUstaModel? usta) {
@@ -61,12 +67,17 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
   @override
   void didUpdateWidget(covariant MechanicBottomCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.selectedUsta?.ustaId != widget.selectedUsta?.ustaId) {
+    if (oldWidget.selectedUsta?.ustaId != widget.selectedUsta?.ustaId ||
+        oldWidget.initialIlan?.id != widget.initialIlan?.id) {
       _buildingDetailController.clear();
       _faultNoteController.clear();
       _selectedFaultTags.clear();
       _hasPhotoAttached = false;
-      _initSelectedIlan(widget.selectedUsta);
+      if (widget.initialIlan != null) {
+        _selectedIlan = widget.initialIlan;
+      } else {
+        _initSelectedIlan(widget.selectedUsta);
+      }
     }
   }
 

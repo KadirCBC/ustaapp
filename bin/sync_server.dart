@@ -80,7 +80,13 @@ void _broadcast(String event, dynamic payload) {
 }
 
 Future<void> _handleRequest(HttpRequest request) async {
+  final clientIp = request.connectionInfo?.remoteAddress.address ?? 'unknown';
   final response = request.response;
+
+  // Sadece periyodik polling dışındaki veya her 10 saniyedeki çağrıları logla
+  if (request.uri.path != '/api/cagrilar' || DateTime.now().second % 10 == 0) {
+    stdout.writeln('[$clientIp] ${request.method} ${request.uri.path}');
+  }
 
   // CORS Başlıkları
   response.headers.set('Access-Control-Allow-Origin', '*');
@@ -249,7 +255,18 @@ Future<void> _handleRequest(HttpRequest request) async {
       return;
     }
     if (path == '/api/cagrilar') {
+      final q = request.uri.queryParameters;
+      if (q.isNotEmpty) {
+        stdout.writeln('>>> [PHONE BACKGROUND SERVICE $clientIp]: $q');
+      }
       response.write(jsonEncode(_data['cagrilar'] ?? []));
+      await response.close();
+      return;
+    }
+    if (path == '/api/debug_log') {
+      final msg = request.uri.queryParameters['msg'] ?? '';
+      stdout.writeln('🚨 [PHONE DEBUG LOG $clientIp]: $msg');
+      response.write(jsonEncode({'status': 'ok'}));
       await response.close();
       return;
     }
