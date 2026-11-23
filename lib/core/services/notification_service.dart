@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ustaapp/core/router/app_router.dart';
 import '../models/app_notification_model.dart';
 
 class NotificationService {
@@ -19,12 +20,12 @@ class NotificationService {
   bool _initialized = false;
   static const String _prefsKey = 'ustam_saved_notifications';
 
-  static const String channelUrgentId = 'ustam_urgent_arrival';
+  static const String channelUrgentId = 'ustam_urgent_arrival_v4';
   static const String channelUrgentName = '🚨 Usta Kapıda & Acil Bildirimler';
   static const String channelUrgentDesc =
       'Ustanız adrese ulaştığında veya acil durumlarda sesli ve kilit ekranı uyarısı verir.';
 
-  static const String channelIncomingCallId = 'ustam_incoming_call';
+  static const String channelIncomingCallId = 'ustam_incoming_call_v4';
   static const String channelIncomingCallName = '🔔 Gelen Usta Çağrıları';
   static const String channelIncomingCallDesc =
       'Müşterilerden yeni bir acil servis veya arıza çağrısı geldiğinde özel zil sesi ile çalar.';
@@ -67,6 +68,7 @@ class NotificationService {
         settings: initSettings,
         onDidReceiveNotificationResponse: (NotificationResponse details) {
           debugPrint('[NotificationService] Bildirime tıklandı: ${details.payload}');
+          _handleNotificationPayload(details.payload);
         },
       );
 
@@ -75,8 +77,9 @@ class NotificationService {
             .resolvePlatformSpecificImplementation<
                 AndroidFlutterLocalNotificationsPlugin>();
 
-        // 1. Android 13+ Bildirim İzni İste
+        // 1. Android 13+ Bildirim ve Alarm İzinleri İste
         await androidImplementation?.requestNotificationsPermission();
+        await androidImplementation?.requestExactAlarmsPermission();
 
         // 2. Acil Usta Varış Bildirim Kanalı (Kilit ekranında uyandırır & yüksek öncelikli ses)
         final urgentVibration = Int64List.fromList([0, 1000, 300, 1000, 300, 1500]);
@@ -229,13 +232,20 @@ class NotificationService {
 
     if (kIsWeb) return;
 
+    if (Platform.isAndroid) {
+      try {
+        const MethodChannel('com.example.ustaapp/call_screen')
+            .invokeMethod('wakeScreenAndUnlock', {'cagri_id': cagriId});
+      } catch (_) {}
+    }
+
     try {
       final urgentVibration = Int64List.fromList([0, 1000, 300, 1000, 300, 1500, 300, 2000]);
       final androidDetails = AndroidNotificationDetails(
         channelIncomingCallId,
         channelIncomingCallName,
         channelDescription: channelIncomingCallDesc,
-        icon: '@drawable/ic_notification',
+        icon: '@mipmap/ic_launcher',
         largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
         color: const Color(0xFFF97316),
         importance: Importance.max,
@@ -465,5 +475,21 @@ class NotificationService {
     } catch (e) {
       debugPrint('[NotificationService] Bildirimleri kaydetme hatası: $e');
     }
+  }
+
+  void _handleNotificationPayload(String? payload) {
+    if (payload == null || payload.isEmpty) return;
+    try {
+      final map = jsonDecode(payload) as Map<String, dynamic>;
+      final type = map['type']?.toString();
+      final data = map['data'] as Map<String, dynamic>?;
+      final cagriId = data?['cagri_id']?.toString() ?? map['cagri_id']?.toString();
+      if ((type == 'call' || cagriId != null) && cagriId != null && cagriId.isNotEmpty) {
+        final nav = rootNavigatorKey.currentState;
+        if (nav != null && nav.mounted) {
+          nav.pushNamed('/usta/incoming-call/$cagriId');
+        }
+      }
+    } catch (_) {}
   }
 }

@@ -10,6 +10,7 @@ import 'package:ustaapp/features/map/views/customer_map_screen.dart';
 import 'package:ustaapp/features/orders/views/customer_active_call_screen.dart';
 import 'package:ustaapp/features/orders/views/customer_on_the_way_screen.dart';
 import 'package:ustaapp/features/orders/views/customer_summary_rating_screen.dart';
+import 'package:ustaapp/features/orders/views/incoming_call_screen.dart';
 import 'package:ustaapp/features/orders/views/usta_active_job_screen.dart';
 import 'package:ustaapp/features/orders/views/usta_orders_screen.dart';
 import 'package:ustaapp/features/orders/views/usta_wallet_screen.dart';
@@ -27,15 +28,23 @@ final appRouterNotifierProvider = Provider<AppRouterNotifier>((ref) {
   return AppRouterNotifier(ref);
 });
 
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(appRouterNotifierProvider);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
     refreshListenable: notifier,
     debugLogDiagnostics: false,
     redirect: (BuildContext context, GoRouterState state) {
       final authState = ref.read(authStateProvider);
+
+      // Kilit ekranında veya arka plandan gelen çağrı her durumda engelsiz açılsın
+      if (state.matchedLocation.startsWith('/usta/incoming-call')) {
+        return null;
+      }
 
       final isSplash = state.matchedLocation == '/splash';
       if (isSplash) return null;
@@ -127,6 +136,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/usta/orders',
         name: 'ustaOrders',
         builder: (context, state) => const UstaOrdersScreen(),
+      ),
+      GoRoute(
+        path: '/usta/incoming-call/:cagriId',
+        name: 'ustaIncomingCall',
+        builder: (context, state) {
+          final cagriId = state.pathParameters['cagriId'] ?? '';
+          return IncomingCallScreen(cagriId: cagriId);
+        },
       ),
       GoRoute(
         path: '/usta/wallet',

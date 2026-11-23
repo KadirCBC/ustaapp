@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ustaapp/core/services/app_data_service.dart';
+import 'package:ustaapp/core/services/special_permissions_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/auth/controllers/auth_controller.dart';
@@ -745,6 +746,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   // 6. KATEGORİ: YARDIM, DESTEK VE GÜVENLİK
                   _buildSectionHeader('DESTEK VE GÜVENLİK'),
                   _buildMenuContainer([
+                    _buildMenuItem(
+                      icon: Icons.notifications_active_rounded,
+                      iconBg: const Color(0xFFFEF3C7),
+                      iconColor: const Color(0xFFD97706),
+                      title: 'Kilit Ekranı & Çağrı İzinleri',
+                      subtitle: 'Ekran kapalıyken çağrı ve bildirim alma ayarları',
+                      onTap: () {
+                        SpecialPermissionsService.instance.showPermissionSheetIfNeeded(context);
+                      },
+                    ),
+                    const Divider(height: 1, indent: 56),
                     _buildMenuItem(
                       icon: Icons.headset_mic_rounded,
                       iconBg: const Color(0xFFF5F3FF),

@@ -11,6 +11,18 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/app_notification_model.dart';
 import 'notification_service.dart';
 
+Map<String, dynamic>? _cachedBackgroundSession;
+
+String _cleanPhone(String raw) {
+  String digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+  if (digits.startsWith('90') && digits.length == 12) {
+    digits = digits.substring(2);
+  } else if (digits.startsWith('0') && digits.length == 11) {
+    digits = digits.substring(1);
+  }
+  return digits;
+}
+
 class AppBackgroundService {
   AppBackgroundService._();
   static final AppBackgroundService instance = AppBackgroundService._();
@@ -47,9 +59,10 @@ class AppBackgroundService {
           onStart: onBackgroundServiceStart,
           autoStart: true,
           isForegroundMode: true,
+          autoStartOnBoot: true,
           notificationChannelId: serviceChannelId,
-          initialNotificationTitle: 'UstaGelio',
-          initialNotificationContent: 'Canlı bildirim ve servis takibi devrede',
+          initialNotificationTitle: 'UstaGelio Usta Servisi',
+          initialNotificationContent: 'Yeni çağrılar ve anlık bildirimler dinleniyor',
           foregroundServiceTypes: [
             AndroidForegroundType.dataSync,
             AndroidForegroundType.remoteMessaging,
@@ -71,6 +84,17 @@ class AppBackgroundService {
       debugPrint('[AppBackgroundService] Başlatma hatası: $e');
     }
   }
+
+  /// UI tarafından oturum değiştiğinde arka plan servisini anında bilgilendirir
+  Future<void> notifySessionUpdated(Map<String, dynamic> session) async {
+    if (kIsWeb) return;
+    try {
+      final service = FlutterBackgroundService();
+      if (await service.isRunning()) {
+        service.invoke('update_session', session);
+      }
+    } catch (_) {}
+  }
 }
 
 @pragma('vm:entry-point')
@@ -85,12 +109,34 @@ void onBackgroundServiceStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
   WidgetsFlutterBinding.ensureInitialized();
 
+  if (service is AndroidServiceInstance) {
+    service.on('setAsForeground').listen((event) {
+      service.setAsForegroundService();
+    });
+    service.on('setAsBackground').listen((event) {
+      service.setAsBackgroundService();
+    });
+    await service.setAsForegroundService();
+    await service.setForegroundNotificationInfo(
+      title: 'UstaGelio Usta Servisi',
+      content: 'Yeni çağrılar ve anlık bildirimler dinleniyor',
+    );
+  }
+
   // Bildirim servisini arka plan izolatında da hazırla
   await NotificationService.instance.initialize();
 
+  // UI izolatından gelen oturum güncellemelerini anında hafızada yakala
+  service.on('update_session').listen((event) {
+    if (event != null) {
+      _cachedBackgroundSession = Map<String, dynamic>.from(event);
+      debugPrint('[BackgroundService] Hafızada aktif oturum güncellendi: ${_cachedBackgroundSession?['phone']}');
+    }
+  });
+
   debugPrint('[BackgroundService] Arka plan dinleyici izolatı aktif edildi.');
 
-  // Kalıcı dinleme döngüsü (WebSocket)
+  // Kalıcı dinleme döngüsü (WebSocket ve Polling)
   _startPersistentWebSocketListener();
 }
 
@@ -99,18 +145,29 @@ void _startPersistentWebSocketListener() async {
   final handledCallIds = <String>{};
 
   // 1. Ekran kilitliyken veya Wi-Fi uyku modundayken bile çağrıyı kaçırmayan Periyodik Polling Yedekleme Döngüsü
-  Timer.periodic(const Duration(seconds: 5), (_) async {
+  Timer.periodic(const Duration(seconds: 4), (_) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final sessionRaw = prefs.getString('app_active_session');
-      if (sessionRaw == null) return;
-      final session = jsonDecode(sessionRaw) as Map<String, dynamic>;
+      await prefs.reload(); // Diskten en güncel veriyi çek
+
+      Map<String, dynamic>? session = _cachedBackgroundSession;
+      if (session == null) {
+        final sessionRaw = prefs.getString('app_active_session');
+        if (sessionRaw != null) {
+          try {
+            session = Map<String, dynamic>.from(jsonDecode(sessionRaw) as Map);
+          } catch (_) {}
+        }
+      }
+      if (session == null) return;
+
       final role = session['role']?.toString().toLowerCase();
       if (role != 'usta') return;
 
-      final myPhone = (session['phone']?.toString() ?? '').replaceAll(RegExp(r'[^0-9]'), '');
-      final myUstaId = (session['id']?.toString() ?? '').trim();
-      if (myPhone.isEmpty && myUstaId.isEmpty) return;
+      final myPhone = _cleanPhone(session['phone']?.toString() ?? '');
+      final myUstaId = (session['id']?.toString() ?? session['usta_id']?.toString() ?? '').trim();
+      final myName = (session['full_name']?.toString() ?? '').trim().toLowerCase();
+      if (myPhone.isEmpty && myUstaId.isEmpty && myName.isEmpty) return;
 
       final customHost = prefs.getString('app_custom_sync_host');
       final host = (customHost != null && customHost.isNotEmpty)
@@ -131,14 +188,17 @@ void _startPersistentWebSocketListener() async {
             final isPending = cMap['durum'] == 'bekliyor';
 
             if (isPending && id.isNotEmpty && !handledCallIds.contains(id)) {
-              final cUstaPhone = (cMap['usta_phone']?.toString() ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+              final cUstaPhone = _cleanPhone(cMap['usta_phone']?.toString() ?? '');
               final cUstaId = (cMap['usta_id']?.toString() ?? '').trim();
+              final cUstaName = (cMap['usta_full_name']?.toString() ?? '').trim().toLowerCase();
 
               bool isForMe = false;
               if (myPhone.isNotEmpty && cUstaPhone.isNotEmpty) {
                 isForMe = (myPhone == cUstaPhone);
               } else if (myUstaId.isNotEmpty && cUstaId.isNotEmpty) {
-                isForMe = (myUstaId == cUstaId || myUstaId == 'usta-$cUstaId');
+                isForMe = (myUstaId == cUstaId || myUstaId == 'usta-$cUstaId' || cUstaId == 'usta-$myUstaId');
+              } else if (myName.isNotEmpty && cUstaName.isNotEmpty && myName == cUstaName) {
+                isForMe = true;
               }
 
               if (isForMe) {
@@ -166,6 +226,7 @@ void _startPersistentWebSocketListener() async {
   while (true) {
     try {
       final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
       final customHost = prefs.getString('app_custom_sync_host');
       final host = (customHost != null && customHost.isNotEmpty)
           ? customHost.trim()
@@ -189,11 +250,17 @@ void _startPersistentWebSocketListener() async {
             if (cid.isNotEmpty && !handledArrivalIds.contains(cid)) {
               handledArrivalIds.add(cid);
 
-              // Aktif kullanıcı rolünü kontrol et
-              final sessionRaw = prefs.getString('app_active_session');
-              final role = sessionRaw != null
-                  ? (jsonDecode(sessionRaw)['role']?.toString().toLowerCase())
-                  : null;
+              await prefs.reload();
+              Map<String, dynamic>? session = _cachedBackgroundSession;
+              if (session == null) {
+                final sessionRaw = prefs.getString('app_active_session');
+                if (sessionRaw != null) {
+                  try {
+                    session = Map<String, dynamic>.from(jsonDecode(sessionRaw) as Map);
+                  } catch (_) {}
+                }
+              }
+              final role = session?['role']?.toString().toLowerCase();
 
               if (role != 'usta') {
                 final ustaName = arrivalData['usta_name']?.toString() ?? 'Ustanız';
@@ -211,12 +278,15 @@ void _startPersistentWebSocketListener() async {
             final isAdreste = durum == 'adreste' || cagriMap['usta_arrived'] == true;
             final isPending = durum == 'bekliyor';
 
-            final sessionRaw = prefs.getString('app_active_session');
-            Map<String, dynamic>? session;
-            if (sessionRaw != null) {
-              try {
-                session = Map<String, dynamic>.from(jsonDecode(sessionRaw) as Map);
-              } catch (_) {}
+            await prefs.reload();
+            Map<String, dynamic>? session = _cachedBackgroundSession;
+            if (session == null) {
+              final sessionRaw = prefs.getString('app_active_session');
+              if (sessionRaw != null) {
+                try {
+                  session = Map<String, dynamic>.from(jsonDecode(sessionRaw) as Map);
+                } catch (_) {}
+              }
             }
             final role = session?['role']?.toString().toLowerCase();
 
@@ -237,16 +307,20 @@ void _startPersistentWebSocketListener() async {
             // B) Usta için kilitli ekranda veya uygulama kapalıyken YENİ ÇAĞRI uyarısı (TAM EKRAN ZİL SESİ)
             if (isPending && id.isNotEmpty && !handledCallIds.contains(id)) {
               if (role == 'usta') {
-                final myPhone = (session?['phone']?.toString() ?? '').replaceAll(RegExp(r'[^0-9]'), '');
-                final myUstaId = (session?['id']?.toString() ?? '').trim();
-                final cUstaPhone = (cagriMap['usta_phone']?.toString() ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                final myPhone = _cleanPhone(session?['phone']?.toString() ?? '');
+                final myUstaId = (session?['id']?.toString() ?? session?['usta_id']?.toString() ?? '').trim();
+                final myName = (session?['full_name']?.toString() ?? '').trim().toLowerCase();
+                final cUstaPhone = _cleanPhone(cagriMap['usta_phone']?.toString() ?? '');
                 final cUstaId = (cagriMap['usta_id']?.toString() ?? '').trim();
+                final cUstaName = (cagriMap['usta_full_name']?.toString() ?? '').trim().toLowerCase();
 
                 bool isForMe = false;
                 if (myPhone.isNotEmpty && cUstaPhone.isNotEmpty) {
                   isForMe = (myPhone == cUstaPhone);
                 } else if (myUstaId.isNotEmpty && cUstaId.isNotEmpty) {
-                  isForMe = (myUstaId == cUstaId || myUstaId == 'usta-$cUstaId');
+                  isForMe = (myUstaId == cUstaId || myUstaId == 'usta-$cUstaId' || cUstaId == 'usta-$myUstaId');
+                } else if (myName.isNotEmpty && cUstaName.isNotEmpty && myName == cUstaName) {
+                  isForMe = true;
                 }
 
                 if (isForMe) {
@@ -266,19 +340,22 @@ void _startPersistentWebSocketListener() async {
               await NotificationService.instance.cancelCallNotification(id);
             }
           } else if (event == 'cagrilar_updated' && data is List) {
-            // Liste güncellendiğinde bekleyen çağrıları kontrol et
-            final sessionRaw = prefs.getString('app_active_session');
-            Map<String, dynamic>? session;
-            if (sessionRaw != null) {
-              try {
-                session = Map<String, dynamic>.from(jsonDecode(sessionRaw) as Map);
-              } catch (_) {}
+            await prefs.reload();
+            Map<String, dynamic>? session = _cachedBackgroundSession;
+            if (session == null) {
+              final sessionRaw = prefs.getString('app_active_session');
+              if (sessionRaw != null) {
+                try {
+                  session = Map<String, dynamic>.from(jsonDecode(sessionRaw) as Map);
+                } catch (_) {}
+              }
             }
             final role = session?['role']?.toString().toLowerCase();
 
             if (role == 'usta') {
-              final myPhone = (session?['phone']?.toString() ?? '').replaceAll(RegExp(r'[^0-9]'), '');
-              final myUstaId = (session?['id']?.toString() ?? '').trim();
+              final myPhone = _cleanPhone(session?['phone']?.toString() ?? '');
+              final myUstaId = (session?['id']?.toString() ?? session?['usta_id']?.toString() ?? '').trim();
+              final myName = (session?['full_name']?.toString() ?? '').trim().toLowerCase();
 
               for (final item in data) {
                 if (item is Map) {
@@ -287,14 +364,17 @@ void _startPersistentWebSocketListener() async {
                   final isPending = cagriMap['durum'] == 'bekliyor';
 
                   if (isPending && id.isNotEmpty && !handledCallIds.contains(id)) {
-                    final cUstaPhone = (cagriMap['usta_phone']?.toString() ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                    final cUstaPhone = _cleanPhone(cagriMap['usta_phone']?.toString() ?? '');
                     final cUstaId = (cagriMap['usta_id']?.toString() ?? '').trim();
+                    final cUstaName = (cagriMap['usta_full_name']?.toString() ?? '').trim().toLowerCase();
 
                     bool isForMe = false;
                     if (myPhone.isNotEmpty && cUstaPhone.isNotEmpty) {
                       isForMe = (myPhone == cUstaPhone);
                     } else if (myUstaId.isNotEmpty && cUstaId.isNotEmpty) {
-                      isForMe = (myUstaId == cUstaId || myUstaId == 'usta-$cUstaId');
+                      isForMe = (myUstaId == cUstaId || myUstaId == 'usta-$cUstaId' || cUstaId == 'usta-$myUstaId');
+                    } else if (myName.isNotEmpty && cUstaName.isNotEmpty && myName == cUstaName) {
+                      isForMe = true;
                     }
 
                     if (isForMe) {
@@ -316,20 +396,22 @@ void _startPersistentWebSocketListener() async {
               }
             }
           } else if (event == 'system_notification' && data is Map) {
-            // 2. Admin Canlı Push Bildirimi (📢 Sistem duyurusu / güncelleme)
             final notifMap = Map<String, dynamic>.from(data);
             final notif = AppNotificationModel.fromJson(notifMap);
 
-            final sessionRaw = prefs.getString('app_active_session');
-            Map<String, dynamic>? session;
-            if (sessionRaw != null) {
-              try {
-                session = Map<String, dynamic>.from(jsonDecode(sessionRaw) as Map);
-              } catch (_) {}
+            await prefs.reload();
+            Map<String, dynamic>? session = _cachedBackgroundSession;
+            if (session == null) {
+              final sessionRaw = prefs.getString('app_active_session');
+              if (sessionRaw != null) {
+                try {
+                  session = Map<String, dynamic>.from(jsonDecode(sessionRaw) as Map);
+                } catch (_) {}
+              }
             }
 
             final currentRole = session?['role']?.toString().toLowerCase();
-            final currentPhone = session?['phone']?.toString().replaceAll(RegExp(r'[^0-9]'), '') ?? '';
+            final currentPhone = _cleanPhone(session?['phone']?.toString() ?? '');
 
             bool isTargeted = false;
             if (notif.target == 'all') {
@@ -339,7 +421,7 @@ void _startPersistentWebSocketListener() async {
             } else if (notif.target == 'musteriler' && currentRole != 'usta') {
               isTargeted = true;
             } else if (notif.target == 'user' && notif.targetPhone != null) {
-              final normTarget = notif.targetPhone!.replaceAll(RegExp(r'[^0-9]'), '');
+              final normTarget = _cleanPhone(notif.targetPhone!);
               if (normTarget.isNotEmpty && normTarget == currentPhone) {
                 isTargeted = true;
               }
@@ -357,7 +439,6 @@ void _startPersistentWebSocketListener() async {
       debugPrint('[BackgroundService] WS bağlantı koptu, 5 sn sonra yeniden denenecek: $e');
     }
 
-    // Bağlantı koptuğunda 5 saniye bekle ve tekrar bağlan
     await Future.delayed(const Duration(seconds: 5));
   }
 }

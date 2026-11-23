@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -57,11 +58,48 @@ Future<void> main() async {
   );
 }
 
-class UstaGelioApp extends ConsumerWidget {
+class UstaGelioApp extends ConsumerStatefulWidget {
   const UstaGelioApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<UstaGelioApp> createState() => _UstaGelioAppState();
+}
+
+class _UstaGelioAppState extends ConsumerState<UstaGelioApp> {
+  static const MethodChannel _callChannel =
+      MethodChannel('com.example.ustaapp/call_screen');
+
+  @override
+  void initState() {
+    super.initState();
+    _setupNativeCallListener();
+  }
+
+  void _setupNativeCallListener() {
+    _callChannel.setMethodCallHandler((call) async {
+      if (call.method == 'onIncomingCall') {
+        final cid = call.arguments?.toString();
+        if (cid != null && cid.isNotEmpty && mounted) {
+          debugPrint('>>> [MainActivity -> Flutter] Gelen çağrı ekranı açılıyor: $cid');
+          ref.read(appRouterProvider).push('/usta/incoming-call/$cid');
+        }
+      }
+    });
+
+    // Soğuk açılışta bekleyen çağrıyı kontrol et
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        final pendingId = await _callChannel.invokeMethod<String>('getPendingCallId');
+        if (pendingId != null && pendingId.isNotEmpty && mounted) {
+          debugPrint('>>> [MainActivity -> Flutter] Bekleyen çağrı açılıyor: $pendingId');
+          ref.read(appRouterProvider).push('/usta/incoming-call/$pendingId');
+        }
+      } catch (_) {}
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // GoRouter örneğini al
     final router = ref.watch(appRouterProvider);
 

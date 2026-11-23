@@ -6,6 +6,7 @@ import 'package:ustaapp/core/models/app_notification_model.dart';
 import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/core/services/notification_service.dart';
+import 'package:ustaapp/core/services/special_permissions_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/core/widgets/notification_sheet.dart';
@@ -57,6 +58,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(ustaDashboardControllerProvider.notifier).loadDashboardData(forceRefresh: true);
+      SpecialPermissionsService.instance.showPermissionSheetIfNeeded(context);
     });
   }
 

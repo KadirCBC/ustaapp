@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ustaapp/core/models/app_notification_model.dart';
 import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/core/services/notification_service.dart';
+import 'package:ustaapp/core/services/app_background_service.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:ustaapp/features/orders/models/cagri_model.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -2520,6 +2521,12 @@ class AppDataService {
     } catch (e) {
       debugPrint('Aktif oturum kaydedilirken hata: $e');
     }
+
+    // Arka plan izolatına da anında oturumu ulaştır
+    try {
+      AppBackgroundService.instance.notifySessionUpdated(session);
+    } catch (_) {}
+
     _changesStreamController.add(null);
   }
 
