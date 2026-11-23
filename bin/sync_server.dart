@@ -394,6 +394,7 @@ Future<void> _handleRequest(HttpRequest request) async {
         await _saveDataToFile();
         _broadcast('cagri_updated', cagriMap);
         _broadcast('cagrilar_updated', list);
+        stdout.writeln('🔔 [CALL EVENT] ID: $id | Durum: ${cagriMap['durum']} | Hedef Usta: ${cagriMap['usta_phone']} (${cagriMap['usta_full_name']}) | Tutar: ${cagriMap['toplam_tutar']}');
 
         // Usta adrese vardığında özel bildirim event'i yayınla
         final isAdreste = (cagriMap['durum'] == 'adreste' || cagriMap['usta_arrived'] == true);

@@ -39,8 +39,8 @@ class NotificationService {
   int get unreadCount =>
       notificationsNotifier.value.where((n) => !n.isRead).length;
 
-  Future<void> initialize() async {
-    if (_initialized) return;
+  Future<void> initialize({bool isBackground = false}) async {
+    if (_initialized && !isBackground) return;
 
     await _loadSavedNotifications();
 
@@ -78,9 +78,15 @@ class NotificationService {
             .resolvePlatformSpecificImplementation<
                 AndroidFlutterLocalNotificationsPlugin>();
 
-        // 1. Android 13+ Bildirim ve Alarm İzinleri İste
-        await androidImplementation?.requestNotificationsPermission();
-        await androidImplementation?.requestExactAlarmsPermission();
+        // 1. Android 13+ Bildirim ve Alarm İzinleri İste (Sadece UI izolatında, Activity varsa çağrılır)
+        if (!isBackground) {
+          try {
+            await androidImplementation?.requestNotificationsPermission();
+            await androidImplementation?.requestExactAlarmsPermission();
+          } catch (permErr) {
+            debugPrint('[NotificationService] İzin isteme uyarısı: $permErr');
+          }
+        }
 
         // 2. Acil Usta Varış Bildirim Kanalı (Kilit ekranında uyandırır & yüksek öncelikli ses)
         final urgentVibration = Int64List.fromList([0, 1000, 300, 1000, 300, 1500]);
@@ -106,6 +112,7 @@ class NotificationService {
           enableVibration: true,
           vibrationPattern: urgentVibration,
           showBadge: true,
+          audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
         );
 
         // 4. Genel Duyuru ve Güncelleme Kanalı
@@ -125,7 +132,7 @@ class NotificationService {
       }
 
       _initialized = true;
-      debugPrint('[NotificationService] Yerel bildirim servisi başarıyla başlatıldı.');
+      debugPrint('[NotificationService] Yerel bildirim servisi başarıyla başlatıldı (isBackground=$isBackground).');
     } catch (e) {
       debugPrint('[NotificationService] Başlatma hatası: $e');
     }
@@ -258,6 +265,7 @@ class NotificationService {
         fullScreenIntent: true,
         visibility: NotificationVisibility.public,
         category: AndroidNotificationCategory.call,
+        audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
         ongoing: true,
         autoCancel: false,
         ticker: '🚨 Yeni Usta Çağrısı Geldi!',

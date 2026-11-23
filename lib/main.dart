@@ -9,6 +9,7 @@ import 'package:ustaapp/core/constants/app_constants.dart';
 import 'package:ustaapp/core/constants/env_config.dart';
 import 'package:ustaapp/core/router/app_router.dart';
 import 'package:ustaapp/core/services/app_background_service.dart';
+import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/notification_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
@@ -45,8 +46,15 @@ Future<void> main() async {
     }
   }
 
-  // 3. Arka plan kalıcı servisini ana iş parçacığını bekletmeden asenkron başlat
-  unawaited(AppBackgroundService.instance.initialize().catchError((e) {
+  // 3. Arka plan kalıcı servisini başlat ve mevcut oturumu anında ilet
+  unawaited(AppBackgroundService.instance.initialize().then((_) async {
+    try {
+      final session = await AppDataService.instance.getActiveSession();
+      if (session != null) {
+        await AppBackgroundService.instance.notifySessionUpdated(session);
+      }
+    } catch (_) {}
+  }).catchError((e) {
     debugPrint('Arka plan servisi başlatma uyarısı: $e');
   }));
 
