@@ -11,9 +11,16 @@ dependencies:
     sdk: flutter
   plugin_platform_interface: ^2.0.2
 
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
 flutter:
   plugin:
     platforms:
       android:
         package: com.example.call_screen
+        pluginClass: CallScreenPlugin
+      ios:
         pluginClass: CallScreenPlugin

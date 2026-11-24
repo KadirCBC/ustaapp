@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ustaapp/core/models/app_notification_model.dart';
+import 'package:ustaapp/core/models/banner_model.dart';
 import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/core/services/notification_service.dart';
@@ -61,6 +62,10 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   bool _isGridView = true; // Alt alta grid görünümü varsayılan
   StreamSubscription? _dataChangedSub;
   List<_ListingCardData> _directLoadedListings = [];
+  List<BannerModel> _activeBanners = [];
+  int _currentBannerIndex = 0;
+  final PageController _bannerPageController = PageController();
+  Timer? _bannerAutoScrollTimer;
 
   final List<Map<String, dynamic>> _categories = const [
     {'key': 'tum', 'label': 'Tüm İlanlar', 'icon': Icons.apps_rounded, 'color': Color(0xFFEA580C)},
@@ -101,6 +106,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
 
     // 1. İlanları hemen anında doğrudan yükle
     _loadDirectListings();
+    _loadBanners();
 
     // 2. Uygulama açılışında anlık GPS konumunu otomatik başlat
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -117,6 +123,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     _dataChangedSub = AppDataService.instance.onDataChanged.listen((_) {
       if (mounted) {
         _loadDirectListings();
+        _loadBanners();
         ref.read(customerMapControllerProvider.notifier).fetchNearbyUstalar();
         ref.read(customerMapControllerProvider.notifier).fetchIsletmeler();
       }
@@ -125,9 +132,39 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
 
   @override
   void dispose() {
+    _bannerAutoScrollTimer?.cancel();
+    _bannerPageController.dispose();
     _dataChangedSub?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  /// Dinamik reklam ve kampanya bannerlarını yükler ve otomatik kaydırmayı başlatır
+  Future<void> _loadBanners() async {
+    try {
+      final banners = await AppDataService.instance.getBanners();
+      final active = banners.where((b) => b.isActive).toList();
+      if (mounted) {
+        setState(() {
+          _activeBanners = active;
+        });
+        _startBannerAutoScroll();
+      }
+    } catch (_) {}
+  }
+
+  void _startBannerAutoScroll() {
+    _bannerAutoScrollTimer?.cancel();
+    if (_activeBanners.length <= 1) return;
+    _bannerAutoScrollTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (!mounted || !_bannerPageController.hasClients) return;
+      final nextIndex = (_currentBannerIndex + 1) % _activeBanners.length;
+      _bannerPageController.animateToPage(
+        nextIndex,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOutCubic,
+      );
+    });
   }
 
   /// Tüm aktif usta hizmet ilanlarını kalıcı servis ve sync sunucusundan otomatik yükler
@@ -1135,66 +1172,294 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     );
   }
 
-  /// Güvence & Hızlı Servis Banner
+  /// Dinamik Reklam, Kampanya ve Güvence Banner Slider
   Widget _buildGuaranteeBanner() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFEA580C), Color(0xFFF97316)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    if (_activeBanners.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFEA580C), Color(0xFFF97316)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFEA580C).withValues(alpha: 0.28),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFEA580C).withValues(alpha: 0.28),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.verified_user_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
             ),
-            child: const Icon(
-              Icons.verified_user_rounded,
-              color: Colors.white,
-              size: 26,
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Sabit Fiyat & İyzico Güvencesi',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'İşiniz onaylanana kadar ödemeniz koruma havuzunda bekler.',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFFE2E8F0),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Sabit Fiyat & İyzico Güvencesi',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 140,
+          child: PageView.builder(
+            controller: _bannerPageController,
+            onPageChanged: (idx) => setState(() => _currentBannerIndex = idx),
+            itemCount: _activeBanners.length,
+            itemBuilder: (context, index) {
+              final banner = _activeBanners[index];
+              final hasImage = banner.imageUrl.trim().isNotEmpty;
+
+              return InkWell(
+                onTap: () {
+                  AppDataService.instance.recordBannerClick(banner.id);
+                  if (banner.deepLink != null && banner.deepLink!.isNotEmpty) {
+                    final target = banner.deepLink!.replaceAll('cat-', '');
+                    setState(() {
+                      _selectedCategory = target;
+                    });
+                  }
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: banner.gradientColors.first.withOpacity(0.25),
+                        blurRadius: 14,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Stack(
+                      children: [
+                        // Arka Plan Görseli
+                        if (hasImage)
+                          Positioned.fill(
+                            child: Image.network(
+                              banner.imageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const SizedBox(),
+                            ),
+                          ),
+
+                        // Gradyan Katmanı (Metnin okunması için görsel üzerinde karartmalı degrade)
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: hasImage
+                                    ? [
+                                        banner.gradientColors.first.withOpacity(0.92),
+                                        banner.gradientColors.last.withOpacity(0.75),
+                                        Colors.black.withOpacity(0.4),
+                                      ]
+                                    : banner.gradientColors,
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Dekoratif İnce Daire Deseni (Sağ Köşe)
+                        Positioned(
+                          right: -20,
+                          bottom: -20,
+                          child: Container(
+                            width: 110,
+                            height: 110,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withOpacity(0.06),
+                            ),
+                          ),
+                        ),
+
+                        // İçerik (Başlık, Rozet, Açıklama ve Görsel Thumbnail)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          child: Row(
+                            children: [
+                              // Sol Metin Bloğu
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    if (banner.badge.isNotEmpty) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.25),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          banner.badge,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                    ],
+                                    Text(
+                                      banner.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      banner.subtitle,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Color(0xFFF1F5F9),
+                                        fontSize: 11.5,
+                                        height: 1.25,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+
+                              // Sağ Thumbnail / Ok Butonu
+                              if (hasImage)
+                                Container(
+                                  width: 64,
+                                  height: 64,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Stack(
+                                      children: [
+                                        Positioned.fill(
+                                          child: Image.network(
+                                            banner.imageUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => Container(
+                                              color: Colors.white.withOpacity(0.2),
+                                              child: const Icon(Icons.broken_image_rounded, color: Colors.white70),
+                                            ),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          right: 4,
+                                          bottom: 4,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: const BoxDecoration(
+                                              color: Colors.black54,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 12),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              else
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                SizedBox(height: 2),
-                Text(
-                  'İşiniz onaylanana kadar ödemeniz koruma havuzunda bekler.',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: Color(0xFFE2E8F0),
-                  ),
+              );
+            },
+          ),
+        ),
+        if (_activeBanners.length > 1) ...[
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(_activeBanners.length, (idx) {
+              final isCurrent = idx == _currentBannerIndex;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: isCurrent ? 18 : 6,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isCurrent ? const Color(0xFFEA580C) : const Color(0xFF334155),
+                  borderRadius: BorderRadius.circular(2),
                 ),
-              ],
-            ),
+              );
+            }),
           ),
         ],
-      ),
+      ],
     );
   }
 

@@ -1,3 +1,5 @@
+import 'package:ustaapp/core/constants/env_config.dart';
+
 class AppConstants {
   static const String appName = 'UstaGelio';
   static const String defaultCountryCode = '+90';
@@ -5,8 +7,7 @@ class AppConstants {
   static const int otpLength = 6;
   static const int otpResendSeconds = 60;
 
-  static const String mapboxAccessToken =
-      'pk.eyJ1IjoiYnlncmFmMDEiLCJhIjoiY213Y2o2dnpmMDM3OTJ5c2M4cjV3NThsZyJ9.3asuElOYlUMITRxJLGh2Hw';
+  static String get mapboxAccessToken => EnvConfig.mapboxAccessToken;
 
   // Supabase Tablo İsimleri
   static const String profilesTable = 'profiles';

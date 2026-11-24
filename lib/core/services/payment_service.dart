@@ -9,6 +9,9 @@ class PreAuthResult {
   final double? blokeEdilenTutar;
   final String? message;
   final String? error;
+  final bool requires3DS;
+  final String? threeDSHtmlContent;
+  final String? redirectUrl;
 
   PreAuthResult({
     required this.success,
@@ -16,6 +19,9 @@ class PreAuthResult {
     this.blokeEdilenTutar,
     this.message,
     this.error,
+    this.requires3DS = false,
+    this.threeDSHtmlContent,
+    this.redirectUrl,
   });
 }
 
@@ -79,6 +85,9 @@ class PaymentService {
         paymentIntentId: data['payment_intent_id'] as String?,
         blokeEdilenTutar: (data['bloke_edilen_tutar'] as num?)?.toDouble(),
         message: data['message'] as String?,
+        requires3DS: data['requires_3ds'] == true,
+        threeDSHtmlContent: data['three_ds_html_content'] as String?,
+        redirectUrl: data['redirect_url'] as String?,
       );
     } catch (e) {
       debugPrint('[PaymentService] Beklenmeyen provizyon hatası: $e');

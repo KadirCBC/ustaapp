@@ -6,6 +6,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ustaapp/core/models/app_notification_model.dart';
+import 'package:ustaapp/core/models/banner_model.dart';
+import 'package:ustaapp/core/models/coupon_model.dart';
+import 'package:ustaapp/core/models/dispute_model.dart';
 import 'package:ustaapp/core/services/location_lookup_service.dart';
 import 'package:ustaapp/core/services/notification_service.dart';
 import 'package:ustaapp/core/services/app_background_service.dart';
@@ -36,6 +39,9 @@ class AppDataService {
   static const String _kFinancialTransactionsKey = 'app_shared_financial_transactions';
   static const String _kActiveSessionKey = 'app_active_session';
   static const String _kRegisteredUsersKey = 'app_registered_users';
+  static const String _kBannersKey = 'app_shared_banners';
+  static const String _kCouponsKey = 'app_shared_coupons';
+  static const String _kDisputesKey = 'app_shared_disputes';
 
   static const int _kSyncPort = 8090;
 
@@ -3269,6 +3275,229 @@ class AppDataService {
     }
 
     return results;
+  }
+
+  // ================= BANNER & REKLAM YÖNETİMİ =================
+  Future<List<BannerModel>> getBanners() async {
+    try {
+      final res = await http.get(Uri.parse('$_syncBaseUrl/api/banners')).timeout(const Duration(seconds: 3));
+      if (res.statusCode == 200) {
+        final decoded = jsonDecode(res.body) as List;
+        final list = decoded.map((e) => BannerModel.fromJson(Map<String, dynamic>.from(e))).toList();
+        await _persistBannersToPrefs(list);
+        return list;
+      }
+    } catch (_) {}
+    return _loadBannersFromPrefs();
+  }
+
+  Future<void> _persistBannersToPrefs(List<BannerModel> banners) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final str = jsonEncode(banners.map((b) => b.toJson()).toList());
+      await prefs.setString(_kBannersKey, str);
+    } catch (_) {}
+  }
+
+  Future<List<BannerModel>> _loadBannersFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final str = prefs.getString(_kBannersKey);
+      if (str != null && str.isNotEmpty) {
+        final decoded = jsonDecode(str) as List;
+        return decoded.map((e) => BannerModel.fromJson(Map<String, dynamic>.from(e))).toList();
+      }
+    } catch (_) {}
+    return [
+      BannerModel(
+        id: 'banner_1',
+        title: 'Kombi ve Klima Bakımında %20 İndirim!',
+        subtitle: 'Yetkili ve MYK belgeli uzman ustalar ile kışa hazır olun.',
+        imageUrl: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=800&q=80',
+        deepLink: 'cat-kombi',
+        badge: 'SEZON FIRSATI',
+        bgGradient: 'orange',
+        isActive: true,
+        clickCount: 142,
+        impressionCount: 1850,
+        createdAt: DateTime.now(),
+      ),
+      BannerModel(
+        id: 'banner_2',
+        title: 'Acil Çilingir & Kapı Açma 15 Dakikada!',
+        subtitle: 'Kapıda mı kaldınız? En yakın nöbetçi çilingir kapınızda.',
+        imageUrl: 'https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=800&q=80',
+        deepLink: 'cat-cilingir',
+        badge: '7/24 ACİL',
+        bgGradient: 'blue',
+        isActive: true,
+        clickCount: 98,
+        impressionCount: 1420,
+        createdAt: DateTime.now(),
+      ),
+    ];
+  }
+
+  Future<bool> saveBanners(List<BannerModel> banners) async {
+    await _persistBannersToPrefs(banners);
+    _changesStreamController.add(null);
+    _postToSyncServer('/api/banners', banners.map((b) => b.toJson()).toList());
+    return true;
+  }
+
+  Future<void> recordBannerClick(String bannerId) async {
+    final list = await getBanners();
+    final idx = list.indexWhere((b) => b.id == bannerId);
+    if (idx != -1) {
+      list[idx] = list[idx].copyWith(clickCount: list[idx].clickCount + 1);
+      await saveBanners(list);
+    }
+  }
+
+  // ================= KUPON & PROMOSYON KODLARI =================
+  Future<List<CouponModel>> getCoupons() async {
+    try {
+      final res = await http.get(Uri.parse('$_syncBaseUrl/api/coupons')).timeout(const Duration(seconds: 3));
+      if (res.statusCode == 200) {
+        final decoded = jsonDecode(res.body) as List;
+        final list = decoded.map((e) => CouponModel.fromJson(Map<String, dynamic>.from(e))).toList();
+        await _persistCouponsToPrefs(list);
+        return list;
+      }
+    } catch (_) {}
+    return _loadCouponsFromPrefs();
+  }
+
+  Future<void> _persistCouponsToPrefs(List<CouponModel> coupons) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final str = jsonEncode(coupons.map((c) => c.toJson()).toList());
+      await prefs.setString(_kCouponsKey, str);
+    } catch (_) {}
+  }
+
+  Future<List<CouponModel>> _loadCouponsFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final str = prefs.getString(_kCouponsKey);
+      if (str != null && str.isNotEmpty) {
+        final decoded = jsonDecode(str) as List;
+        return decoded.map((e) => CouponModel.fromJson(Map<String, dynamic>.from(e))).toList();
+      }
+    } catch (_) {}
+    return [
+      CouponModel(
+        id: 'coupon_1',
+        code: 'USTA100',
+        title: 'İlk Hizmetinizde 100 ₺ İndirim',
+        discountType: 'fixed',
+        discountAmount: 100.0,
+        minOrderAmount: 500.0,
+        maxUses: 1000,
+        usedCount: 47,
+        isActive: true,
+        validUntil: DateTime.now().add(const Duration(days: 90)),
+      ),
+      CouponModel(
+        id: 'coupon_2',
+        code: 'BAHAR15',
+        title: 'Tüm Elektrik & Tesisat İşlerinde %15 İndirim',
+        discountType: 'percentage',
+        discountAmount: 15.0,
+        minOrderAmount: 300.0,
+        maxUses: 500,
+        usedCount: 19,
+        isActive: true,
+        validUntil: DateTime.now().add(const Duration(days: 60)),
+      ),
+    ];
+  }
+
+  Future<bool> saveCoupons(List<CouponModel> coupons) async {
+    await _persistCouponsToPrefs(coupons);
+    _changesStreamController.add(null);
+    _postToSyncServer('/api/coupons', coupons.map((c) => c.toJson()).toList());
+    return true;
+  }
+
+  Future<CouponModel?> validateCoupon(String code, double orderTotal) async {
+    final list = await getCoupons();
+    final cleanCode = code.trim().toUpperCase();
+    for (final c in list) {
+      if (c.code == cleanCode && c.isActive) {
+        if (orderTotal >= c.minOrderAmount && c.usedCount < c.maxUses) {
+          return c;
+        }
+      }
+    }
+    return null;
+  }
+
+  // ================= UYUŞMAZLIK & ŞİKAYET MASASI =================
+  Future<List<DisputeModel>> getDisputes() async {
+    try {
+      final res = await http.get(Uri.parse('$_syncBaseUrl/api/disputes')).timeout(const Duration(seconds: 3));
+      if (res.statusCode == 200) {
+        final decoded = jsonDecode(res.body) as List;
+        final list = decoded.map((e) => DisputeModel.fromJson(Map<String, dynamic>.from(e))).toList();
+        await _persistDisputesToPrefs(list);
+        return list;
+      }
+    } catch (_) {}
+    return _loadDisputesFromPrefs();
+  }
+
+  Future<void> _persistDisputesToPrefs(List<DisputeModel> disputes) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final str = jsonEncode(disputes.map((d) => d.toJson()).toList());
+      await prefs.setString(_kDisputesKey, str);
+    } catch (_) {}
+  }
+
+  Future<List<DisputeModel>> _loadDisputesFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final str = prefs.getString(_kDisputesKey);
+      if (str != null && str.isNotEmpty) {
+        final decoded = jsonDecode(str) as List;
+        return decoded.map((e) => DisputeModel.fromJson(Map<String, dynamic>.from(e))).toList();
+      }
+    } catch (_) {}
+    return [
+      DisputeModel(
+        id: 'disp_101',
+        cagriId: 'ILN-5980',
+        customerName: 'Ahmet Yılmaz',
+        customerPhone: '0532 111 22 33',
+        ustaName: 'Kadir Cebeci',
+        ustaPhone: '5524242069',
+        amount: 500.0,
+        reason: 'Priz montajı yapıldı ancak 1 saat sonra sigorta tekrar attı.',
+        status: 'bekliyor',
+        createdAt: DateTime.now().subtract(const Duration(hours: 4)),
+      ),
+    ];
+  }
+
+  Future<bool> saveDisputes(List<DisputeModel> disputes) async {
+    await _persistDisputesToPrefs(disputes);
+    _changesStreamController.add(null);
+    _postToSyncServer('/api/disputes', disputes.map((d) => d.toJson()).toList());
+    return true;
+  }
+
+  Future<bool> resolveDispute(String disputeId, String newStatus, String resolutionNote) async {
+    final list = await getDisputes();
+    final idx = list.indexWhere((d) => d.id == disputeId);
+    if (idx != -1) {
+      list[idx] = list[idx].copyWith(
+        status: newStatus,
+        resolutionNote: resolutionNote,
+      );
+      return saveDisputes(list);
+    }
+    return false;
   }
 
   Future<void> clearAll() async {

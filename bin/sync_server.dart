@@ -29,6 +29,76 @@ Future<void> _loadDataFromFile() async {
       _data['cagrilar'] ??= [];
       _data['notifications'] ??= [];
       _data['commission_settings'] ??= {};
+      _data['banners'] ??= [
+        {
+          'id': 'banner_1',
+          'title': 'Kombi ve Klima Bakımında %20 İndirim!',
+          'subtitle': 'Yetkili ve MYK belgeli uzman ustalar ile kışa hazır olun.',
+          'image_url': 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=800&q=80',
+          'deep_link': 'cat-kombi',
+          'badge': 'SEZON FIRSATI',
+          'bg_gradient': 'orange',
+          'is_active': true,
+          'click_count': 142,
+          'impression_count': 1850,
+          'created_at': DateTime.now().toIso8601String(),
+        },
+        {
+          'id': 'banner_2',
+          'title': 'Acil Çilingir & Kapı Açma 15 Dakikada!',
+          'subtitle': 'Kapıda mı kaldınız? En yakın nöbetçi çilingir kapınızda.',
+          'image_url': 'https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=800&q=80',
+          'deep_link': 'cat-cilingir',
+          'badge': '7/24 ACİL',
+          'bg_gradient': 'blue',
+          'is_active': true,
+          'click_count': 98,
+          'impression_count': 1420,
+          'created_at': DateTime.now().toIso8601String(),
+        },
+      ];
+      _data['coupons'] ??= [
+        {
+          'id': 'coupon_1',
+          'code': 'USTA100',
+          'title': 'İlk Hizmetinizde 100 ₺ İndirim',
+          'discount_type': 'fixed',
+          'discount_amount': 100.0,
+          'min_order_amount': 500.0,
+          'max_uses': 1000,
+          'used_count': 47,
+          'is_active': true,
+          'valid_until': DateTime.now().add(const Duration(days: 90)).toIso8601String(),
+        },
+        {
+          'id': 'coupon_2',
+          'code': 'BAHAR15',
+          'title': 'Tüm Elektrik & Tesisat İşlerinde %15 İndirim',
+          'discount_type': 'percentage',
+          'discount_amount': 15.0,
+          'min_order_amount': 300.0,
+          'max_uses': 500,
+          'used_count': 19,
+          'is_active': true,
+          'valid_until': DateTime.now().add(const Duration(days: 60)).toIso8601String(),
+        },
+      ];
+      _data['disputes'] ??= [
+        {
+          'id': 'disp_101',
+          'cagri_id': 'ILN-5980',
+          'customer_name': 'Ahmet Yılmaz',
+          'customer_phone': '0532 111 22 33',
+          'usta_name': 'Kadir Cebeci',
+          'usta_phone': '5524242069',
+          'amount': 500.0,
+          'reason': 'Priz montajı yapıldı ancak 1 saat sonra sigorta tekrar attı.',
+          'status': 'bekliyor',
+          'resolution_note': null,
+          'created_at': DateTime.now().subtract(const Duration(hours: 4)).toIso8601String(),
+          'proof_photos': [],
+        }
+      ];
       stdout.writeln('[Sync Server] Mevcut veriler dosyadan yüklendi.');
       return;
     } catch (e) {
@@ -280,6 +350,21 @@ Future<void> _handleRequest(HttpRequest request) async {
       await response.close();
       return;
     }
+    if (path == '/api/banners') {
+      response.write(jsonEncode(_data['banners'] ?? []));
+      await response.close();
+      return;
+    }
+    if (path == '/api/coupons') {
+      response.write(jsonEncode(_data['coupons'] ?? []));
+      await response.close();
+      return;
+    }
+    if (path == '/api/disputes') {
+      response.write(jsonEncode(_data['disputes'] ?? []));
+      await response.close();
+      return;
+    }
   }
 
   if (request.method == 'POST') {
@@ -375,6 +460,33 @@ Future<void> _handleRequest(HttpRequest request) async {
         await _saveDataToFile();
         _broadcast('cagrilar_updated', body);
         response.write(jsonEncode({'status': 'ok', 'count': (body as List).length}));
+        await response.close();
+        return;
+      }
+
+      if (path == '/api/banners') {
+        _data['banners'] = body;
+        await _saveDataToFile();
+        _broadcast('banners_updated', body);
+        response.write(jsonEncode({'status': 'ok'}));
+        await response.close();
+        return;
+      }
+
+      if (path == '/api/coupons') {
+        _data['coupons'] = body;
+        await _saveDataToFile();
+        _broadcast('coupons_updated', body);
+        response.write(jsonEncode({'status': 'ok'}));
+        await response.close();
+        return;
+      }
+
+      if (path == '/api/disputes') {
+        _data['disputes'] = body;
+        await _saveDataToFile();
+        _broadcast('disputes_updated', body);
+        response.write(jsonEncode({'status': 'ok'}));
         await response.close();
         return;
       }

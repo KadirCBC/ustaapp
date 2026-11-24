@@ -1022,6 +1022,7 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     _handledCallIds.add(cagriId);
 
     await _appDataService.updateCagriStatus(cagriId, CagriDurumu.iptal);
+    await NotificationService.instance.cancelCallNotification(cagriId);
     DemoCallRepository.updateStatus(cagriId, CagriDurumu.iptal);
     state = state.copyWith(clearIncomingCall: true);
 

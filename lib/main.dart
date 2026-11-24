@@ -17,18 +17,23 @@ import 'package:ustaapp/core/theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Mapbox Public Token yapılandırması
-  MapboxOptions.setAccessToken(AppConstants.mapboxAccessToken);
+  // 1. Kritik servisleri paralel olarak hızlıca başlat (.env önce yüklenir)
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (e) {
+    debugPrint('.env yüklenirken uyarı: $e');
+  }
 
-  // 1. Kritik servisleri paralel olarak hızlıca başlat
-  await Future.wait([
-    dotenv.load(fileName: '.env').catchError((e) {
-      debugPrint('.env yüklenirken uyarı: $e');
-    }),
-    NotificationService.instance.initialize().catchError((e) {
-      debugPrint('Bildirim servisi başlatma uyarısı: $e');
-    }),
-  ]);
+  // Mapbox Public Token yapılandırması
+  try {
+    MapboxOptions.setAccessToken(AppConstants.mapboxAccessToken);
+  } catch (e) {
+    debugPrint('MapboxOptions başlatma uyarısı: $e');
+  }
+
+  await NotificationService.instance.initialize().catchError((e) {
+    debugPrint('Bildirim servisi başlatma uyarısı: $e');
+  });
 
   // 2. Supabase İstemcisini Başlat
   final supabaseUrl = EnvConfig.supabaseUrl;

@@ -12,6 +12,9 @@ import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/core/services/supabase_service.dart';
 import 'package:ustaapp/core/theme/app_theme.dart';
 import 'package:ustaapp/features/admin/views/widgets/address_location_search_field.dart';
+import 'package:ustaapp/features/admin/views/widgets/admin_banners_tab.dart';
+import 'package:ustaapp/features/admin/views/widgets/admin_coupons_tab.dart';
+import 'package:ustaapp/features/admin/views/widgets/admin_disputes_tab.dart';
 import 'package:ustaapp/features/map/models/nearby_usta_model.dart';
 import 'package:ustaapp/features/orders/views/widgets/completion_proof_preview.dart';
 
@@ -3882,8 +3885,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // Üst 4'lü Metrik Kartı (Finansal Masa ve Bildirim Masasında tekrarlanmaz)
-                              if (_selectedMenuIndex != 8 && _selectedMenuIndex != 9) ...[
+                              // Üst 4'lü Metrik Kartı (Finansal Masa, Bildirim, Reklam, Kupon ve Şikayet masalarında tekrarlanmaz)
+                              if (_selectedMenuIndex != 8 &&
+                                  _selectedMenuIndex != 9 &&
+                                  _selectedMenuIndex != 10 &&
+                                  _selectedMenuIndex != 11 &&
+                                  _selectedMenuIndex != 12) ...[
                                 _buildMetricCardsRow(),
                                 const SizedBox(height: 24),
                               ],
@@ -3899,6 +3906,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               if (_selectedMenuIndex == 7) _buildCategoriesTab(),
                               if (_selectedMenuIndex == 8) _buildFinancialReportsTab(),
                               if (_selectedMenuIndex == 9) _buildNotificationsManagementTab(),
+                              if (_selectedMenuIndex == 10) const SizedBox(height: 800, child: AdminBannersTab()),
+                              if (_selectedMenuIndex == 11) const SizedBox(height: 800, child: AdminCouponsTab()),
+                              if (_selectedMenuIndex == 12) const SizedBox(height: 800, child: AdminDisputesTab()),
                             ],
                           ),
                         ),
@@ -4035,6 +4045,28 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     index: 7,
                     icon: Icons.category_rounded,
                     title: 'Kategori Yönetimi',
+                  ),
+
+                  const SizedBox(height: 8),
+                  _buildSectionHeader('BÜYÜME & REKLAM'),
+                  _buildSidebarItem(
+                    index: 10,
+                    icon: Icons.view_carousel_rounded,
+                    title: 'Reklam & Bannerlar',
+                    badgeText: 'CANLI',
+                    badgeColor: const Color(0xFFEA580C),
+                  ),
+                  _buildSidebarItem(
+                    index: 11,
+                    icon: Icons.confirmation_number_rounded,
+                    title: 'Kupon & Promosyon',
+                  ),
+                  _buildSidebarItem(
+                    index: 12,
+                    icon: Icons.gavel_rounded,
+                    title: 'Uyuşmazlık & Şikayet Masası',
+                    badgeText: 'HAKEM',
+                    badgeColor: const Color(0xFFEF4444),
                   ),
 
                   const SizedBox(height: 8),
@@ -4487,6 +4519,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         return 'Platform Finans & Hakediş Raporları';
       case 9:
         return 'Canlı Bildirim & Push Duyuru Merkezi';
+      case 10:
+        return 'Reklam & Kampanya Banner Yönetimi';
+      case 11:
+        return 'Kupon & İndirim Kodu Yönetimi';
+      case 12:
+        return 'Uyuşmazlık Masası & Hakem Heyeti';
       default:
         return 'Yönetim Paneli';
     }

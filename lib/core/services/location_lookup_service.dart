@@ -123,7 +123,7 @@ class LocationLookupService {
 
     // 1. Canlı Mapbox Geocoding API Sorgusu (Gerçek adresler, caddeler, sokaklar için)
     try {
-      const token = AppConstants.mapboxAccessToken;
+      final token = AppConstants.mapboxAccessToken;
       final encoded = Uri.encodeComponent(cleanQuery);
       final url = Uri.parse(
         'https://api.mapbox.com/geocoding/v5/mapbox.places/$encoded.json?access_token=$token&country=tr&language=tr&limit=5',
@@ -263,7 +263,7 @@ class LocationLookupService {
   /// Koordinattan (lat, lng) tam ve doğru Türkçe adres (Mahalle, Sokak, Kapı No, İlçe, İl) çözer.
   static Future<LocationSuggestion> reverseGeocode(double lat, double lng) async {
     try {
-      const token = AppConstants.mapboxAccessToken;
+      final token = AppConstants.mapboxAccessToken;
       if (token.isNotEmpty) {
         final uri = Uri.https(
           'api.mapbox.com',
