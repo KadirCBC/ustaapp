@@ -21,12 +21,14 @@ class SpecialPermissionsService {
         return {
           'overlay': res['overlay'] == true,
           'battery': res['battery'] == true,
+          'fullScreen': res['fullScreen'] == true,
+          'isXiaomi': res['isXiaomi'] == true,
         };
       }
     } catch (e) {
       debugPrint('[SpecialPermissionsService] İzin kontrol hatası: $e');
     }
-    return {'overlay': false, 'battery': false};
+    return {'overlay': false, 'battery': false, 'fullScreen': true, 'isXiaomi': false};
   }
 
   /// 1. Pil optimizasyonu muafiyeti ister (Resmi Android sistem popup'ı açar)
@@ -49,6 +51,30 @@ class SpecialPermissionsService {
       return res == true;
     } catch (e) {
       debugPrint('[SpecialPermissionsService] Kayan pencere isteği hatası: $e');
+      return false;
+    }
+  }
+
+  /// 3. Xiaomi / MIUI cihazlar için Diğer İzinler (Kilit Ekranı & Açılır Pencere) sayfasını açar
+  Future<bool> openMiuiPermissions() async {
+    if (kIsWeb || !Platform.isAndroid) return true;
+    try {
+      final res = await _channel.invokeMethod<bool>('openMiuiPermissions');
+      return res == true;
+    } catch (e) {
+      debugPrint('[SpecialPermissionsService] MIUI izin sayfası hatası: $e');
+      return false;
+    }
+  }
+
+  /// 4. Android 14+ Tam Ekran Bildirim İznini İster
+  Future<bool> requestFullScreenIntentPermission() async {
+    if (kIsWeb || !Platform.isAndroid) return true;
+    try {
+      final res = await _channel.invokeMethod<bool>('requestFullScreenIntentPermission');
+      return res == true;
+    } catch (e) {
+      debugPrint('[SpecialPermissionsService] Tam ekran bildirim izni hatası: $e');
       return false;
     }
   }
@@ -85,6 +111,8 @@ class _SpecialPermissionsSheet extends StatefulWidget {
 class _SpecialPermissionsSheetState extends State<_SpecialPermissionsSheet> with WidgetsBindingObserver {
   bool _overlayGranted = false;
   bool _batteryGranted = false;
+  bool _fullScreenGranted = true;
+  bool _isXiaomi = false;
   bool _isLoading = true;
 
   @override
@@ -113,11 +141,13 @@ class _SpecialPermissionsSheetState extends State<_SpecialPermissionsSheet> with
       setState(() {
         _overlayGranted = perms['overlay'] == true;
         _batteryGranted = perms['battery'] == true;
+        _fullScreenGranted = perms['fullScreen'] == true;
+        _isXiaomi = perms['isXiaomi'] == true;
         _isLoading = false;
       });
 
-      // İkisi de tamamlandıysa 1 saniye sonra otomatik kapat
-      if (_overlayGranted && _batteryGranted) {
+      // İkisi de tamamlandıysa 1 saniye sonra otomatik kapat (Xiaomi değilse)
+      if (_overlayGranted && _batteryGranted && _fullScreenGranted && !_isXiaomi) {
         Future.delayed(const Duration(milliseconds: 1200), () {
           if (mounted && Navigator.canPop(context)) {
             Navigator.pop(context);
@@ -129,7 +159,7 @@ class _SpecialPermissionsSheetState extends State<_SpecialPermissionsSheet> with
 
   @override
   Widget build(BuildContext context) {
-    final allDone = _overlayGranted && _batteryGranted;
+    final allDone = _overlayGranted && _batteryGranted && _fullScreenGranted;
 
     return Container(
       decoration: const BoxDecoration(
@@ -230,6 +260,37 @@ class _SpecialPermissionsSheetState extends State<_SpecialPermissionsSheet> with
                 _refreshPermissions();
               },
             ),
+
+            if (!_fullScreenGranted) ...[
+              const SizedBox(height: 12),
+              _buildPermissionCard(
+                title: 'Tam Ekran Bildirim İzni',
+                desc: 'Android 14 kilit ekranı tam ekran çağrı açma izni.',
+                icon: Icons.fullscreen_rounded,
+                isGranted: false,
+                buttonText: 'İzni Aç',
+                onTap: () async {
+                  await SpecialPermissionsService.instance.requestFullScreenIntentPermission();
+                  await Future.delayed(const Duration(milliseconds: 600));
+                  _refreshPermissions();
+                },
+              ),
+            ],
+
+            if (_isXiaomi) ...[
+              const SizedBox(height: 12),
+              _buildPermissionCard(
+                title: '3. Xiaomi / Redmi Özel İzni',
+                desc: 'Diğer İzinler menüsünden "Kilit Ekranında Göster" ve "Açılır Pencereleri Başlat" seçeneklerini "Her zaman izin ver" yapınız.',
+                icon: Icons.security_rounded,
+                isGranted: false,
+                buttonText: 'Xiaomi İzinleri Aç',
+                onTap: () async {
+                  await SpecialPermissionsService.instance.openMiuiPermissions();
+                },
+              ),
+            ],
+
             const SizedBox(height: 24),
 
             // Tamamlandı Bilgisi veya Kapat

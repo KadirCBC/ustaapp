@@ -164,10 +164,70 @@ class CallScreenPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                     powerManager?.isIgnoringBatteryOptimizations(ctx.packageName) ?: false
                 } else true
 
+                val notificationManager = ctx?.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+                val canFullScreen = if (Build.VERSION.SDK_INT >= 34 && notificationManager != null) {
+                    notificationManager.canUseFullScreenIntent()
+                } else true
+
+                val isXiaomiDevice = Build.MANUFACTURER.equals("Xiaomi", ignoreCase = true) ||
+                                     Build.MANUFACTURER.equals("Redmi", ignoreCase = true) ||
+                                     Build.MANUFACTURER.equals("POCO", ignoreCase = true)
+
                 result.success(mapOf(
                     "overlay" to hasOverlay,
-                    "battery" to isBatteryIgnored
+                    "battery" to isBatteryIgnored,
+                    "fullScreen" to canFullScreen,
+                    "isXiaomi" to isXiaomiDevice
                 ))
+            }
+            "isXiaomi" -> {
+                val isXiaomiDevice = Build.MANUFACTURER.equals("Xiaomi", ignoreCase = true) ||
+                                     Build.MANUFACTURER.equals("Redmi", ignoreCase = true) ||
+                                     Build.MANUFACTURER.equals("POCO", ignoreCase = true)
+                result.success(isXiaomiDevice)
+            }
+            "openMiuiPermissions" -> {
+                if (ctx != null) {
+                    try {
+                        val intent = Intent("miui.intent.action.APP_PERM_EDITOR").apply {
+                            setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.PermissionsEditorActivity")
+                            putExtra("extra_pkgname", ctx.packageName)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        ctx.startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        try {
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.parse("package:${ctx.packageName}")
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            ctx.startActivity(intent)
+                            result.success(true)
+                        } catch (e2: Exception) {
+                            result.error("MIUI_PERM_ERROR", e2.message, null)
+                        }
+                    }
+                } else {
+                    result.success(false)
+                }
+            }
+            "requestFullScreenIntentPermission" -> {
+                if (Build.VERSION.SDK_INT >= 34 && ctx != null) {
+                    try {
+                        val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                            data = Uri.parse("package:${ctx.packageName}")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        ctx.startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("FULL_SCREEN_INTENT_ERROR", e.message, null)
+                    }
+                } else {
+                    result.success(true)
+                }
+            }
             }
             "requestBatteryOptimization" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && ctx != null) {

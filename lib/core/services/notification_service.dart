@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -10,6 +11,14 @@ import 'package:ustaapp/core/router/app_router.dart';
 import 'package:ustaapp/core/services/app_data_service.dart';
 import 'package:ustaapp/features/orders/models/cagri_model.dart';
 import '../models/app_notification_model.dart';
+
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse details) {
+  debugPrint('[NotificationService Background Action] actionId=${details.actionId}, payload=${details.payload}');
+  if (details.actionId == 'reject_call') {
+    NotificationService.instance.handleBackgroundReject(details.payload);
+  }
+}
 
 class NotificationService {
   NotificationService._();
@@ -78,7 +87,24 @@ class NotificationService {
             _handleNotificationPayload(details.payload);
           }
         },
+        onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
       );
+
+      // Soğuk açılışta (uygulama kapalıyken bildirime tıklanarak açıldıysa) çağrıyı yakala
+      if (!isBackground) {
+        try {
+          final launchDetails = await _notificationsPlugin.getNotificationAppLaunchDetails();
+          if (launchDetails?.didNotificationLaunchApp == true && launchDetails?.notificationResponse != null) {
+            final resp = launchDetails!.notificationResponse!;
+            debugPrint('[NotificationService] Soğuk açılış bildirim payload: ${resp.payload}');
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _handleNotificationPayload(resp.payload);
+            });
+          }
+        } catch (coldErr) {
+          debugPrint('[NotificationService] Soğuk açılış kontrol hatası: $coldErr');
+        }
+      }
 
       if (Platform.isAndroid) {
         final androidImplementation = _notificationsPlugin
@@ -236,14 +262,21 @@ class NotificationService {
     if (cleanService.isEmpty) cleanService = 'Acil Usta Hizmeti';
 
     final priceStr = price > 0 ? '${price.toStringAsFixed(0)} ₺' : '';
-    final title = '⚡ Yeni Çağrı: $cleanService';
+    final title = '⚡ Yeni Usta Çağrısı: $cleanService';
 
     String cleanAddr = (address != null && address.trim().isNotEmpty) ? address.trim() : '';
     if (cleanAddr.startsWith('📍')) cleanAddr = cleanAddr.substring(1).trim();
+    cleanAddr = cleanAddr
+        .replaceAll(RegExp(r'📋\s*Seçilen Hizmet:\s*', caseSensitive: false), '')
+        .trim();
+    cleanAddr = cleanAddr.replaceAll(RegExp(r'\(\s*\d+\s*₺?\s*\)'), '').trim();
+    if (cleanAddr.toLowerCase() == cleanService.toLowerCase()) {
+      cleanAddr = '';
+    }
 
     final body = cleanAddr.isNotEmpty
-        ? 'Müşteri: $customerName • $priceStr\n📍 $cleanAddr'
-        : 'Müşteri: $customerName • $priceStr';
+        ? '$customerName acil usta çağırıyor! • $priceStr\n📍 $cleanAddr'
+        : '$customerName acil usta çağırıyor! • $priceStr';
 
     final notif = AppNotificationModel(
       id: 'call_${DateTime.now().millisecondsSinceEpoch}',
@@ -570,5 +603,10 @@ class NotificationService {
         AppDataService.instance.updateCagriStatus(cagriId, CagriDurumu.iptal);
       }
     } catch (_) {}
+  }
+
+  /// Arka plan izolatından gelen Reddet tıklamalarını işler
+  void handleBackgroundReject(String? payload) {
+    _handleRejectAction(payload);
   }
 }
