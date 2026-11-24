@@ -169,7 +169,7 @@ class _RoleSelectionStepState extends ConsumerState<RoleSelectionStep> {
                             color: Color(0xFF0F172A),
                           ),
                           decoration: InputDecoration(
-                            hintText: 'Örn: Ahmet Yılmaz',
+                            hintText: 'Adınız ve Soyadınız',
                             hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.normal),
                             prefixIcon: const Icon(Icons.person_rounded, color: Color(0xFFEA580C)),
                             filled: true,

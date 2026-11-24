@@ -454,16 +454,6 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                                       const SizedBox(height: 10),
                                       // Animasyonlu Başlık (Işık geçişi ve yumuşak nabız efekti)
                                       const _AnimatedHeroTitle(),
-                                      const SizedBox(height: 6),
-                                      const Text(
-                                        'Profesyonel ustalarla\nhızlı ve güvenli hizmet.',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          height: 1.35,
-                                          fontWeight: FontWeight.w500,
-                                          color: Color(0xFF64748B),
-                                        ),
-                                      ),
                                     ],
                                   ),
                                 ),
@@ -477,15 +467,20 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                         const SizedBox(height: 8),
 
                         // =============================================================
-                        // 1. GÖRSELDEKİ MÜŞTERİ KAYDI BUTONU
+                        // 1. GÖRSELDEKİ MÜŞTERİ KAYDI BUTONU (Belirginleştirilmiş ve İncelmiş)
                         // =============================================================
                         _RegistrationCard(
                           title: 'Müşteri Kaydı',
                           subtitle: 'Hizmet almak için hemen üye olun!',
-                          icon: Icons.people_alt_rounded,
-                          iconBgColor: const Color(0xFFF1F5F9),
-                          iconColor: const Color(0xFF0F172A),
-                          hasBorder: false,
+                          icon: Icons.person_add_alt_1_rounded,
+                          cardBgColor: const Color(0xFFF0FDF4),
+                          iconBgColor: const Color(0xFFDCFCE7),
+                          iconColor: const Color(0xFF16A34A),
+                          hasBorder: true,
+                          borderColor: const Color(0xFF22C55E),
+                          chevronBgColor: const Color(0xFFDCFCE7),
+                          chevronColor: const Color(0xFF16A34A),
+                          isHighlighted: true,
                           onTap: () {
                             HapticFeedback.selectionClick();
                             controller.selectRole(UserRole.musteri);
@@ -493,19 +488,23 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                           },
                         ),
 
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
 
                         // =============================================================
-                        // 1. GÖRSELDEKİ USTA KAYDI BUTONU (Turuncu Çerçeveli)
+                        // 1. GÖRSELDEKİ USTA KAYDI BUTONU (İncelmiş ve Uyumlu)
                         // =============================================================
                         _RegistrationCard(
                           title: 'Usta Kaydı',
-                          subtitle: 'Usta olarak siz de hizmet verin,\nkazancınızı artırın!',
+                          subtitle: 'Usta olarak hizmet verin, kazancınızı artırın!',
                           icon: Icons.handyman_rounded,
+                          cardBgColor: Colors.white,
                           iconBgColor: const Color(0xFFFFF7ED),
                           iconColor: const Color(0xFFEA580C),
                           hasBorder: true,
                           borderColor: const Color(0xFFFED7AA),
+                          chevronBgColor: const Color(0xFFFFF7ED),
+                          chevronColor: const Color(0xFFEA580C),
+                          isHighlighted: false,
                           onTap: () {
                             HapticFeedback.selectionClick();
                             controller.selectRole(UserRole.usta);
@@ -513,7 +512,7 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                           },
                         ),
 
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 16),
 
                         // VEYA HESABINIZA GİRİŞ YAPIN AYIRICISI
                         const Row(
@@ -859,6 +858,10 @@ class _RegistrationCard extends StatelessWidget {
   final Color iconColor;
   final bool hasBorder;
   final Color? borderColor;
+  final Color? cardBgColor;
+  final Color? chevronColor;
+  final Color? chevronBgColor;
+  final bool isHighlighted;
   final VoidCallback onTap;
 
   const _RegistrationCard({
@@ -869,6 +872,10 @@ class _RegistrationCard extends StatelessWidget {
     required this.iconColor,
     this.hasBorder = false,
     this.borderColor,
+    this.cardBgColor,
+    this.chevronColor,
+    this.chevronBgColor,
+    this.isHighlighted = false,
     required this.onTap,
   });
 
@@ -876,88 +883,115 @@ class _RegistrationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: cardBgColor ?? Colors.white,
+        borderRadius: BorderRadius.circular(16),
         border: hasBorder
-            ? Border.all(color: borderColor ?? const Color(0xFFFED7AA), width: 1.5)
+            ? Border.all(color: borderColor ?? const Color(0xFFFED7AA), width: isHighlighted ? 1.6 : 1.2)
             : Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: hasBorder
-                ? const Color(0xFFEA580C).withValues(alpha: 0.08)
-                : const Color(0xFF0F172A).withValues(alpha: 0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
+            color: isHighlighted
+                ? const Color(0xFF16A34A).withValues(alpha: 0.10)
+                : (hasBorder
+                    ? const Color(0xFFEA580C).withValues(alpha: 0.05)
+                    : const Color(0xFF0F172A).withValues(alpha: 0.03)),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Row(
               children: [
                 // İkon Kutusu
                 Container(
-                  width: 46,
-                  height: 46,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
                     color: iconBgColor,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(11),
                   ),
                   child: Icon(
                     icon,
-                    size: 24,
+                    size: 20,
                     color: iconColor,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
 
                 // Başlık & Açıklama
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.3,
-                          color: Color(0xFF0F172A),
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                              color: isHighlighted ? const Color(0xFF14532D) : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          if (isHighlighted) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFDCFCE7),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: const Text(
+                                'ÖNERİLEN',
+                                style: TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF15803D),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 2),
                       Text(
                         subtitle,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          height: 1.3,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          height: 1.2,
                           fontWeight: FontWeight.w500,
-                          color: Color(0xFF64748B),
+                          color: isHighlighted ? const Color(0xFF166534) : const Color(0xFF64748B),
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
 
                 // Sağ Chevron Butonu
                 Container(
-                  width: 34,
-                  height: 34,
+                  width: 28,
+                  height: 28,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(12),
+                    color: chevronBgColor ?? const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(9),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.chevron_right_rounded,
-                    size: 20,
-                    color: Color(0xFF0F172A),
+                    size: 18,
+                    color: chevronColor ?? const Color(0xFF0F172A),
                   ),
                 ),
               ],
@@ -969,7 +1003,6 @@ class _RegistrationCard extends StatelessWidget {
   }
 }
 
-/// 1. Görseldeki yumuşak turuncu dalga dekorasyonları
 class _BackgroundWavesPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {

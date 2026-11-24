@@ -53,6 +53,8 @@ class AppDataService {
   bool _isConnectingWs = false;
   Timer? _reconnectTimer;
   bool _isSyncInitialized = false;
+  bool _isFetchingServerData = false;
+  DateTime? _lastServerFetchTime;
   final Set<String> _notifiedArrivalCagriIds = {};
 
   static String? _manualSyncHost;
@@ -140,6 +142,14 @@ class AppDataService {
   }
 
   Future<void> _fetchServerData() async {
+    if (_isFetchingServerData) return;
+    final now = DateTime.now();
+    if (_lastServerFetchTime != null && now.difference(_lastServerFetchTime!) < const Duration(seconds: 4)) {
+      return;
+    }
+    _isFetchingServerData = true;
+    _lastServerFetchTime = now;
+
     try {
       final futures = [
         http.get(Uri.parse('$_syncBaseUrl/api/data')).timeout(const Duration(milliseconds: 1500)),
@@ -161,7 +171,6 @@ class AppDataService {
         if (cData is Map<String, dynamic> && cData.isNotEmpty) {
           _cachedCommissionSettings = Map<String, dynamic>.from(cData);
           _persistCommissionSettingsToPrefs(_cachedCommissionSettings!);
-          _changesStreamController.add(null);
         }
       }
     } catch (_) {
@@ -176,13 +185,18 @@ class AppDataService {
           }
         } catch (_) {}
       }
+    } finally {
+      _isFetchingServerData = false;
     }
   }
 
   void _handleWsMessage(dynamic raw) {
+    if (raw == null) return;
     try {
-      final Map<String, dynamic> msg = jsonDecode(raw.toString());
-      final String event = msg['event'] ?? '';
+      final decoded = raw is String ? jsonDecode(raw) : raw;
+      if (decoded is! Map) return;
+      final Map<String, dynamic> msg = Map<String, dynamic>.from(decoded);
+      final String event = msg['event']?.toString() ?? '';
       final dynamic data = msg['data'];
 
       if (event == 'initial_data' && data is Map<String, dynamic>) {

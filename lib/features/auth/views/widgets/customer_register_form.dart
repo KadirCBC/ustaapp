@@ -177,7 +177,7 @@ class _CustomerRegisterFormState extends ConsumerState<CustomerRegisterForm> {
                         textInputAction: TextInputAction.next,
                         textCapitalization: TextCapitalization.words,
                         decoration: _buildInputDecoration(
-                          hint: 'Ahmet',
+                          hint: 'Adınız',
                           prefixIcon: Icons.badge_outlined,
                         ),
                         validator: (v) =>
@@ -197,7 +197,7 @@ class _CustomerRegisterFormState extends ConsumerState<CustomerRegisterForm> {
                         textInputAction: TextInputAction.next,
                         textCapitalization: TextCapitalization.words,
                         decoration: _buildInputDecoration(
-                          hint: 'Demir',
+                          hint: 'Soyadınız',
                           prefixIcon: Icons.badge_outlined,
                         ),
                         validator: (v) =>
@@ -240,7 +240,7 @@ class _CustomerRegisterFormState extends ConsumerState<CustomerRegisterForm> {
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
               decoration: _buildInputDecoration(
-                hint: 'ahmet.demir@ornek.com',
+                hint: 'E-posta adresiniz',
                 prefixIcon: Icons.alternate_email_rounded,
               ),
             ),
@@ -261,24 +261,23 @@ class _CustomerRegisterFormState extends ConsumerState<CustomerRegisterForm> {
             const SizedBox(height: 14),
 
             _buildFieldLabel('Adres Başlığı'),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: _addressTitles.map((title) {
                 final isSelected = _selectedAddressTitle == title;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(title),
-                    selected: isSelected,
-                    selectedColor: const Color(0xFFDBEAFE),
-                    backgroundColor: const Color(0xFFF1F5F9),
-                    checkmarkColor: const Color(0xFFEA580C),
-                    labelStyle: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected ? const Color(0xFFEA580C) : const Color(0xFF475569),
-                    ),
-                    onSelected: (_) => setState(() => _selectedAddressTitle = title),
+                return FilterChip(
+                  label: Text(title),
+                  selected: isSelected,
+                  selectedColor: const Color(0xFFDBEAFE),
+                  backgroundColor: const Color(0xFFF1F5F9),
+                  checkmarkColor: const Color(0xFFEA580C),
+                  labelStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? const Color(0xFFEA580C) : const Color(0xFF475569),
                   ),
+                  onSelected: (_) => setState(() => _selectedAddressTitle = title),
                 );
               }).toList(),
             ),
@@ -530,6 +529,11 @@ class _CustomerRegisterFormState extends ConsumerState<CustomerRegisterForm> {
   }) {
     return InputDecoration(
       hintText: hint,
+      hintStyle: const TextStyle(
+        fontSize: 13.5,
+        fontWeight: FontWeight.w400,
+        color: Color(0xFF94A3B8),
+      ),
       prefixText: prefixText,
       prefixStyle: const TextStyle(
         fontSize: 14,

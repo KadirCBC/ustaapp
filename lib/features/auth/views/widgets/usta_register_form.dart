@@ -220,7 +220,7 @@ class _UstaRegisterFormState extends ConsumerState<UstaRegisterForm> {
                         textInputAction: TextInputAction.next,
                         textCapitalization: TextCapitalization.words,
                         decoration: _buildInputDecoration(
-                          hint: 'Kadir',
+                          hint: 'Adınız',
                           prefixIcon: Icons.badge_outlined,
                         ),
                         validator: (v) =>
@@ -240,7 +240,7 @@ class _UstaRegisterFormState extends ConsumerState<UstaRegisterForm> {
                         textInputAction: TextInputAction.next,
                         textCapitalization: TextCapitalization.words,
                         decoration: _buildInputDecoration(
-                          hint: 'Usta',
+                          hint: 'Soyadınız',
                           prefixIcon: Icons.badge_outlined,
                         ),
                         validator: (v) =>
@@ -274,12 +274,15 @@ class _UstaRegisterFormState extends ConsumerState<UstaRegisterForm> {
                         children: [
                           Text(c['icon']!, style: const TextStyle(fontSize: 16)),
                           const SizedBox(width: 10),
-                          Text(
-                            c['name']!,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF0F172A),
+                          Expanded(
+                            child: Text(
+                              c['name']!,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0F172A),
+                              ),
                             ),
                           ),
                         ],
@@ -324,7 +327,7 @@ class _UstaRegisterFormState extends ConsumerState<UstaRegisterForm> {
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
               decoration: _buildInputDecoration(
-                hint: 'kadir.usta@esnaf.com',
+                hint: 'E-posta adresiniz',
                 prefixIcon: Icons.alternate_email_rounded,
               ),
             ),
@@ -381,6 +384,8 @@ class _UstaRegisterFormState extends ConsumerState<UstaRegisterForm> {
                       const Expanded(
                         child: Text(
                           'Vergi No / TC Kimlik No (İsteğe Bağlı)',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
@@ -670,6 +675,11 @@ class _UstaRegisterFormState extends ConsumerState<UstaRegisterForm> {
   }) {
     return InputDecoration(
       hintText: hint,
+      hintStyle: const TextStyle(
+        fontSize: 13.5,
+        fontWeight: FontWeight.w400,
+        color: Color(0xFF94A3B8),
+      ),
       prefixText: prefixText,
       prefixStyle: const TextStyle(
         fontSize: 14,

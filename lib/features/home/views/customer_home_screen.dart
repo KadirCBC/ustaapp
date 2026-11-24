@@ -66,6 +66,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   int _currentBannerIndex = 0;
   final PageController _bannerPageController = PageController();
   Timer? _bannerAutoScrollTimer;
+  Timer? _reloadDebounceTimer;
 
   final List<Map<String, dynamic>> _categories = const [
     {'key': 'tum', 'label': 'Tüm İlanlar', 'icon': Icons.apps_rounded, 'color': Color(0xFFEA580C)},
@@ -119,20 +120,23 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
       });
     });
 
-    // 3. Veri değişikliklerini canlı dinle ve otomatik yenile
+    // 3. Veri değişikliklerini canlı dinle ve debounced ile sakin yenile (sonsuz döngüyü önler)
     _dataChangedSub = AppDataService.instance.onDataChanged.listen((_) {
-      if (mounted) {
-        _loadDirectListings();
-        _loadBanners();
-        ref.read(customerMapControllerProvider.notifier).fetchNearbyUstalar();
-        ref.read(customerMapControllerProvider.notifier).fetchIsletmeler();
-      }
+      if (!mounted) return;
+      _reloadDebounceTimer?.cancel();
+      _reloadDebounceTimer = Timer(const Duration(milliseconds: 800), () {
+        if (mounted) {
+          _loadDirectListings();
+          _loadBanners();
+        }
+      });
     });
   }
 
   @override
   void dispose() {
     _bannerAutoScrollTimer?.cancel();
+    _reloadDebounceTimer?.cancel();
     _bannerPageController.dispose();
     _dataChangedSub?.cancel();
     _searchController.dispose();
@@ -177,8 +181,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
       final prefs = await SharedPreferences.getInstance();
       final deletedList = (prefs.getStringList('deleted_usta_ids') ?? <String>[]).toSet();
 
-      final activeJobs = await AppDataService.instance.getActiveJobs(forceRefresh: true);
-      final allUstalar = await AppDataService.instance.getUstalar(forceRefresh: true);
+      final activeJobs = await AppDataService.instance.getActiveJobs(forceRefresh: false);
+      final allUstalar = await AppDataService.instance.getUstalar(forceRefresh: false);
       final customerLat = ref.read(customerMapControllerProvider).currentLat;
       final customerLng = ref.read(customerMapControllerProvider).currentLng;
 

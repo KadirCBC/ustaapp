@@ -111,14 +111,20 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
   final LocationService _locationService;
   final AppDataService _appDataService;
   StreamSubscription<void>? _dataSubscription;
+  Timer? _fetchDebounceTimer;
 
   CustomerMapController(
       this._supabase, this._locationService, this._appDataService)
       : super(const CustomerMapState()) {
     _dataSubscription = _appDataService.onDataChanged.listen((_) {
       if (mounted) {
-        fetchNearbyUstalar();
-        fetchIsletmeler();
+        _fetchDebounceTimer?.cancel();
+        _fetchDebounceTimer = Timer(const Duration(milliseconds: 800), () {
+          if (mounted) {
+            fetchNearbyUstalar();
+            fetchIsletmeler();
+          }
+        });
       }
     });
     initCustomerLocationAndSearch();
@@ -126,6 +132,7 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
 
   @override
   void dispose() {
+    _fetchDebounceTimer?.cancel();
     _dataSubscription?.cancel();
     super.dispose();
   }
@@ -273,10 +280,13 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
       }
     } catch (_) {}
 
-    state = state.copyWith(
-      isLoadingUstalar: state.nearbyUstalar.isEmpty,
-      errorMessage: null,
-    );
+    // Yalnızca ilk açılışta ve liste tamamen boşken loading göster, arka plan yenilemelerinde titreme yapma
+    if (state.nearbyUstalar.isEmpty && state.isLoadingLocation) {
+      state = state.copyWith(
+        isLoadingUstalar: true,
+        errorMessage: null,
+      );
+    }
 
     List<NearbyUstaModel> ustalar = [];
 
