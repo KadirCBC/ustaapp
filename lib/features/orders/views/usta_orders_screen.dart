@@ -46,6 +46,350 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
   bool _isOnDutyNight = true;
   bool _worksWeekend = true;
 
+  NearbyUstaModel? _activeUstaModel;
+
+  Future<void> _loadUstaLevelData() async {
+    try {
+      final ustalar = await AppDataService.instance.getUstalar(forceRefresh: false);
+      final state = ref.read(ustaDashboardControllerProvider);
+      final ustaPhone = AppDataService.normalizePhone(state.activeUstaPhone ?? '');
+      final ustaId = state.activeUstaId ?? '';
+
+      NearbyUstaModel? matched;
+      for (final u in ustalar) {
+        if ((ustaId.isNotEmpty && u.id == ustaId) ||
+            (ustaPhone.isNotEmpty && AppDataService.normalizePhone(u.phone) == ustaPhone)) {
+          matched = u;
+          break;
+        }
+      }
+      matched ??= ustalar.isNotEmpty ? ustalar.first : null;
+      if (mounted) {
+        setState(() => _activeUstaModel = matched);
+      }
+    } catch (_) {}
+  }
+
+  void _showUstaAvatarSelectionDialog() {
+    final avatarCtrl = TextEditingController(text: _activeUstaModel?.avatarUrl ?? '');
+    final presetAvatars = [
+      'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=150',
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.camera_alt_rounded, color: AppTheme.ustaPrimary),
+              SizedBox(width: 10),
+              Text('Usta Profil Fotoğrafı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+          content: SizedBox(
+            width: 380,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF7ED),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFFED7AA)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.military_tech_rounded, color: Color(0xFFEA580C), size: 24),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'İlk kez profil fotoğrafı yüklediğinizde ustanıza +150 EXP tanımlanır ve seviyeniz yükselir! 🚀',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF9A3412), fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: CircleAvatar(
+                      radius: 40,
+                      backgroundColor: AppTheme.ustaPrimary.withValues(alpha: 0.15),
+                      backgroundImage: avatarCtrl.text.trim().isNotEmpty
+                          ? NetworkImage(avatarCtrl.text.trim())
+                          : null,
+                      child: avatarCtrl.text.trim().isEmpty
+                          ? const Icon(Icons.handyman_rounded, size: 36, color: AppTheme.ustaPrimary)
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: avatarCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Fotoğraf URL (https://...)',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      prefixIcon: const Icon(Icons.link_rounded),
+                      isDense: true,
+                    ),
+                    onChanged: (val) => setDlgState(() {}),
+                  ),
+                  const SizedBox(height: 14),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Veya usta görseli seçin:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: presetAvatars.map((url) {
+                      final isSelected = avatarCtrl.text == url;
+                      return InkWell(
+                        onTap: () => setDlgState(() => avatarCtrl.text = url),
+                        borderRadius: BorderRadius.circular(25),
+                        child: CircleAvatar(
+                          radius: 24,
+                          backgroundImage: NetworkImage(url),
+                          child: isSelected
+                              ? Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: AppTheme.ustaPrimary, width: 3),
+                                  ),
+                                  child: const Icon(Icons.check, color: Colors.white, size: 20),
+                                )
+                              : null,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('İptal'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.ustaPrimary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                final url = avatarCtrl.text.trim();
+                if (url.isEmpty) {
+                  Navigator.pop(ctx);
+                  return;
+                }
+                Navigator.pop(ctx);
+                final state = ref.read(ustaDashboardControllerProvider);
+                final ustaIdOrPhone = state.activeUstaId ?? state.activeUstaPhone ?? _activeUstaModel?.id ?? '1';
+
+                final res = await AppDataService.instance.uploadUserProfilePhoto(
+                  phoneOrId: ustaIdOrPhone,
+                  avatarUrl: url,
+                  isUsta: true,
+                );
+
+                await _loadUstaLevelData();
+
+                if (mounted) {
+                  if (res['isFirstTime'] == true) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(Icons.military_tech_rounded, color: Colors.amber, size: 28),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Tebrikler Usta! Profil fotoğrafı yükleyerek +${res['bonusExp']} EXP kazandınız! 🎉',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: const Color(0xFF1E293B),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 4),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Profil fotoğrafınız başarıyla güncellendi!'),
+                        backgroundColor: Color(0xFF10B981),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Kaydet', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUstaLevelHeroCard(UstaDashboardState state) {
+    final usta = _activeUstaModel;
+    final ustaName = state.activeUstaName ?? usta?.fullName ?? 'Usta Gelio';
+    final ustaExp = usta?.exp ?? 0;
+    final ustaLvl = usta?.calculatedLevel ?? NearbyUstaModel.calculateLevelFromExp(ustaExp);
+    final badgeEmoji = NearbyUstaModel.getBadgeForLevel(ustaLvl);
+    final lvlTitle = NearbyUstaModel.getTitleForLevel(ustaLvl);
+    final nextTarget = usta?.nextLevelTargetExp ?? (ustaLvl == 1 ? 500 : (ustaLvl == 2 ? 1500 : (ustaLvl == 3 ? 3500 : (ustaLvl == 4 ? 7000 : 10000))));
+    final progress = usta?.levelProgress ?? (ustaExp / nextTarget).clamp(0.0, 1.0);
+    final avatarUrl = usta?.avatarUrl ?? '';
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.2),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              // Avatar with camera icon
+              Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 34,
+                    backgroundColor: AppTheme.ustaPrimary.withValues(alpha: 0.2),
+                    backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                    child: avatarUrl.isEmpty
+                        ? Text(
+                            ustaName.isNotEmpty ? ustaName[0].toUpperCase() : 'U',
+                            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white),
+                          )
+                        : null,
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: InkWell(
+                      onTap: _showUstaAvatarSelectionDialog,
+                      borderRadius: BorderRadius.circular(15),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppTheme.ustaPrimary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(Icons.camera_alt_rounded, size: 13, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 14),
+
+              // Usta Info & Level
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            ustaName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(badgeEmoji, style: const TextStyle(fontSize: 12)),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Seviye $ustaLvl',
+                                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      lvlTitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF38BDF8),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 6,
+                              backgroundColor: Colors.white12,
+                              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFF59E0B)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$ustaExp / $nextTarget EXP',
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -74,6 +418,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(ustaDashboardControllerProvider.notifier).loadDashboardData(forceRefresh: true);
+      _loadUstaLevelData();
       SpecialPermissionsService.instance.showPermissionSheetIfNeeded(context);
     });
   }
@@ -834,7 +1179,10 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () => controller.loadDashboardData(forceRefresh: true),
+        onRefresh: () async {
+          await controller.loadDashboardData(forceRefresh: true);
+          await _loadUstaLevelData();
+        },
         color: AppTheme.ustaPrimary,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -842,6 +1190,11 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // 0. USTA SEVİYE & ROZET KARTI
+              _buildUstaLevelHeroCard(state),
+
+              const SizedBox(height: 14),
+
               // 1. ÇEVRİMİÇİ / ÇEVRİMDIŞI DOKUNMATİK CANLI STATÜ KARTI
               _buildTactileOnlineCard(state, controller),
 

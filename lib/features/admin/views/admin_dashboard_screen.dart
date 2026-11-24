@@ -428,6 +428,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           'deneyim_yili': u.deneyimYili,
           'guvenceler': u.guvenceler,
           'ilanlar': u.ilanlar.map((e) => e.toJson()).toList(),
+          'level': u.calculatedLevel,
+          'exp': u.exp,
+          'avatar_url': u.avatarUrl,
+          'photo_url': u.avatarUrl,
+          'has_avatar_bonus': u.hasAvatarBonus,
         };
       }).toList();
 
@@ -518,6 +523,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             uzmanlikBasligi: (u['location'] ?? 'Onaylı Uzman Usta').toString(),
             guvenceler: parsedGuvenceler,
             ilanlar: parsedIlanlar,
+            level: _asInt(u['level'], 1),
+            exp: _asInt(u['exp'], 0),
+            avatarUrl: (u['avatar_url'] ?? u['photo_url'])?.toString(),
+            hasAvatarBonus: u['has_avatar_bonus'] == true,
           );
         }).toList();
 
@@ -1019,6 +1028,308 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showUstaLevelManagementDialog(Map<String, dynamic> u) {
+    int currentExp = (u['exp'] as num?)?.toInt() ?? 0;
+    int selectedLevel = (u['level'] as num?)?.toInt() ?? NearbyUstaModel.calculateLevelFromExp(currentExp);
+    final expCtrl = TextEditingController(text: currentExp.toString());
+    final avatarCtrl = TextEditingController(text: (u['avatar_url'] ?? u['photo_url'] ?? '').toString());
+
+    final presetAvatars = [
+      'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=150',
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) {
+          final badgeEmoji = NearbyUstaModel.getBadgeForLevel(selectedLevel);
+          final levelTitle = NearbyUstaModel.getTitleForLevel(selectedLevel);
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.military_tech_rounded, color: Color(0xFFD97706), size: 28),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${u['full_name']} — Seviye & EXP Masası',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 500,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Canlı Seviye & Rozet Göstergesi
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 26,
+                            backgroundColor: Colors.white12,
+                            backgroundImage: avatarCtrl.text.trim().isNotEmpty
+                                ? NetworkImage(avatarCtrl.text.trim())
+                                : null,
+                            child: avatarCtrl.text.trim().isEmpty
+                                ? Text(badgeEmoji, style: const TextStyle(fontSize: 24))
+                                : null,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(badgeEmoji, style: const TextStyle(fontSize: 16)),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Seviye $selectedLevel • $levelTitle',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Toplam Puan: $currentExp EXP',
+                                  style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 12.5, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Seviye Seçimi
+                    const Text('Usta Seviyesi Belirle:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<int>(
+                      value: selectedLevel,
+                      decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+                      items: const [
+                        DropdownMenuItem(value: 1, child: Text('🥉 Seviye 1 - Yeni Usta (0-500 EXP)')),
+                        DropdownMenuItem(value: 2, child: Text('🥈 Seviye 2 - Kıdemli Usta (501-1,500 EXP)')),
+                        DropdownMenuItem(value: 3, child: Text('🥇 Seviye 3 - Uzman Usta (1,501-3,500 EXP)')),
+                        DropdownMenuItem(value: 4, child: Text('💎 Seviye 4 - Usta Başı (3,501-7,000 EXP)')),
+                        DropdownMenuItem(value: 5, child: Text('👑 Seviye 5 - Efsane Usta (7,000+ EXP)')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDlgState(() => selectedLevel = val);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // EXP Puanı Düzenleme & Hızlı Ekleme Çipleri
+                    const Text('EXP (Deneyim Puanı):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: expCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Mevcut EXP',
+                        suffixText: 'EXP',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      onChanged: (val) {
+                        final parsed = int.tryParse(val.trim());
+                        if (parsed != null) {
+                          setDlgState(() {
+                            currentExp = parsed;
+                            selectedLevel = NearbyUstaModel.calculateLevelFromExp(currentExp);
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        ActionChip(
+                          avatar: const Icon(Icons.add, size: 14, color: Color(0xFFD97706)),
+                          label: const Text('+100 EXP'),
+                          onPressed: () {
+                            setDlgState(() {
+                              currentExp += 100;
+                              expCtrl.text = currentExp.toString();
+                              selectedLevel = NearbyUstaModel.calculateLevelFromExp(currentExp);
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          avatar: const Icon(Icons.add, size: 14, color: Color(0xFFD97706)),
+                          label: const Text('+250 EXP'),
+                          onPressed: () {
+                            setDlgState(() {
+                              currentExp += 250;
+                              expCtrl.text = currentExp.toString();
+                              selectedLevel = NearbyUstaModel.calculateLevelFromExp(currentExp);
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          avatar: const Icon(Icons.add, size: 14, color: Color(0xFFD97706)),
+                          label: const Text('+500 EXP'),
+                          onPressed: () {
+                            setDlgState(() {
+                              currentExp += 500;
+                              expCtrl.text = currentExp.toString();
+                              selectedLevel = NearbyUstaModel.calculateLevelFromExp(currentExp);
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          avatar: const Icon(Icons.add, size: 14, color: Color(0xFFD97706)),
+                          label: const Text('+1000 EXP'),
+                          onPressed: () {
+                            setDlgState(() {
+                              currentExp += 1000;
+                              expCtrl.text = currentExp.toString();
+                              selectedLevel = NearbyUstaModel.calculateLevelFromExp(currentExp);
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Profil Fotoğrafı URL'si
+                    const Text('Profil Fotoğrafı (Avatar):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: avatarCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Fotoğraf URL (https://...)',
+                        border: const OutlineInputBorder(),
+                        isDense: true,
+                        prefixIcon: const Icon(Icons.link_rounded),
+                        suffixIcon: avatarCtrl.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 16),
+                                onPressed: () => setDlgState(() => avatarCtrl.clear()),
+                              )
+                            : null,
+                      ),
+                      onChanged: (val) => setDlgState(() {}),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('Hazır Usta Görselleri:', style: TextStyle(fontSize: 11.5, color: Colors.grey)),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: presetAvatars.map((url) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: InkWell(
+                            onTap: () {
+                              setDlgState(() => avatarCtrl.text = url);
+                            },
+                            borderRadius: BorderRadius.circular(20),
+                            child: CircleAvatar(
+                              radius: 18,
+                              backgroundImage: NetworkImage(url),
+                              child: avatarCtrl.text == url
+                                  ? Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.green, width: 2.5),
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  if (Navigator.of(context, rootNavigator: true).canPop()) {
+                    Navigator.of(context, rootNavigator: true).pop();
+                  } else if (Navigator.of(ctx).canPop()) {
+                    Navigator.of(ctx).pop();
+                  }
+                },
+                child: const Text('İptal'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  try {
+                    final ustaId = (u['id'] ?? u['phone'] ?? '').toString();
+                    final avatarUrl = avatarCtrl.text.trim();
+
+                    setState(() {
+                      u['level'] = selectedLevel;
+                      u['exp'] = currentExp;
+                      u['avatar_url'] = avatarUrl;
+                      u['photo_url'] = avatarUrl;
+                    });
+
+                    await _appDataService.updateUstaLevelAndExp(
+                      ustaId,
+                      level: selectedLevel,
+                      exp: currentExp,
+                    );
+
+                    if (avatarUrl.isNotEmpty) {
+                      await _appDataService.uploadUserProfilePhoto(
+                        phoneOrId: ustaId,
+                        avatarUrl: avatarUrl,
+                        isUsta: true,
+                      );
+                    }
+
+                    await _savePersistedData('admin_active_ustalar');
+
+                    if (context.mounted) {
+                      if (Navigator.of(context, rootNavigator: true).canPop()) {
+                        Navigator.of(context, rootNavigator: true).pop();
+                      } else if (Navigator.of(ctx).canPop()) {
+                        Navigator.of(ctx).pop();
+                      }
+                    }
+                    _showSuccessToast('${u['full_name']} Seviye ve EXP bilgileri güncellendi!');
+                  } catch (e) {
+                    _showSuccessToast('Güncelleme hatası: $e', isError: true);
+                  }
+                },
+                icon: const Icon(Icons.save_rounded, size: 16),
+                label: const Text('Seviye & EXP Kaydet'),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD97706), foregroundColor: Colors.white),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -3444,6 +3755,263 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             child: const Text('Güncelle'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showMemberLevelAndAvatarDialog(Map<String, dynamic> member) {
+    int currentExp = (member['exp'] as num?)?.toInt() ?? 0;
+    final expCtrl = TextEditingController(text: currentExp.toString());
+    final avatarCtrl = TextEditingController(text: (member['avatar_url'] ?? '').toString());
+
+    final presetAvatars = [
+      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+      'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150',
+      'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.workspace_premium_rounded, color: Color(0xFF2563EB), size: 28),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${member['full_name']} — Puan & Fotoğraf Yönetimi',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF1E3A8A), Color(0xFF1E40AF)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundColor: Colors.white12,
+                          backgroundImage: avatarCtrl.text.trim().isNotEmpty
+                              ? NetworkImage(avatarCtrl.text.trim())
+                              : null,
+                          child: avatarCtrl.text.trim().isEmpty
+                              ? const Icon(Icons.person, size: 28, color: Colors.white)
+                              : null,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                (member['full_name'] ?? 'Müşteri').toString(),
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 15),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.stars_rounded, size: 16, color: Color(0xFFFBBF24)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '$currentExp Sadakat Puanı (EXP)',
+                                    style: const TextStyle(color: Color(0xFF93C5FD), fontSize: 13, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Müşteri Sadakat Puanı (EXP):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: expCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Puan (EXP)',
+                      suffixText: 'Puan',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (val) {
+                      final parsed = int.tryParse(val.trim());
+                      if (parsed != null) {
+                        setDlgState(() => currentExp = parsed);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      ActionChip(
+                        avatar: const Icon(Icons.add, size: 14, color: Color(0xFF2563EB)),
+                        label: const Text('+50 Puan'),
+                        onPressed: () {
+                          setDlgState(() {
+                            currentExp += 50;
+                            expCtrl.text = currentExp.toString();
+                          });
+                        },
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.add, size: 14, color: Color(0xFF2563EB)),
+                        label: const Text('+100 Puan'),
+                        onPressed: () {
+                          setDlgState(() {
+                            currentExp += 100;
+                            expCtrl.text = currentExp.toString();
+                          });
+                        },
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.add, size: 14, color: Color(0xFF2563EB)),
+                        label: const Text('+250 Puan'),
+                        onPressed: () {
+                          setDlgState(() {
+                            currentExp += 250;
+                            expCtrl.text = currentExp.toString();
+                          });
+                        },
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.add, size: 14, color: Color(0xFF2563EB)),
+                        label: const Text('+500 Puan'),
+                        onPressed: () {
+                          setDlgState(() {
+                            currentExp += 500;
+                            expCtrl.text = currentExp.toString();
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Profil Fotoğrafı (Avatar):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: avatarCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Fotoğraf URL (https://...)',
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                      prefixIcon: const Icon(Icons.link_rounded),
+                      suffixIcon: avatarCtrl.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 16),
+                              onPressed: () => setDlgState(() => avatarCtrl.clear()),
+                            )
+                          : null,
+                    ),
+                    onChanged: (val) => setDlgState(() {}),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Hazır Müşteri Avatarları:', style: TextStyle(fontSize: 11.5, color: Colors.grey)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: presetAvatars.map((url) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: InkWell(
+                          onTap: () {
+                            setDlgState(() => avatarCtrl.text = url);
+                          },
+                          borderRadius: BorderRadius.circular(20),
+                          child: CircleAvatar(
+                            radius: 18,
+                            backgroundImage: NetworkImage(url),
+                            child: avatarCtrl.text == url
+                                ? Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.blue, width: 2.5),
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                if (Navigator.of(context, rootNavigator: true).canPop()) {
+                  Navigator.of(context, rootNavigator: true).pop();
+                } else if (Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
+                }
+              },
+              child: const Text('İptal'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                try {
+                  final memberId = (member['id'] ?? member['phone'] ?? '').toString();
+                  final avatarUrl = avatarCtrl.text.trim();
+
+                  setState(() {
+                    member['exp'] = currentExp;
+                    member['avatar_url'] = avatarUrl;
+                  });
+
+                  await _appDataService.updateMemberExp(memberId, currentExp);
+
+                  if (avatarUrl.isNotEmpty) {
+                    await _appDataService.uploadUserProfilePhoto(
+                      phoneOrId: memberId,
+                      avatarUrl: avatarUrl,
+                      isUsta: false,
+                    );
+                  }
+
+                  await _savePersistedData('admin_members');
+
+                  if (context.mounted) {
+                    if (Navigator.of(context, rootNavigator: true).canPop()) {
+                      Navigator.of(context, rootNavigator: true).pop();
+                    } else if (Navigator.of(ctx).canPop()) {
+                      Navigator.of(ctx).pop();
+                    }
+                  }
+                  _showSuccessToast('${member['full_name']} Puan ve Fotoğraf bilgileri güncellendi!');
+                } catch (e) {
+                  _showSuccessToast('Güncelleme hatası: $e', isError: true);
+                }
+              },
+              icon: const Icon(Icons.save_rounded, size: 16),
+              label: const Text('Değişiklikleri Kaydet'),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -6092,6 +6660,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         ),
                         DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary))),
                         DataColumn(label: Text('Usta / İşletme', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
+                        DataColumn(label: Text('Seviye & EXP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
                         DataColumn(label: Text('Telefon', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
                         DataColumn(label: Text('Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
                         DataColumn(label: Text('Taban Fiyat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: _textPrimary))),
@@ -6141,6 +6710,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                     onPressed: () => _showEditUstaDialog(u),
                                   ),
                                   _buildActionIconButton(
+                                    icon: Icons.military_tech_rounded,
+                                    color: const Color(0xFFD97706),
+                                    tooltip: 'Usta Seviye & EXP Yönetimi',
+                                    onPressed: () => _showUstaLevelManagementDialog(u),
+                                  ),
+                                  _buildActionIconButton(
                                     icon: isSuspended ? Icons.play_arrow_rounded : Icons.pause_rounded,
                                     color: isSuspended ? const Color(0xFF16A34A) : const Color(0xFFF59E0B),
                                     tooltip: isSuspended ? 'Ustayla Çalışmayı Aktif Et' : 'Geçici Olarak Askıya Al',
@@ -6165,13 +6740,68 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               Row(
                                 children: [
                                   CircleAvatar(
-                                    radius: 15,
+                                    radius: 16,
                                     backgroundColor: AppTheme.ustaPrimary.withValues(alpha: 0.15),
-                                    child: const Icon(Icons.handyman, size: 16, color: AppTheme.ustaPrimary),
+                                    backgroundImage: (u['avatar_url'] != null && u['avatar_url'].toString().isNotEmpty)
+                                        ? NetworkImage(u['avatar_url'].toString())
+                                        : ((u['photo_url'] != null && u['photo_url'].toString().isNotEmpty)
+                                            ? NetworkImage(u['photo_url'].toString())
+                                            : null),
+                                    child: ((u['avatar_url'] == null || u['avatar_url'].toString().isEmpty) &&
+                                            (u['photo_url'] == null || u['photo_url'].toString().isEmpty))
+                                        ? const Icon(Icons.handyman, size: 16, color: AppTheme.ustaPrimary)
+                                        : null,
                                   ),
                                   const SizedBox(width: 10),
                                   Text((u['full_name'] ?? 'Usta').toString(), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _textPrimary)),
                                 ],
+                              ),
+                            ),
+                            DataCell(
+                              Builder(
+                                builder: (context) {
+                                  final ustaExp = (u['exp'] as num?)?.toInt() ?? 0;
+                                  final ustaLvl = (u['level'] as num?)?.toInt() ?? NearbyUstaModel.calculateLevelFromExp(ustaExp);
+                                  final badgeEmoji = NearbyUstaModel.getBadgeForLevel(ustaLvl);
+                                  final lvlTitle = NearbyUstaModel.getTitleForLevel(ustaLvl);
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: _isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFFEF3C7),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: const Color(0xFFFDE68A)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(badgeEmoji, style: const TextStyle(fontSize: 14)),
+                                        const SizedBox(width: 6),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              'Seviye $ustaLvl • $lvlTitle',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                                color: _isDarkMode ? Colors.amber[200] : const Color(0xFF92400E),
+                                              ),
+                                            ),
+                                            Text(
+                                              '$ustaExp EXP',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: _isDarkMode ? Colors.white70 : const Color(0xFFB45309),
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                             DataCell(
@@ -6451,6 +7081,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 ),
                 DataColumn(label: Text('İşlemler', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
                 DataColumn(label: Text('Müşteri Adı', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
+                DataColumn(label: Text('Puan (EXP)', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
                 DataColumn(label: Text('Telefon', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
                 DataColumn(label: Text('E-Posta', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
                 DataColumn(label: Text('Rol', style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary))),
@@ -6495,6 +7126,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             onPressed: () => _showEditMemberDialog(m),
                           ),
                           IconButton(
+                            icon: const Icon(Icons.workspace_premium_rounded, size: 18, color: Color(0xFFD97706)),
+                            tooltip: 'Puan & Fotoğraf Yönetimi',
+                            onPressed: () => _showMemberLevelAndAvatarDialog(m),
+                          ),
+                          IconButton(
                             icon: Icon(isBanned ? Icons.lock_open_rounded : Icons.block_rounded, size: 18, color: isBanned ? Colors.green : Colors.orange),
                             tooltip: isBanned ? 'Yasağı Kaldır' : 'Üyeyi Banla (Engelle)',
                             onPressed: () => _toggleBanMember(m),
@@ -6513,11 +7149,34 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           CircleAvatar(
                             radius: 14,
                             backgroundColor: const Color(0xFF0284C7).withValues(alpha: 0.15),
-                            child: const Icon(Icons.person, size: 16, color: Color(0xFF0284C7)),
+                            backgroundImage: (m['avatar_url'] != null && m['avatar_url'].toString().isNotEmpty)
+                                ? NetworkImage(m['avatar_url'].toString())
+                                : null,
+                            child: (m['avatar_url'] == null || m['avatar_url'].toString().isEmpty)
+                                ? const Icon(Icons.person, size: 16, color: Color(0xFF0284C7))
+                                : null,
                           ),
                           const SizedBox(width: 8),
                           Text((m['full_name'] ?? 'İsimsiz').toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
                         ],
+                      ),
+                    ),
+                    DataCell(
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFBFDBFE)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.stars_rounded, size: 14, color: Color(0xFF2563EB)),
+                            const SizedBox(width: 4),
+                            Text('${m['exp'] ?? 0} Puan', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8))),
+                          ],
+                        ),
                       ),
                     ),
                     DataCell(Text((m['phone'] ?? '-').toString())),

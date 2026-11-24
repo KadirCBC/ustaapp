@@ -112,6 +112,9 @@ class NearbyUstaModel {
   final List<UstaHizmetIlan> ilanlar;
   final bool isOnline;
   final bool isOnayli;
+  final int level;
+  final int exp;
+  final bool hasAvatarBonus;
 
   NearbyUstaModel({
     required this.ustaId,
@@ -144,6 +147,9 @@ class NearbyUstaModel {
     this.ilanlar = const [],
     this.isOnline = true,
     this.isOnayli = false,
+    this.level = 1,
+    this.exp = 0,
+    this.hasAvatarBonus = false,
   });
 
   factory NearbyUstaModel.fromJson(Map<String, dynamic> json) {
@@ -175,7 +181,8 @@ class NearbyUstaModel {
     final rawIlanlar = json['ilanlar'] as List<dynamic>?;
     final List<UstaHizmetIlan> parsedIlanlar = rawIlanlar != null
         ? rawIlanlar
-            .map((e) => UstaHizmetIlan.fromJson(e as Map<String, dynamic>))
+            .where((e) => e is Map)
+            .map((e) => UstaHizmetIlan.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList()
         : const [];
 
@@ -220,7 +227,94 @@ class NearbyUstaModel {
           json['isOnayli'] as bool? ??
           json['is_verified'] as bool? ??
           false,
+      level: (json['level'] as num?)?.toInt() ?? 1,
+      exp: (json['exp'] as num?)?.toInt() ?? 0,
+      hasAvatarBonus: json['has_avatar_bonus'] as bool? ?? json['hasAvatarBonus'] as bool? ?? false,
     );
+  }
+
+  /// ID getter kısayolu
+  String get id => ustaId;
+
+  /// EXP puanından Seviye (1-5) hesaplama statik metodu
+  static int calculateLevelFromExp(int exp) {
+    if (exp >= 7000) return 5;
+    if (exp >= 3501) return 4;
+    if (exp >= 1501) return 3;
+    if (exp >= 501) return 2;
+    return 1;
+  }
+
+  /// Seviye Ünvanı statik metodu
+  static String getTitleForLevel(int lvl) {
+    switch (lvl) {
+      case 5:
+        return 'Efsane Usta';
+      case 4:
+        return 'Usta Başı';
+      case 3:
+        return 'Uzman Usta';
+      case 2:
+        return 'Kıdemli Usta';
+      default:
+        return 'Yeni Usta';
+    }
+  }
+
+  /// Seviye Rozet İkonu statik metodu
+  static String getBadgeForLevel(int lvl) {
+    switch (lvl) {
+      case 5:
+        return '👑';
+      case 4:
+        return '💎';
+      case 3:
+        return '🥇';
+      case 2:
+        return '🥈';
+      default:
+        return '🥉';
+    }
+  }
+
+  /// Usta Seviye Ünvanı (EXP puanına göre dinamik rütbe)
+  String get levelTitle => getTitleForLevel(calculatedLevel);
+
+  /// Seviye Rozet İkonu / Emoji
+  String get levelBadgeEmoji => getBadgeForLevel(calculatedLevel);
+
+  /// Hesaplanan geçerli Seviye (1-5)
+  int get calculatedLevel {
+    if (level > 1 && exp == 0) return level; // Admin elle level atamışsa koru
+    if (exp >= 7000) return 5;
+    if (exp >= 3501) return 4;
+    if (exp >= 1501) return 3;
+    if (exp >= 501) return 2;
+    return level > 0 ? level : 1;
+  }
+
+  /// Bir sonraki seviyeye geçiş için hedef EXP
+  int get nextLevelTargetExp {
+    final lvl = calculatedLevel;
+    switch (lvl) {
+      case 1:
+        return 500;
+      case 2:
+        return 1500;
+      case 3:
+        return 3500;
+      case 4:
+        return 7000;
+      default:
+        return 10000;
+    }
+  }
+
+  /// Seviye ilerleme yüzdesi (0.0 - 1.0)
+  double get levelProgress {
+    final target = nextLevelTargetExp;
+    if (target <= 0) return 1.0;
+    return (exp / target).clamp(0.0, 1.0);
   }
 
   /// Onaylı üye mi? (Yalnızca vergi/kimlik/yönetici onayı almış ustalarda true döner)
@@ -289,6 +383,11 @@ class NearbyUstaModel {
     'is_online': isOnline,
     'isOnline': isOnline,
     'is_onayli': isOnayli,
+    'level': calculatedLevel,
+    'exp': exp,
+    'has_avatar_bonus': hasAvatarBonus,
+    'level_title': levelTitle,
+    'level_badge': levelBadgeEmoji,
   };
 
   NearbyUstaModel copyWith({
@@ -318,6 +417,9 @@ class NearbyUstaModel {
     List<UstaHizmetIlan>? ilanlar,
     bool? isOnline,
     bool? isOnayli,
+    int? level,
+    int? exp,
+    bool? hasAvatarBonus,
   }) {
     return NearbyUstaModel(
       ustaId: ustaId ?? this.ustaId,
@@ -346,6 +448,9 @@ class NearbyUstaModel {
       ilanlar: ilanlar ?? this.ilanlar,
       isOnline: isOnline ?? this.isOnline,
       isOnayli: isOnayli ?? this.isOnayli,
+      level: level ?? this.level,
+      exp: exp ?? this.exp,
+      hasAvatarBonus: hasAvatarBonus ?? this.hasAvatarBonus,
     );
   }
 }

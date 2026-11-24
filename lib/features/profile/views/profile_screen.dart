@@ -156,6 +156,185 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   // MODAL VE DİYALOGLAR (KİŞİSEL BİLGİ, ADRES, SİPARİŞ GEÇMİŞİ, KARTLAR)
   // ===========================================================================
 
+  void _showAvatarSelectionDialog() {
+    final avatarCtrl = TextEditingController(text: (_memberData?['avatar_url'] ?? '').toString());
+    final presetAvatars = [
+      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+      'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150',
+      'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150',
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.camera_alt_rounded, color: AppTheme.customerPrimary),
+              SizedBox(width: 10),
+              Text('Profil Fotoğrafı Seç', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+          content: SizedBox(
+            width: 380,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFBFDBFE)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.stars_rounded, color: Color(0xFF2563EB), size: 22),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'İlk kez fotoğraf yüklediğinizde hesabınıza +100 EXP Sadakat Puanı tanımlanır! 🎉',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF1E40AF), fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: CircleAvatar(
+                      radius: 40,
+                      backgroundColor: AppTheme.customerPrimary.withValues(alpha: 0.15),
+                      backgroundImage: avatarCtrl.text.trim().isNotEmpty
+                          ? NetworkImage(avatarCtrl.text.trim())
+                          : null,
+                      child: avatarCtrl.text.trim().isEmpty
+                          ? const Icon(Icons.person, size: 40, color: AppTheme.customerPrimary)
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: avatarCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Fotoğraf URL (https://...)',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      prefixIcon: const Icon(Icons.link_rounded),
+                      isDense: true,
+                    ),
+                    onChanged: (val) => setDlgState(() {}),
+                  ),
+                  const SizedBox(height: 14),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Veya bir avatar seçin:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: presetAvatars.map((url) {
+                      final isSelected = avatarCtrl.text == url;
+                      return InkWell(
+                        onTap: () => setDlgState(() => avatarCtrl.text = url),
+                        borderRadius: BorderRadius.circular(25),
+                        child: CircleAvatar(
+                          radius: 24,
+                          backgroundImage: NetworkImage(url),
+                          child: isSelected
+                              ? Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: AppTheme.customerPrimary, width: 3),
+                                  ),
+                                  child: const Icon(Icons.check, color: Colors.white, size: 20),
+                                )
+                              : null,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('İptal'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.customerPrimary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                final url = avatarCtrl.text.trim();
+                if (url.isEmpty) {
+                  Navigator.pop(ctx);
+                  return;
+                }
+                Navigator.pop(ctx);
+                final phone = (_memberData?['phone'] ?? '').toString();
+                final res = await AppDataService.instance.uploadUserProfilePhoto(
+                  phoneOrId: phone,
+                  avatarUrl: url,
+                  isUsta: false,
+                );
+
+                setState(() {
+                  _memberData ??= {};
+                  _memberData!['avatar_url'] = url;
+                  if (res['isFirstTime'] == true) {
+                    _memberData!['exp'] = res['newExp'];
+                  }
+                });
+
+                if (mounted) {
+                  if (res['isFirstTime'] == true) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(Icons.stars_rounded, color: Colors.amber, size: 26),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Tebrikler! Profil fotoğrafı yükleyerek +${res['bonusExp']} EXP Sadakat Puanı kazandınız! 🎉',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: const Color(0xFF1E3A8A),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 4),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Profil fotoğrafınız güncellendi!'),
+                        backgroundColor: Color(0xFF10B981),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Kaydet', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showEditProfileSheet() {
     final nameCtrl = TextEditingController(text: (_memberData?['full_name'] ?? _memberData?['name'] ?? '').toString());
     final emailCtrl = TextEditingController(text: (_memberData?['email'] ?? 'ahmet.mehmet@gmail.com').toString());
@@ -831,6 +1010,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required String email,
     required bool isUsta,
   }) {
+    final avatarUrl = (_memberData?['avatar_url'] ?? '').toString();
+    final userExp = (_memberData?['exp'] as num?)?.toInt() ?? 0;
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -860,21 +1042,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   CircleAvatar(
                     radius: 36,
                     backgroundColor: AppTheme.customerPrimary,
-                    child: Text(
-                      fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U',
-                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white),
-                    ),
+                    backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                    child: avatarUrl.isEmpty
+                        ? Text(
+                            fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U',
+                            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white),
+                          )
+                        : null,
                   ),
                   Positioned(
                     bottom: 0,
                     right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF10B981),
-                        shape: BoxShape.circle,
+                    child: InkWell(
+                      onTap: _showAvatarSelectionDialog,
+                      borderRadius: BorderRadius.circular(15),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppTheme.customerPrimary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
                       ),
-                      child: const Icon(Icons.check_rounded, size: 12, color: Colors.white),
                     ),
                   ),
                 ],
@@ -929,35 +1119,67 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isUsta ? const Color(0x33FF6B00) : const Color(0x3338BDF8),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isUsta ? AppTheme.ustaPrimary : const Color(0xFF38BDF8),
-                    width: 0.8,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isUsta ? Icons.handyman_rounded : Icons.person_rounded,
-                      size: 13,
-                      color: isUsta ? AppTheme.ustaPrimary : const Color(0xFF38BDF8),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      isUsta ? 'Onaylı Usta Hesabı' : 'Doğrulanmış Müşteri',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isUsta ? const Color(0x33FF6B00) : const Color(0x3338BDF8),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
                         color: isUsta ? AppTheme.ustaPrimary : const Color(0xFF38BDF8),
+                        width: 0.8,
                       ),
                     ),
-                  ],
-                ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isUsta ? Icons.handyman_rounded : Icons.person_rounded,
+                          size: 13,
+                          color: isUsta ? AppTheme.ustaPrimary : const Color(0xFF38BDF8),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          isUsta ? 'Onaylı Usta Hesabı' : 'Doğrulanmış Müşteri',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: isUsta ? AppTheme.ustaPrimary : const Color(0xFF38BDF8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0x33F59E0B),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFFF59E0B),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.stars_rounded, size: 13, color: Color(0xFFFBBF24)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$userExp EXP',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFFFDE68A),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               InkWell(
                 onTap: _showEditProfileSheet,

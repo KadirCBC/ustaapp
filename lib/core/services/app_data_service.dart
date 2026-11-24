@@ -203,6 +203,7 @@ class AppDataService {
         if (data['initialized'] == true) {
           if (data['ustalar'] is List) {
             _cachedUstalar = (data['ustalar'] as List)
+                .whereType<Map>()
                 .map((item) => NearbyUstaModel.fromJson(Map<String, dynamic>.from(item)))
                 .toList();
             _persistUstalarToPrefs(_cachedUstalar!);
@@ -243,7 +244,8 @@ class AppDataService {
       } else if (event == 'ustalar_updated') {
         if (data is List) {
           _cachedUstalar = data
-              .map((item) => NearbyUstaModel.fromJson(Map<String, dynamic>.from(item)))
+              .where((item) => item is Map)
+              .map((item) => NearbyUstaModel.fromJson(Map<String, dynamic>.from(item as Map)))
               .toList();
           _persistUstalarToPrefs(_cachedUstalar!);
           _changesStreamController.add(null);
@@ -813,6 +815,170 @@ class AppDataService {
       list.insert(0, usta);
     }
     await saveUstalar(list);
+  }
+
+  /// Admin panelinden ustanın Level ve EXP puanını doğrudan güncelleme
+  Future<void> updateUstaLevelAndExp(String ustaId, {int? level, int? exp}) async {
+    final list = await getUstalar();
+    final normPhone = normalizePhone(ustaId);
+    final idx = list.indexWhere((u) =>
+        u.ustaId == ustaId ||
+        (normPhone.isNotEmpty && normalizePhone(u.phone) == normPhone) ||
+        u.phone == ustaId);
+    if (idx >= 0) {
+      final u = list[idx];
+      final newExp = exp ?? u.exp;
+      final newLvl = level ?? (exp != null ? NearbyUstaModel.calculateLevelFromExp(newExp) : u.level);
+      list[idx] = u.copyWith(level: newLvl, exp: newExp);
+      await saveUstalar(list);
+
+      // Ayrıca members tablosundaki usta profilini de senkronize et
+      try {
+        final members = await getMembers();
+        final uPhone = normalizePhone(u.phone);
+        bool memberUpdated = false;
+        for (int i = 0; i < members.length; i++) {
+          final m = Map<String, dynamic>.from(members[i]);
+          final mPhone = normalizePhone((m['phone'] ?? '').toString());
+          final mId = (m['id'] ?? '').toString();
+          if ((uPhone.isNotEmpty && mPhone == uPhone) || mId == u.ustaId || mId == ustaId) {
+            m['exp'] = newExp;
+            members[i] = m;
+            memberUpdated = true;
+          }
+        }
+        if (memberUpdated) {
+          await saveMembers(members);
+        }
+      } catch (_) {}
+    }
+  }
+
+  /// Admin panelinden müşteri EXP / sadakat puanını güncelleme
+  Future<void> updateMemberExp(String memberId, int newExp) async {
+    final members = await getMembers();
+    final normPhone = normalizePhone(memberId);
+    final idx = members.indexWhere((m) =>
+        (m['id'] ?? '').toString() == memberId ||
+        (normPhone.isNotEmpty && normalizePhone((m['phone'] ?? '').toString()) == normPhone));
+    if (idx >= 0) {
+      final m = Map<String, dynamic>.from(members[idx]);
+      m['exp'] = newExp;
+      members[idx] = m;
+      await saveMembers(members);
+
+      // Eğer bu üye bir usta ise veya ustalar tablosunda da varsa, usta kaydını da güncelle
+      try {
+        final mPhone = normalizePhone((m['phone'] ?? '').toString());
+        final ustalar = await getUstalar();
+        final uIdx = ustalar.indexWhere((u) =>
+            u.ustaId == memberId ||
+            (mPhone.isNotEmpty && normalizePhone(u.phone) == mPhone));
+        if (uIdx >= 0) {
+          final u = ustalar[uIdx];
+          final newLvl = NearbyUstaModel.calculateLevelFromExp(newExp);
+          ustalar[uIdx] = u.copyWith(level: newLvl, exp: newExp);
+          await saveUstalar(ustalar);
+        }
+      } catch (_) {}
+    }
+  }
+
+  /// Profil resmi yükler ve ilk yüklemede usta için +150 EXP, müşteri için +100 EXP ödüllendirir
+  Future<Map<String, dynamic>> uploadUserProfilePhoto({
+    required String phoneOrId,
+    required String avatarUrl,
+    required bool isUsta,
+  }) async {
+    final normPhone = normalizePhone(phoneOrId);
+    int awardedExp = 0;
+    bool isFirstTime = false;
+
+    if (isUsta) {
+      final list = await getUstalar();
+      final idx = list.indexWhere((u) =>
+          u.ustaId == phoneOrId ||
+          (normPhone.isNotEmpty && normalizePhone(u.phone) == normPhone));
+      if (idx >= 0) {
+        final current = list[idx];
+        if (!current.hasAvatarBonus) {
+          isFirstTime = true;
+          awardedExp = 150;
+        }
+        final newExp = current.exp + awardedExp;
+        final updated = current.copyWith(
+          avatarUrl: avatarUrl,
+          exp: newExp,
+          hasAvatarBonus: true,
+        );
+        list[idx] = updated;
+        await saveUstalar(list);
+
+        // Ayrıca members tablosundaki kaydı da senkronize et
+        try {
+          final members = await getMembers();
+          final uPhone = normalizePhone(current.phone);
+          bool memberUpdated = false;
+          for (int i = 0; i < members.length; i++) {
+            final m = Map<String, dynamic>.from(members[i]);
+            final mPhone = normalizePhone((m['phone'] ?? '').toString());
+            final mId = (m['id'] ?? '').toString();
+            if ((uPhone.isNotEmpty && mPhone == uPhone) || mId == current.ustaId || mId == phoneOrId) {
+              m['avatar_url'] = avatarUrl;
+              m['avatarUrl'] = avatarUrl;
+              m['exp'] = newExp;
+              m['has_avatar_bonus'] = true;
+              members[i] = m;
+              memberUpdated = true;
+            }
+          }
+          if (memberUpdated) {
+            await saveMembers(members);
+          }
+        } catch (_) {}
+        return {
+          'success': true,
+          'isFirstTime': isFirstTime,
+          'awardedExp': awardedExp,
+          'newLevel': updated.calculatedLevel,
+          'newExp': updated.exp,
+          'avatarUrl': avatarUrl,
+        };
+      }
+    }
+
+    // Müşteri / Üye için
+    final members = await getMembers();
+    final mIdx = members.indexWhere((m) {
+      final id = (m['id'] ?? '').toString();
+      final p = normalizePhone((m['phone'] ?? '').toString());
+      return id == phoneOrId || (normPhone.isNotEmpty && p == normPhone);
+    });
+
+    if (mIdx >= 0) {
+      final m = Map<String, dynamic>.from(members[mIdx]);
+      if (m['has_avatar_bonus'] != true) {
+        isFirstTime = true;
+        awardedExp = 100;
+      }
+      final currentExp = (m['exp'] as num?)?.toInt() ?? 0;
+      final newExp = currentExp + awardedExp;
+      m['avatar_url'] = avatarUrl;
+      m['avatarUrl'] = avatarUrl;
+      m['exp'] = newExp;
+      m['has_avatar_bonus'] = true;
+      members[mIdx] = m;
+      await saveMembers(members);
+      return {
+        'success': true,
+        'isFirstTime': isFirstTime,
+        'awardedExp': awardedExp,
+        'newExp': newExp,
+        'avatarUrl': avatarUrl,
+      };
+    }
+
+    return {'success': false, 'awardedExp': 0};
   }
 
   Future<bool> isUstaDeleted(String phoneOrId) async {
