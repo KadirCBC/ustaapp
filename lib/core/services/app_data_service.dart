@@ -244,8 +244,8 @@ class AppDataService {
       } else if (event == 'ustalar_updated') {
         if (data is List) {
           _cachedUstalar = data
-              .where((item) => item is Map)
-              .map((item) => NearbyUstaModel.fromJson(Map<String, dynamic>.from(item as Map)))
+              .whereType<Map>()
+              .map((item) => NearbyUstaModel.fromJson(Map<String, dynamic>.from(item)))
               .toList();
           _persistUstalarToPrefs(_cachedUstalar!);
           _changesStreamController.add(null);

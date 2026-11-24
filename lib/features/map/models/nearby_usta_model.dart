@@ -181,8 +181,8 @@ class NearbyUstaModel {
     final rawIlanlar = json['ilanlar'] as List<dynamic>?;
     final List<UstaHizmetIlan> parsedIlanlar = rawIlanlar != null
         ? rawIlanlar
-            .where((e) => e is Map)
-            .map((e) => UstaHizmetIlan.fromJson(Map<String, dynamic>.from(e as Map)))
+            .whereType<Map>()
+            .map((e) => UstaHizmetIlan.fromJson(Map<String, dynamic>.from(e)))
             .toList()
         : const [];
 
