@@ -1057,8 +1057,14 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     );
   }
 
-  /// Profesyonel Yatay Kategori Çubuğu (Dinamik sayaç ve canlı gradyan ile)
+  /// Profesyonel 2'li Kategori ve Filtre Çubuğu (Kategoriler & Tüm İlanlar Yan Yana Tam Sığar)
   Widget _buildCategorySelector(List<_ListingCardData> allListings) {
+    final bool isAllSelected = _selectedCategory == 'tum';
+    final currentCat = _categories.firstWhere(
+      (c) => c['key'] == _selectedCategory,
+      orElse: () => _categories.first,
+    );
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -1066,97 +1072,138 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1.2),
         ),
       ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: SizedBox(
-        height: 42,
-        child: ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          itemCount: _categories.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
-          itemBuilder: (context, index) {
-            final cat = _categories[index];
-            final catKey = cat['key'] as String;
-            final isSelected = catKey == _selectedCategory;
-            final catColor = (cat['color'] as Color?) ?? AppTheme.customerPrimary;
-            final catIcon = cat['icon'] as IconData;
-
-            // Dinamik ilan sayısı
-            final int count = (catKey == 'tum')
-                ? allListings.length
-                : (catKey == 'tedarikciler')
-                    ? 0
-                    : allListings.where((i) => _matchesCategory(i.category, catKey)).length;
-
-            return Material(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          // 1. BUTON: Kategoriler (Tıklandığında tüm kategorileri açar veya aktif kategoriyi gösterir)
+          Expanded(
+            child: Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: () => _onCategorySelected(catKey),
-                borderRadius: BorderRadius.circular(24),
+                onTap: () => _showAllCategoriesSheet(allListings),
+                borderRadius: BorderRadius.circular(14),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
-                    gradient: isSelected
-                        ? const LinearGradient(
-                            colors: [Color(0xFFEA580C), Color(0xFFF97316)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          )
-                        : null,
-                    color: isSelected ? null : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(24),
+                    color: !isAllSelected ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: isSelected
-                          ? const Color(0xFFEA580C)
-                          : const Color(0xFFE2E8F0),
-                      width: isSelected ? 1.4 : 1.0,
+                      color: !isAllSelected ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+                      width: 1.2,
                     ),
-                    boxShadow: isSelected
+                    boxShadow: !isAllSelected
                         ? [
                             BoxShadow(
-                              color: const Color(0xFFEA580C).withValues(alpha: 0.28),
-                              blurRadius: 10,
+                              color: const Color(0xFF0F172A).withValues(alpha: 0.18),
+                              blurRadius: 8,
                               offset: const Offset(0, 3),
                             ),
                           ]
                         : null,
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        catIcon,
-                        size: 16,
-                        color: isSelected ? Colors.white : catColor,
+                        !isAllSelected ? (currentCat['icon'] as IconData? ?? Icons.tune_rounded) : Icons.tune_rounded,
+                        size: 17,
+                        color: !isAllSelected ? Colors.white : const Color(0xFF475569),
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        cat['label'] as String,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
-                          color: isSelected ? Colors.white : const Color(0xFF334155),
-                          letterSpacing: -0.2,
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          !isAllSelected ? (currentCat['label'] as String) : 'Kategoriler',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: !isAllSelected ? Colors.white : const Color(0xFF334155),
+                          ),
                         ),
                       ),
-                      if (count > 0) ...[
-                        const SizedBox(width: 6),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 16,
+                        color: !isAllSelected ? Colors.white70 : const Color(0xFF64748B),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // 2. BUTON: Tüm İlanlar (Sayacıyla birlikte)
+          Expanded(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _onCategorySelected('tum'),
+                borderRadius: BorderRadius.circular(14),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    gradient: isAllSelected
+                        ? const LinearGradient(
+                            colors: [Color(0xFFEA580C), Color(0xFFF97316)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : null,
+                    color: isAllSelected ? null : Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isAllSelected ? const Color(0xFFEA580C) : const Color(0xFFE2E8F0),
+                      width: 1.2,
+                    ),
+                    boxShadow: isAllSelected
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFFEA580C).withValues(alpha: 0.28),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.grid_view_rounded,
+                        size: 16,
+                        color: isAllSelected ? Colors.white : const Color(0xFF64748B),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Tüm İlanlar',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: isAllSelected ? Colors.white : const Color(0xFF334155),
+                        ),
+                      ),
+                      if (allListings.isNotEmpty) ...[
+                        const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            color: isSelected
-                                ? Colors.white
-                                : catColor.withValues(alpha: 0.12),
+                            color: isAllSelected ? Colors.white : const Color(0xFFEA580C).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            '$count',
+                            '${allListings.length}',
                             style: TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 11,
                               fontWeight: FontWeight.w900,
-                              color: isSelected ? const Color(0xFFEA580C) : catColor,
+                              color: isAllSelected ? const Color(0xFFEA580C) : const Color(0xFFEA580C),
                             ),
                           ),
                         ),
@@ -1165,10 +1212,243 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   ),
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Tüm Kategorileri Hızlıca Arayıp Seçebileceğiniz Modern Bottom Sheet
+  void _showAllCategoriesSheet(List<_ListingCardData> allListings) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        String filterQuery = '';
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final filteredCats = _categories.where((c) {
+              if (filterQuery.isEmpty) return true;
+              final label = (c['label'] as String).toLowerCase();
+              return label.contains(filterQuery.toLowerCase());
+            }).toList();
+
+            return Container(
+              height: MediaQuery.of(ctx).size.height * 0.78,
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  // Sürükleme Çubuğu
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFCBD5E1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Başlık ve Kapat Butonu
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              'Hizmet & Usta Kategorileri',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'İhtiyacınız olan hizmeti seçin veya arayın',
+                              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                          style: IconButton.styleFrom(
+                            backgroundColor: const Color(0xFFE2E8F0),
+                            padding: const EdgeInsets.all(6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Kategori İçi Arama Çubuğu
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        autofocus: false,
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                        onChanged: (val) => setSheetState(() => filterQuery = val.trim()),
+                        decoration: const InputDecoration(
+                          icon: Icon(Icons.search_rounded, color: Color(0xFF94A3B8), size: 20),
+                          hintText: 'Kategori adı yazın (Örn: Kombi, Elektrik, Boya)...',
+                          hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                          border: InputBorder.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // 2'li Izgara Görünümü
+                  Expanded(
+                    child: filteredCats.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                Icon(Icons.search_off_rounded, size: 48, color: Color(0xFF94A3B8)),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Eşleşen kategori bulunamadı',
+                                  style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          )
+                        : GridView.builder(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                            physics: const BouncingScrollPhysics(),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              childAspectRatio: 2.3,
+                            ),
+                            itemCount: filteredCats.length,
+                            itemBuilder: (ctx, idx) {
+                              final cat = filteredCats[idx];
+                              final catKey = cat['key'] as String;
+                              final isSelected = catKey == _selectedCategory;
+                              final catColor = (cat['color'] as Color?) ?? AppTheme.customerPrimary;
+                              final catIcon = cat['icon'] as IconData;
+
+                              final int count = (catKey == 'tum')
+                                  ? allListings.length
+                                  : (catKey == 'tedarikciler')
+                                      ? 0
+                                      : allListings.where((i) => _matchesCategory(i.category, catKey)).length;
+
+                              return InkWell(
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  _onCategorySelected(catKey);
+                                },
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? const Color(0xFFEA580C) : Colors.white,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? const Color(0xFFEA580C)
+                                          : const Color(0xFFE2E8F0),
+                                      width: isSelected ? 1.5 : 1.0,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: isSelected
+                                            ? const Color(0xFFEA580C).withValues(alpha: 0.25)
+                                            : Colors.black.withValues(alpha: 0.02),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? Colors.white.withValues(alpha: 0.2)
+                                              : catColor.withValues(alpha: 0.12),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          catIcon,
+                                          size: 18,
+                                          color: isSelected ? Colors.white : catColor,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              cat['label'] as String,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w800,
+                                                color: isSelected ? Colors.white : const Color(0xFF1E293B),
+                                              ),
+                                            ),
+                                            if (count > 0)
+                                              Text(
+                                                '$count İlan Aktif',
+                                                style: TextStyle(
+                                                  fontSize: 10.5,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: isSelected ? Colors.white70 : const Color(0xFF64748B),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (isSelected)
+                                        const Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
             );
           },
-        ),
-      ),
+        );
+      },
     );
   }
 

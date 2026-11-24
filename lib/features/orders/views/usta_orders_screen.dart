@@ -35,9 +35,25 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
   double? _lastLoadedEmergency;
   double? _lastLoadedRadius;
 
+  late final FocusNode _tabanFocusNode;
+  late final FocusNode _kmFocusNode;
+  late final FocusNode _freeKmFocusNode;
+  late final FocusNode _emergencyFocusNode;
+
+  // Çalışma Saatleri ve Nöbet Modu Durumu
+  String _workStartHour = '08:30';
+  String _workEndHour = '20:00';
+  bool _isOnDutyNight = true;
+  bool _worksWeekend = true;
+
   @override
   void initState() {
     super.initState();
+    _tabanFocusNode = FocusNode();
+    _kmFocusNode = FocusNode();
+    _freeKmFocusNode = FocusNode();
+    _emergencyFocusNode = FocusNode();
+
     _tabanFeeController = TextEditingController();
     _kmFeeController = TextEditingController();
     _freeKmController = TextEditingController();
@@ -63,6 +79,14 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
   }
 
   void _syncControllers(UstaDashboardState state) {
+    // Eğer kullanıcı alanlardan birine odaklanmışsa veya yazıyorsa imleci ve metni ezme
+    final bool isUserTyping = _tabanFocusNode.hasFocus ||
+        _kmFocusNode.hasFocus ||
+        _freeKmFocusNode.hasFocus ||
+        _emergencyFocusNode.hasFocus;
+
+    if (isUserTyping) return;
+
     if (!_initializedControllers ||
         _lastLoadedTaban != state.servisUcreti ||
         _lastLoadedKm != state.kmBasiYakitUcreti ||
@@ -93,6 +117,11 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
 
   @override
   void dispose() {
+    _tabanFocusNode.dispose();
+    _kmFocusNode.dispose();
+    _freeKmFocusNode.dispose();
+    _emergencyFocusNode.dispose();
+
     _tabanFeeController.dispose();
     _kmFeeController.dispose();
     _freeKmController.dispose();
@@ -658,72 +687,78 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Row(
+        centerTitle: true,
+        titleSpacing: 0,
+        toolbarHeight: 64,
+        title: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: AppTheme.ustaPrimary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
+            Image.asset(
+              'assets/images/app_logo.png',
+              height: 28,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Icon(
                 Icons.handyman_rounded,
-                size: 19,
+                size: 24,
                 color: AppTheme.ustaPrimary,
               ),
             ),
-            const SizedBox(width: 8),
-            const Text(
-              'Usta Paneli',
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 18,
-                letterSpacing: -0.3,
-                color: Color(0xFF0F172A),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              decoration: BoxDecoration(
-                color: state.isOnline
-                    ? const Color(0xFFDCFCE7)
-                    : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: state.isOnline
-                      ? const Color(0xFF86EFAC)
-                      : const Color(0xFFE2E8F0),
+            const SizedBox(height: 2),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Usta Paneli',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11.5,
+                    letterSpacing: -0.1,
+                    color: Color(0xFF64748B),
+                  ),
                 ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: state.isOnline
+                        ? const Color(0xFFDCFCE7)
+                        : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
                       color: state.isOnline
-                          ? const Color(0xFF16A34A)
-                          : const Color(0xFF94A3B8),
+                          ? const Color(0xFF86EFAC)
+                          : const Color(0xFFE2E8F0),
                     ),
                   ),
-                  const SizedBox(width: 4.5),
-                  Text(
-                    state.isOnline ? 'ONLINE' : 'OFFLINE',
-                    style: TextStyle(
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.3,
-                      color: state.isOnline
-                          ? const Color(0xFF15803D)
-                          : const Color(0xFF64748B),
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: state.isOnline
+                              ? const Color(0xFF16A34A)
+                              : const Color(0xFF94A3B8),
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        state.isOnline ? 'ONLINE' : 'OFFLINE',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: state.isOnline
+                              ? const Color(0xFF15803D)
+                              : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
         ),
@@ -807,7 +842,12 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
 
               const SizedBox(height: 14),
 
-              // 1.1 USTA CÜZDANI & HAKEDİŞ HIZLI ERİŞİM BANNERI
+              // 1.1 ÇALIŞMA SAATLERİ & NÖBETÇİ MODU KARTI
+              _buildWorkingHoursAndDutyCard(),
+
+              const SizedBox(height: 14),
+
+              // 1.2 USTA CÜZDANI & HAKEDİŞ HIZLI ERİŞİM BANNERI
               _buildWalletBannerCard(state),
 
               const SizedBox(height: 14),
@@ -1526,6 +1566,326 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
     }
   }
 
+  /// 1.1 Çalışma Saatleri & Nöbet Modu Kartı (Taşmasız, Tam Responsive & Etkileşimli)
+  Widget _buildWorkingHoursAndDutyCard() {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.schedule_rounded, color: Color(0xFF0F172A), size: 19),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'Çalışma Saatleri & Nöbet',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    Text(
+                      'Mesai ve acil gece nöbeti',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                decoration: BoxDecoration(
+                  color: _isOnDutyNight
+                      ? const Color(0xFF16A34A).withValues(alpha: 0.12)
+                      : const Color(0xFF64748B).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.bolt_rounded,
+                      size: 13,
+                      color: _isOnDutyNight ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      _isOnDutyNight ? 'Nöbetçi' : 'Standart',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: _isOnDutyNight ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.access_time_rounded, size: 15, color: Color(0xFF0284C7)),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          '$_workStartHour - $_workEndHour ${_worksWeekend ? '(Hergün)' : '(Hafta İçi)'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF0F172A),
+                  side: const BorderSide(color: Color(0xFFCBD5E1)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                ),
+                onPressed: _showWorkingHoursDialog,
+                child: const Text('Düzenle', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showWorkingHoursDialog() {
+    String tempStart = _workStartHour;
+    String tempEnd = _workEndHour;
+    bool tempDuty = _isOnDutyNight;
+    bool tempWeekend = _worksWeekend;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEA580C).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.schedule_rounded, color: Color(0xFFEA580C), size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Çalışma Saatleri & Nöbet',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Color(0xFF0F172A),
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'GÜNLÜK MESAİ ARALIĞI',
+                  style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: tempStart,
+                            dropdownColor: Colors.white,
+                            style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700, fontSize: 13),
+                            items: ['07:00', '08:00', '08:30', '09:00', '10:00']
+                                .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null) setDialogState(() => tempStart = val);
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 6),
+                      child: Text('-', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF94A3B8))),
+                    ),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: tempEnd,
+                            dropdownColor: Colors.white,
+                            style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700, fontSize: 13),
+                            items: ['17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00']
+                                .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null) setDialogState(() => tempEnd = val);
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'ÖZEL ÇALIŞMA TERCİHLERİ',
+                  style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    children: [
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text(
+                          'Acil Gece Nöbetçisi Ol',
+                          style: TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: const Text(
+                          '20:00 sonrası acil çağrılarda ek tarife uygulanır',
+                          style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                        ),
+                        value: tempDuty,
+                        activeColor: const Color(0xFFEA580C),
+                        onChanged: (val) => setDialogState(() => tempDuty = val),
+                      ),
+                      const Divider(color: Color(0xFFE2E8F0), height: 1),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text(
+                          'Hafta Sonu Hizmet Ver',
+                          style: TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: const Text(
+                          'Cumartesi ve Pazar günleri haritada listelenir',
+                          style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                        ),
+                        value: tempWeekend,
+                        activeColor: const Color(0xFFEA580C),
+                        onChanged: (val) => setDialogState(() => tempWeekend = val),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('İptal', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.ustaPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+              onPressed: () {
+                setState(() {
+                  _workStartHour = tempStart;
+                  _workEndHour = tempEnd;
+                  _isOnDutyNight = tempDuty;
+                  _worksWeekend = tempWeekend;
+                });
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Çalışma saatleri ve nöbet ayarlarınız güncellendi!'),
+                    backgroundColor: Color(0xFF10B981),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+              child: const Text('Kaydet', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// 1.1 Usta Cüzdanı & Hakediş Hızlı Erişim Kartı
   Widget _buildWalletBannerCard(UstaDashboardState state) {
     return Container(
@@ -1705,21 +2065,28 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.inventory_2_rounded,
-                      size: 20, color: AppTheme.ustaPrimary),
-                  SizedBox(width: 8),
-                  Text(
-                    'Hizmet & İlan Tarifem',
-                    style: TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
+              const Expanded(
+                child: Row(
+                  children: [
+                    Icon(Icons.inventory_2_rounded,
+                        size: 20, color: AppTheme.ustaPrimary),
+                    SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Hizmet & İlan Tarifem',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               ElevatedButton.icon(
                 onPressed: () => _showHizmetDialog(),
                 style: ElevatedButton.styleFrom(
@@ -1731,10 +2098,10 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
                       borderRadius: BorderRadius.circular(10)),
                   elevation: 0,
                 ),
-                icon: const Icon(Icons.add_rounded, size: 16),
+                icon: const Icon(Icons.add_rounded, size: 15),
                 label: const Text(
                   'Yeni Hizmet Ekle',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -2000,6 +2367,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
               Expanded(
                 child: _TarifeInputField(
                   controller: _tabanFeeController,
+                  focusNode: _tabanFocusNode,
                   label: 'Taban Servis Ücreti',
                   suffix: '₺',
                   hint: 'Örn: 750',
@@ -2009,6 +2377,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
               Expanded(
                 child: _TarifeInputField(
                   controller: _kmFeeController,
+                  focusNode: _kmFocusNode,
                   label: 'Km Başı Yakıt / Ulaşım',
                   suffix: '₺/km',
                   hint: 'Örn: 15',
@@ -2024,6 +2393,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
               Expanded(
                 child: _TarifeInputField(
                   controller: _freeKmController,
+                  focusNode: _freeKmFocusNode,
                   label: 'Ücretsiz Yarıçap (Tabana Dahil)',
                   suffix: 'km',
                   hint: 'Örn: 3',
@@ -2033,6 +2403,7 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
               Expanded(
                 child: _TarifeInputField(
                   controller: _emergencyFeeController,
+                  focusNode: _emergencyFocusNode,
                   label: 'Gece / Acil Ek Ücreti',
                   suffix: '₺',
                   hint: 'Örn: 200',
@@ -2666,12 +3037,14 @@ class _MetricCard extends StatelessWidget {
 
 class _TarifeInputField extends StatelessWidget {
   final TextEditingController controller;
+  final FocusNode? focusNode;
   final String label;
   final String suffix;
   final String hint;
 
   const _TarifeInputField({
     required this.controller,
+    this.focusNode,
     required this.label,
     required this.suffix,
     required this.hint,
@@ -2694,6 +3067,7 @@ class _TarifeInputField extends StatelessWidget {
         const SizedBox(height: 6),
         TextField(
           controller: controller,
+          focusNode: focusNode,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           style: const TextStyle(

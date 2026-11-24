@@ -368,16 +368,18 @@ class _OtpVerificationStepState extends ConsumerState<OtpVerificationStep>
                           LayoutBuilder(
                             builder: (context, constraints) {
                               final availableWidth = constraints.maxWidth;
-                              const double gap = 8.0;
+                              const double gap = 6.0;
                               final double calculatedWidth =
-                                  ((availableWidth - (5 * gap)) / 6).clamp(36.0, 50.0);
-                              final double boxHeight = (calculatedWidth * 1.24).clamp(46.0, 58.0);
+                                  ((availableWidth - (5 * gap)) / 6).clamp(32.0, 48.0);
+                              final double boxHeight = (calculatedWidth * 1.22).clamp(42.0, 56.0);
 
                               return GestureDetector(
                                 onTap: () => _focusNode.requestFocus(),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: List.generate(6, (index) {
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: List.generate(11, (i) {
+                                    if (i.isOdd) return const SizedBox(width: gap);
+                                    final index = i ~/ 2;
                                     final char = index < otpText.length ? otpText[index] : '';
                                     final isCurrent = index == otpText.length;
 
@@ -391,7 +393,7 @@ class _OtpVerificationStepState extends ConsumerState<OtpVerificationStep>
                                             : (isCurrent
                                                 ? Colors.white
                                                 : const Color(0xFFF8FAFC)),
-                                        borderRadius: BorderRadius.circular(14),
+                                        borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
                                           color: isCurrent
                                               ? AppTheme.ustaPrimary
@@ -425,7 +427,7 @@ class _OtpVerificationStepState extends ConsumerState<OtpVerificationStep>
                                             ? Text(
                                                 char,
                                                 style: TextStyle(
-                                                  fontSize: (calculatedWidth * 0.48).clamp(18.0, 23.0),
+                                                  fontSize: (calculatedWidth * 0.48).clamp(16.0, 22.0),
                                                   fontWeight: FontWeight.w900,
                                                   color: const Color(0xFF9A3412),
                                                 ),

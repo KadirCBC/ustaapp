@@ -816,6 +816,18 @@ class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      // Müşteriye ulaşılamıyorsa acil çıkış / destek bildirimi
+                      OutlinedButton.icon(
+                        onPressed: () => _showEmergencySupportDialog(context, controller, cagriId),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFF59E0B),
+                          side: const BorderSide(color: Color(0xFFF59E0B)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.support_agent_rounded, size: 18),
+                        label: const Text('Müşteri Yanıt Vermiyor / Destek Çağır'),
+                      ),
                     ],
                   ] else if (cagri.isCompleted) ...[
                     Container(
@@ -1065,6 +1077,79 @@ class _UstaActiveJobScreenState extends ConsumerState<UstaActiveJobScreen> {
           },
         );
       },
+    );
+  }
+
+  void _showEmergencySupportDialog(
+    BuildContext context,
+    ActiveOrderController controller,
+    String cagriId,
+  ) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.support_agent_rounded, color: Color(0xFFF59E0B)),
+            SizedBox(width: 8),
+            Text(
+              'Destek & İptal Masası',
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Müşteriye telefonla ulaşılamıyorsa veya adreste bulunmuyorsa, çağrıyı sonlandırmak veya hakem heyetine bildirmek için bir neden seçin:',
+              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF0F172A),
+                hintText: 'Örn: Müşteri telefonu açmıyor, 20 dk kapıda beklenildi.',
+                hintStyle: const TextStyle(color: Color(0xFF475569)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Kapat', style: TextStyle(color: Color(0xFF94A3B8))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            onPressed: () async {
+              final reason = reasonController.text.trim().isNotEmpty
+                  ? reasonController.text.trim()
+                  : 'Müşteriye ulaşılamadı';
+              Navigator.pop(ctx);
+              final ok = await controller.cancelCall(reason: reason);
+              if (ok && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Çağrı iptal edildi ve panele aktarıldı.'),
+                    backgroundColor: Color(0xFFEF4444),
+                  ),
+                );
+                context.go('/usta/orders');
+              }
+            },
+            child: const Text('Çağrıyı İptal Et ve Çık', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 }

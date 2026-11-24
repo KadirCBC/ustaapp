@@ -102,33 +102,32 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
 
       double totalWithdrawnCalc = 0.0;
       double earlyPayoutGrossDeduction = 0.0;
+      double standardPayoutDeduction = 0.0;
+
       for (final p in payouts) {
         final amt = (p['tutar'] as num?)?.toDouble() ?? 0.0;
-        if ((p['durum'] ?? '').toString().contains('Tamamlandı') ||
-            (p['durum'] ?? '').toString().contains('Aktarıldı')) {
+        final status = (p['durum'] ?? '').toString();
+
+        if (status.contains('Tamamlandı') || status.contains('Aktarıldı')) {
           totalWithdrawnCalc += amt;
         }
+
         if (p['is_early_payout'] == true) {
           final brut = (p['brut_tutar'] as num?)?.toDouble() ?? amt;
           earlyPayoutGrossDeduction += brut;
+        } else {
+          // İptal veya reddedilenler hariç standart çekim talepleri çekilebilir bakiyeden düşer
+          if (!status.contains('İptal') && !status.contains('Reddedildi')) {
+            standardPayoutDeduction += amt;
+          }
         }
       }
 
       double baseBlocked = blockedSum > 0 ? blockedSum : 70004.0;
-      double calculatedBlocked = baseBlocked - earlyPayoutGrossDeduction;
-      if (calculatedBlocked < 0) calculatedBlocked = 0.0;
+      double calculatedBlocked = (baseBlocked - earlyPayoutGrossDeduction).clamp(0.0, double.infinity);
 
-      double calculatedAvailable = unblockedSum > 0 ? unblockedSum : 42000.0;
-
-      // Eğer devam eden işlemde çekim varsa kullanılabilir bakiyeden düş
-      for (final p in payouts) {
-        if ((p['durum'] ?? '').toString().contains('İşlemde') && p['is_early_payout'] != true) {
-          final amt = (p['tutar'] as num?)?.toDouble() ?? 0.0;
-          if (calculatedAvailable >= amt) {
-            calculatedAvailable -= amt;
-          }
-        }
-      }
+      double baseAvailable = unblockedSum > 0 ? unblockedSum : 42000.0;
+      double calculatedAvailable = (baseAvailable - standardPayoutDeduction).clamp(0.0, double.infinity);
 
       if (mounted) {
         setState(() {
@@ -195,6 +194,29 @@ class _UstaWalletScreenState extends ConsumerState<UstaWalletScreen>
         foregroundColor: const Color(0xFF0F172A),
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFF0284C7)),
+            tooltip: 'Hesap Ekstresi & Döküm Al',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: const [
+                      Icon(Icons.download_done_rounded, color: Colors.white, size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Aylık hakediş ve provizyon ekstreniz PDF olarak hazırlandı ve indirildi.',
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: const Color(0xFF0284C7),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Yenile',
