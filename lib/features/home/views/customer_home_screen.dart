@@ -1638,12 +1638,13 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                                     ],
                                     Text(
                                       banner.title,
-                                      maxLines: 1,
+                                      maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
                                         color: Colors.white,
-                                        fontSize: 15,
+                                        fontSize: 14.5,
                                         fontWeight: FontWeight.w800,
+                                        height: 1.2,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
@@ -1662,61 +1663,23 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                               ),
                               const SizedBox(width: 12),
 
-                              // Sağ Thumbnail / Ok Butonu
-                              if (hasImage)
-                                Container(
-                                  width: 64,
-                                  height: 64,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.2),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
+                              // Sağ Ok Butonu (Küçük görsel kaldırıldı, sadece zarif ok ikonu kaldı)
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.22),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.4),
+                                    width: 1.2,
                                   ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Stack(
-                                      children: [
-                                        Positioned.fill(
-                                          child: Image.network(
-                                            banner.imageUrl,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) => Container(
-                                              color: Colors.white.withOpacity(0.2),
-                                              child: const Icon(Icons.broken_image_rounded, color: Colors.white70),
-                                            ),
-                                          ),
-                                        ),
-                                        Positioned(
-                                          right: 4,
-                                          bottom: 4,
-                                          child: Container(
-                                            padding: const EdgeInsets.all(4),
-                                            decoration: const BoxDecoration(
-                                              color: Colors.black54,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 12),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                )
-                              else
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
                                 ),
+                                child: const Icon(
+                                  Icons.arrow_forward_rounded,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ),
                             ],
                           ),
                         ),

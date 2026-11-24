@@ -88,15 +88,59 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
     super.dispose();
   }
 
-  ({double servicePrice, double commission, double total}) _calculatePricing(
+  ({
+    double baseServicePrice,
+    double distanceKm,
+    double perKmFee,
+    double travelFee,
+    double totalServicePrice,
+    double platformCommissionBase,
+    double kdvAmount,
+    double stopajAmount,
+    double totalPlatformFee,
+    double total,
+  }) _calculatePricing(
     NearbyUstaModel usta,
   ) {
-    final double servicePrice = _selectedIlan?.fiyat ?? usta.ustaHakedis;
-    final double commission = servicePrice * usta.komisyonOrani;
-    final double total = servicePrice + commission;
+    // 1. Seçilen Hizmet Taban Ücreti
+    final double baseServicePrice = _selectedIlan?.fiyat ?? usta.ustaHakedis;
+
+    // 2. Usta Yol / Mesafe Ücreti Hesabı:
+    // Ustanın mesafeMetre'si km cinsine çevrilir
+    final double distanceKm = usta.mesafeMetre > 0 ? (usta.mesafeMetre / 1000.0) : 0.85; // varsayılan min mesafe
+    // Ustanın km başına belirlediği fiyat (varsayılan 25 TL/km)
+    final double perKmFee = usta.kmBasiYakitUcreti > 0 ? usta.kmBasiYakitUcreti : 25.0;
+    // Yol ücreti = km * km başı ücret (veya sabit servis ucreti ile harmanlanmış)
+    final double travelFee = (distanceKm * perKmFee).clamp(20.0, 500.0);
+
+    // Hizmet Bedeli + Usta Yol Bedeli toplam usta hakedişini oluşturur
+    final double totalServicePrice = baseServicePrice + travelFee;
+
+    // 3. Platform Komisyonu (Hizmet bedeli üzerinden %15)
+    final double platformCommissionBase = totalServicePrice * (usta.komisyonOrani > 0 ? usta.komisyonOrani : 0.15);
+
+    // 4. Yasal Vergiler:
+    // Platform Komisyonu için %20 KDV
+    final double kdvAmount = platformCommissionBase * 0.20;
+    // %1 E-Ticaret / Pazaryeri Stopajı
+    final double stopajAmount = platformCommissionBase * 0.01;
+
+    // Toplam Platform Hizmet ve Yasal Güvence Bedeli
+    final double totalPlatformFee = platformCommissionBase + kdvAmount + stopajAmount;
+
+    // Müşterinin Ödeyeceği / Bloke Edilecek Toplam Provizyon
+    final double total = totalServicePrice + totalPlatformFee;
+
     return (
-      servicePrice: servicePrice,
-      commission: commission,
+      baseServicePrice: baseServicePrice,
+      distanceKm: distanceKm,
+      perKmFee: perKmFee,
+      travelFee: travelFee,
+      totalServicePrice: totalServicePrice,
+      platformCommissionBase: platformCommissionBase,
+      kdvAmount: kdvAmount,
+      stopajAmount: stopajAmount,
+      totalPlatformFee: totalPlatformFee,
       total: total,
     );
   }
@@ -170,7 +214,7 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
     required BuildContext context,
     required NearbyUstaModel usta,
     required String serviceTitle,
-    required ({double servicePrice, double commission, double total}) pricing,
+    required dynamic pricing,
     required String addressAndNote,
   }) async {
     final mapController = ref.read(customerMapControllerProvider.notifier);
@@ -200,8 +244,8 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
 
             // 2. Sadece provizyon onaylandıktan SONRA çağrı oluştur ve ustaya ilet!
             final updatedUsta = usta.copyWith(
-              ustaHakedis: pricing.servicePrice,
-              komisyonTutari: pricing.commission,
+              ustaHakedis: pricing.totalServicePrice,
+              komisyonTutari: pricing.totalPlatformFee,
               toplamTutar: pricing.total,
             );
 
@@ -427,7 +471,6 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
     CustomerMapState mapState,
   ) {
     final pricing = _calculatePricing(usta);
-    final categoryFaultTags = _getCategoryFaultTags(usta.kategori);
 
     return ConstrainedBox(
       constraints: BoxConstraints(
@@ -484,22 +527,25 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
 
             // 1. Profil Bilgileri & Başlık
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Stack(
                   children: [
                     CircleAvatar(
-                      radius: 30,
+                      radius: 28,
                       backgroundColor:
-                          AppTheme.customerPrimary.withValues(alpha: 0.1),
-                      backgroundImage: usta.avatarUrl != null
+                          AppTheme.ustaPrimary.withValues(alpha: 0.12),
+                      backgroundImage: (usta.avatarUrl != null && usta.avatarUrl!.isNotEmpty)
                           ? NetworkImage(usta.avatarUrl!)
                           : null,
-                      child: usta.avatarUrl == null
-                          ? const Icon(
-                              Icons.person_rounded,
-                              size: 34,
-                              color: AppTheme.customerPrimary,
+                      child: (usta.avatarUrl == null || usta.avatarUrl!.isEmpty)
+                          ? Text(
+                              usta.fullName.isNotEmpty ? usta.fullName[0].toUpperCase() : 'U',
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                color: AppTheme.ustaPrimary,
+                              ),
                             )
                           : null,
                     ),
@@ -507,18 +553,18 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                       right: 0,
                       bottom: 0,
                       child: Container(
-                        width: 16,
-                        height: 16,
+                        width: 14,
+                        height: 14,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: const Color(0xFF22C55E),
-                          border: Border.all(color: Colors.white, width: 2.5),
+                          border: Border.all(color: Colors.white, width: 2),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -531,8 +577,8 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 17.5,
-                                fontWeight: FontWeight.w800,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w900,
                                 color: AppTheme.customerTextDark,
                               ),
                             ),
@@ -541,28 +587,24 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 7,
-                              vertical: 3,
+                              vertical: 2.5,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFFF7ED),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFFED7AA)),
+                              color: const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFFFDE68A)),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  Icons.verified_rounded,
-                                  size: 12,
-                                  color: AppTheme.customerPrimary,
-                                ),
-                                SizedBox(width: 3),
+                                Text(usta.levelBadgeEmoji, style: const TextStyle(fontSize: 11)),
+                                const SizedBox(width: 3),
                                 Text(
-                                  'Onaylı Usta',
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.customerPrimary,
+                                  'Seviye ${usta.calculatedLevel} • ${usta.levelTitle}',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF92400E),
                                   ),
                                 ),
                               ],
@@ -571,61 +613,45 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                         ],
                       ),
                       const SizedBox(height: 3),
-                      Text(
-                        '${usta.uzmanlikBasligi} • ${usta.deneyimYili} Yıl Deneyim',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.customerTextMuted,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.star_rounded,
-                              size: 16,
-                              color: Colors.amber.shade600,
+                      Row(
+                        children: [
+                          Text(
+                            '${usta.uzmanlikBasligi} • ${usta.deneyimYili} Yıl Deneyim',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.customerTextMuted,
                             ),
-                            const SizedBox(width: 3),
-                            Text(
-                              usta.puan.toStringAsFixed(1),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.customerTextDark,
+                          ),
+                          const Spacer(),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.star_rounded,
+                                size: 16,
+                                color: Colors.amber.shade600,
                               ),
-                            ),
-                            const Text(
-                              ' • ',
-                              style: TextStyle(color: AppTheme.customerTextMuted),
-                            ),
-                            Text(
-                              '${usta.tamamlananIsSayisi} tamamlanan iş',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.customerTextMuted,
+                              const SizedBox(width: 2),
+                              Text(
+                                usta.puan.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.customerTextDark,
+                                ),
                               ),
-                            ),
-                            const Text(
-                              ' • ',
-                              style: TextStyle(color: AppTheme.customerTextMuted),
-                            ),
-                            const Text(
-                              '%99 Memnuniyet',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF15803D),
+                              Text(
+                                ' (${usta.tamamlananIsSayisi})',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.customerTextMuted,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -635,30 +661,33 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
 
             const SizedBox(height: 12),
 
-            // 2. Metrik Göstergeleri (Varış, Mesafe, Servis Ücreti)
+            // 2. Metrik Göstergeleri (Varış, Mesafe, Tek Fiyat - ASLA KESİLMEZ)
             Row(
               children: [
                 Expanded(
                   child: _MetricTag(
-                    icon: Icons.access_time_filled_rounded,
+                    icon: Icons.timer_outlined,
                     iconColor: const Color(0xFFEA580C),
-                    label: 'Varış: ~${usta.tahminiVarisDakika} dk',
+                    value: '~${usta.tahminiVarisDakika} dk',
+                    label: 'Tahmini Varış',
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: _MetricTag(
-                    icon: Icons.near_me_rounded,
-                    iconColor: AppTheme.customerPrimary,
-                    label: 'Mesafe: ${usta.formattedDistance}',
+                    icon: Icons.navigation_rounded,
+                    iconColor: const Color(0xFF2563EB),
+                    value: usta.formattedDistance,
+                    label: 'Usta Mesafesi',
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: _MetricTag(
-                    icon: Icons.directions_car_rounded,
+                    icon: Icons.verified_outlined,
                     iconColor: const Color(0xFF0D9488),
-                    label: 'Servis: ${usta.servisUcreti.toStringAsFixed(0)} ₺',
+                    value: 'Sabit Fiyat',
+                    label: 'Keşif Dahil',
                   ),
                 ),
               ],
@@ -666,290 +695,298 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
 
             const SizedBox(height: 10),
 
-            // 3. Güvence Rozetleri
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: usta.guvenceler.map((guvence) {
-                return Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0FDF4),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFBBF7D0)),
+            // 3. Zarif Güvence ve Garanti Şeridi
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFBBF7D0)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.shield_rounded,
+                    size: 15,
+                    color: Color(0xFF16A34A),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.verified_user_outlined,
-                        size: 13,
-                        color: Color(0xFF16A34A),
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'UstaGelio Koruması • 30 Gün İşçilik Garantisi & MYK Onaylı',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF15803D),
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        guvence,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF15803D),
-                        ),
-                      ),
-                    ],
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                );
-              }).toList(),
+                ],
+              ),
             ),
 
             const SizedBox(height: 14),
 
-            // 4. Ustanın Hizmet İlanları & Fiyat Tarifesi
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.receipt_long_rounded,
-                            size: 18,
-                            color: AppTheme.customerPrimary,
-                          ),
-                          SizedBox(width: 6),
-                          Text(
-                            'Ustanın Hizmet İlanları & Tarifesi',
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.customerTextDark,
-                            ),
-                          ),
-                        ],
+            // 4. Hizmet Seçimi & Fiyat Tarifesi (Modern & Sadeleştirilmiş)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.receipt_long_rounded,
+                      size: 17,
+                      color: AppTheme.customerPrimary,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'Hizmet Seçimi',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.customerTextDark,
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF7ED),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFFED7AA)),
-                        ),
-                        child: Text(
-                          '${usta.ilanlar.length} Hizmet',
-                          style: const TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.customerPrimary,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
                   ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'İhtiyacınıza uygun ilana dokunarak seçebilirsiniz:',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: AppTheme.customerTextMuted,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7ED),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFFFED7AA)),
+                  ),
+                  child: Text(
+                    '${usta.ilanlar.length} Seçenek',
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.customerPrimary,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: usta.ilanlar.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final ilan = usta.ilanlar[index];
-                      final isSelected = _selectedIlan?.id == ilan.id;
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
 
-                      return InkWell(
-                        onTap: () {
-                          setState(() {
-                            _selectedIlan = ilan;
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(12),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.all(10),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: usta.ilanlar.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final ilan = usta.ilanlar[index];
+                final isSelected = _selectedIlan?.id == ilan.id;
+
+                return InkWell(
+                  onTap: () {
+                    setState(() {
+                      _selectedIlan = ilan;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFFFFF7ED) : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppTheme.customerPrimary
+                            : const Color(0xFFE2E8F0),
+                        width: isSelected ? 1.8 : 1.0,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: AppTheme.customerPrimary.withValues(alpha: 0.08),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              )
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFFFFF7ED) : Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isSelected
-                                  ? AppTheme.customerPrimary
-                                  : const Color(0xFFE2E8F0),
-                              width: isSelected ? 1.8 : 1.0,
+                            color: isSelected
+                                ? AppTheme.customerPrimary
+                                : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Center(
+                            child: Text(
+                              ilan.ikon,
+                              style: const TextStyle(fontSize: 17),
                             ),
                           ),
-                          child: Row(
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? AppTheme.customerPrimary
-                                      : const Color(0xFFF1F5F9),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    ilan.ikon,
-                                    style: const TextStyle(fontSize: 18),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            ilan.baslik,
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: isSelected
-                                                  ? FontWeight.w800
-                                                  : FontWeight.w700,
-                                              color: isSelected
-                                                  ? AppTheme.customerPrimary
-                                                  : AppTheme.customerTextDark,
-                                            ),
-                                          ),
-                                        ),
-                                        if (ilan.isDefault)
-                                          Container(
-                                            margin: const EdgeInsets.only(left: 4),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 5,
-                                              vertical: 1.5,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFDCFCE7),
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: const Text(
-                                              'Taban',
-                                              style: TextStyle(
-                                                fontSize: 9.5,
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF15803D),
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      ilan.aciklama,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AppTheme.customerTextMuted,
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      ilan.baslik,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w800
+                                            : FontWeight.w700,
+                                        color: isSelected
+                                            ? AppTheme.customerPrimary
+                                            : AppTheme.customerTextDark,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.timer_outlined,
-                                          size: 12,
-                                          color: AppTheme.customerTextMuted,
-                                        ),
-                                        const SizedBox(width: 3),
-                                        Text(
-                                          ilan.tahminiSure,
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppTheme.customerTextMuted,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    '${ilan.fiyat.toStringAsFixed(0)} ₺',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w900,
-                                      color: isSelected
-                                          ? AppTheme.customerPrimary
-                                          : AppTheme.customerTextDark,
-                                    ),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Icon(
-                                    isSelected
-                                        ? Icons.check_circle_rounded
-                                        : Icons.radio_button_unchecked_rounded,
-                                    size: 18,
-                                    color: isSelected
-                                        ? AppTheme.customerPrimary
-                                        : const Color(0xFF94A3B8),
+                                  if (ilan.isDefault)
+                                    Container(
+                                      margin: const EdgeInsets.only(left: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 5,
+                                        vertical: 1.5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFDCFCE7),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        'Taban',
+                                        style: TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF15803D),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              if (ilan.aciklama.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  ilan.aciklama,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppTheme.customerTextMuted,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 3),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.access_time_rounded,
+                                    size: 11.5,
+                                    color: AppTheme.customerTextMuted,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    ilan.tahminiSure,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.customerTextMuted,
+                                    ),
                                   ),
                                 ],
                               ),
                             ],
                           ),
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF7ED),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFFED7AA)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.info_outline_rounded,
-                          size: 14,
-                          color: AppTheme.customerPrimary,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'Ustanın yol/keşif servis bedeli (${usta.servisUcreti.toStringAsFixed(0)} ₺) seçilen hizmet paketine dahildir.',
-                            style: const TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.customerPrimary,
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '${ilan.fiyat.toStringAsFixed(0)} ₺',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w900,
+                                color: isSelected
+                                    ? AppTheme.customerPrimary
+                                    : AppTheme.customerTextDark,
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 3),
+                            Icon(
+                              isSelected
+                                  ? Icons.check_circle_rounded
+                                  : Icons.radio_button_unchecked_rounded,
+                              size: 18,
+                              color: isSelected
+                                  ? AppTheme.customerPrimary
+                                  : const Color(0xFF94A3B8),
+                            ),
+                          ],
                         ),
                       ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 7,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFED7AA)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 1.5),
+                    child: Icon(
+                      Icons.info_outline_rounded,
+                      size: 14,
+                      color: AppTheme.customerPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: RichText(
+                      text: const TextSpan(
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF9A3412), // amber/orange dark text
+                          height: 1.35,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: 'Önemli Bilgilendirme: ',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          TextSpan(
+                            text:
+                                'Görüntülenen tutar sadece Keşif Ulaşım ve arıza tespiti ücretidir. ',
+                          ),
+                          TextSpan(
+                            text: 'Gerekecek yedek parça yada malzeme ücretleri bu fiyata dahil değildir.',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFC2410C),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -1053,58 +1090,6 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                         borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Hızlı Arıza Etiketleri
-                  const Text(
-                    'Hızlı Arıza Seçimi:',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.customerTextDark,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: categoryFaultTags.map((tag) {
-                      final isSelected = _selectedFaultTags.contains(tag);
-                      return FilterChip(
-                        selected: isSelected,
-                        label: Text(
-                          tag,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: isSelected
-                                ? FontWeight.w800
-                                : FontWeight.w600,
-                            color: isSelected
-                                ? Colors.white
-                                : AppTheme.customerTextDark,
-                          ),
-                        ),
-                        backgroundColor: Colors.white,
-                        selectedColor: AppTheme.customerPrimary,
-                        side: BorderSide(
-                          color: isSelected
-                              ? AppTheme.customerPrimary
-                              : const Color(0xFFE2E8F0),
-                        ),
-                        showCheckmark: false,
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        onSelected: (selected) {
-                          setState(() {
-                            if (selected) {
-                              _selectedFaultTags.add(tag);
-                            } else {
-                              _selectedFaultTags.remove(tag);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
                   ),
                   const SizedBox(height: 10),
 
@@ -1228,22 +1213,44 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _PriceLine(
                     label: _selectedIlan != null
-                        ? 'Seçilen Hizmet (${_selectedIlan!.baslik})'
-                        : 'Taban Hizmet Ücreti',
-                    value: '${pricing.servicePrice.toStringAsFixed(0)} ₺',
+                        ? 'Seçilen Hizmet Bedeli (${_selectedIlan!.baslik})'
+                        : 'Seçilen Hizmet Bedeli',
+                    value: '${pricing.baseServicePrice.toStringAsFixed(0)} ₺',
                   ),
                   const SizedBox(height: 6),
                   _PriceLine(
-                    label: 'Usta Servis / Yol & Keşif Bedeli',
-                    value: '${usta.servisUcreti.toStringAsFixed(0)} ₺ (Dahil)',
+                    label: 'Usta Yol / Ulaşım Ücreti (${pricing.distanceKm < 1 ? '${(pricing.distanceKm * 1000).toStringAsFixed(0)} m' : '${pricing.distanceKm.toStringAsFixed(1)} km'} • ${pricing.perKmFee.toStringAsFixed(0)} ₺/km)',
+                    value: '+${pricing.travelFee.toStringAsFixed(0)} ₺',
                   ),
                   const SizedBox(height: 6),
                   _PriceLine(
-                    label: 'Platform Güvence & İyzico Sigorta Bedeli',
-                    value: '${pricing.commission.toStringAsFixed(0)} ₺',
+                    label: 'Toplam Usta Hizmet & Yol Bedeli',
+                    value: '${pricing.totalServicePrice.toStringAsFixed(0)} ₺',
+                    isSubtotal: true,
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 6),
+                    child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                  ),
+                  _PriceLine(
+                    label: 'Platform Komisyon Bedeli (%15)',
+                    value: '${pricing.platformCommissionBase.toStringAsFixed(0)} ₺',
+                  ),
+                  const SizedBox(height: 4),
+                  _PriceLine(
+                    label: 'Platform KDV (%20)',
+                    value: '${pricing.kdvAmount.toStringAsFixed(0)} ₺',
+                    isDimmed: true,
+                  ),
+                  const SizedBox(height: 4),
+                  _PriceLine(
+                    label: 'E-Ticaret Stopaj Kesintisi (%1)',
+                    value: '${pricing.stopajAmount.toStringAsFixed(1)} ₺',
+                    isDimmed: true,
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
@@ -1344,37 +1351,56 @@ class _MechanicBottomCardState extends ConsumerState<MechanicBottomCard> {
 class _MetricTag extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
+  final String value;
   final String label;
 
   const _MetricTag({
     required this.icon,
     required this.iconColor,
+    required this.value,
     required this.label,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: iconColor),
-          const SizedBox(width: 5),
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.customerTextDark,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 13, color: iconColor),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.customerTextDark,
+                  ),
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.customerTextMuted,
             ),
           ),
         ],
@@ -1386,8 +1412,15 @@ class _MetricTag extends StatelessWidget {
 class _PriceLine extends StatelessWidget {
   final String label;
   final String value;
+  final bool isSubtotal;
+  final bool isDimmed;
 
-  const _PriceLine({required this.label, required this.value});
+  const _PriceLine({
+    required this.label,
+    required this.value,
+    this.isSubtotal = false,
+    this.isDimmed = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1399,19 +1432,28 @@ class _PriceLine extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12.5,
-              color: AppTheme.customerTextMuted,
+            style: TextStyle(
+              fontSize: isSubtotal ? 12.5 : 12,
+              fontWeight: isSubtotal ? FontWeight.w700 : FontWeight.w500,
+              color: isSubtotal
+                  ? AppTheme.customerTextDark
+                  : isDimmed
+                      ? const Color(0xFF94A3B8)
+                      : AppTheme.customerTextMuted,
             ),
           ),
         ),
         const SizedBox(width: 8),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: AppTheme.customerTextDark,
+          style: TextStyle(
+            fontSize: isSubtotal ? 13 : 12,
+            fontWeight: isSubtotal ? FontWeight.w800 : FontWeight.w700,
+            color: isSubtotal
+                ? AppTheme.customerTextDark
+                : isDimmed
+                    ? const Color(0xFF64748B)
+                    : AppTheme.customerTextDark,
           ),
         ),
       ],
@@ -1423,7 +1465,7 @@ class _PriceLine extends StatelessWidget {
 class _PaymentCheckoutModal extends StatefulWidget {
   final NearbyUstaModel usta;
   final String serviceTitle;
-  final ({double servicePrice, double commission, double total}) pricing;
+  final dynamic pricing;
   final String addressAndNote;
   final Future<void> Function() onConfirmPayment;
 
@@ -1633,7 +1675,7 @@ class _PaymentCheckoutModalState extends State<_PaymentCheckoutModal> {
                           ),
                         ),
                         Text(
-                          '${widget.pricing.servicePrice.toStringAsFixed(0)} ₺',
+                          '${widget.pricing.baseServicePrice.toStringAsFixed(0)} ₺',
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
@@ -1642,23 +1684,65 @@ class _PaymentCheckoutModalState extends State<_PaymentCheckoutModal> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Usta Yol / Ulaşım Ücreti (${widget.pricing.distanceKm < 1 ? '${(widget.pricing.distanceKm * 1000).toStringAsFixed(0)} m' : '${widget.pricing.distanceKm.toStringAsFixed(1)} km'})',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                        Text(
+                          '+${widget.pricing.travelFee.toStringAsFixed(0)} ₺',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'Platform Güvence & İyzico Sigortası',
+                          'Platform Komisyonu & Güvence (%15)',
                           style: TextStyle(
                             fontSize: 12,
                             color: Color(0xFF64748B),
                           ),
                         ),
                         Text(
-                          '${widget.pricing.commission.toStringAsFixed(0)} ₺',
+                          '${widget.pricing.platformCommissionBase.toStringAsFixed(0)} ₺',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Komisyon KDV (%20) & Stopaj (%1)',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF94A3B8),
+                          ),
+                        ),
+                        Text(
+                          '+${(widget.pricing.kdvAmount + widget.pricing.stopajAmount).toStringAsFixed(1)} ₺',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF94A3B8),
                           ),
                         ),
                       ],
