@@ -438,10 +438,16 @@ class _PhoneInputStepState extends ConsumerState<PhoneInputStep> {
                                           maxWidth: 280,
                                           maxHeight: 48,
                                           child: Image.asset(
-                                            'assets/images/app_logo.png',
+                                            'assets/images/ustagelio_logo.png',
                                             height: 48,
                                             fit: BoxFit.contain,
                                             alignment: Alignment.centerLeft,
+                                            errorBuilder: (_, __, ___) => Image.asset(
+                                              'assets/images/app_logo.png',
+                                              height: 48,
+                                              fit: BoxFit.contain,
+                                              alignment: Alignment.centerLeft,
+                                            ),
                                           ),
                                         ),
                                       ),

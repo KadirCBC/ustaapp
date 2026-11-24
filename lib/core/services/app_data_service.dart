@@ -567,8 +567,8 @@ class AppDataService {
 
   Future<List<NearbyUstaModel>> getNearbyUstalar({
     required String category,
-    double customerLat = 40.9905,
-    double customerLng = 29.0270,
+    double customerLat = 0.0,
+    double customerLng = 0.0,
     double maxRadiusMeter = 25000.0,
   }) async {
     final List<NearbyUstaModel> result = [];

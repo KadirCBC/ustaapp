@@ -19,6 +19,7 @@ class CustomerMapState {
   final double currentLat;
   final double currentLng;
   final String currentAddressLabel;
+  final bool hasSelectedLocation;
   final String
       selectedCategory; // 'elektrik', 'cilingir', 'tesisat', 'tedarikciler'
   final int searchRadiusMeter; // varsayılan 25000 metre (25km)
@@ -34,9 +35,10 @@ class CustomerMapState {
   final String? errorMessage;
 
   const CustomerMapState({
-    this.currentLat = 40.9905, // Varsayılan Kadıköy, İstanbul
-    this.currentLng = 29.0270,
-    this.currentAddressLabel = 'Kadıköy, İstanbul',
+    this.currentLat = 0.0,
+    this.currentLng = 0.0,
+    this.currentAddressLabel = '',
+    this.hasSelectedLocation = false,
     this.selectedCategory = 'elektrik',
     this.searchRadiusMeter = 25000,
     this.nearbyUstalar = const [],
@@ -55,6 +57,7 @@ class CustomerMapState {
     double? currentLat,
     double? currentLng,
     String? currentAddressLabel,
+    bool? hasSelectedLocation,
     String? selectedCategory,
     int? searchRadiusMeter,
     List<NearbyUstaModel>? nearbyUstalar,
@@ -74,6 +77,7 @@ class CustomerMapState {
       currentLat: currentLat ?? this.currentLat,
       currentLng: currentLng ?? this.currentLng,
       currentAddressLabel: currentAddressLabel ?? this.currentAddressLabel,
+      hasSelectedLocation: hasSelectedLocation ?? this.hasSelectedLocation,
       selectedCategory: selectedCategory ?? this.selectedCategory,
       searchRadiusMeter: searchRadiusMeter ?? this.searchRadiusMeter,
       nearbyUstalar: nearbyUstalar ?? this.nearbyUstalar,
@@ -173,19 +177,32 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
           state = state.copyWith(
             currentLat: position.latitude,
             currentLng: position.longitude,
-            currentAddressLabel: label ?? state.currentAddressLabel,
+            currentAddressLabel: label ?? '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}',
+            hasSelectedLocation: true,
             isLoadingLocation: false,
           );
         } else {
-          state = state.copyWith(isLoadingLocation: false);
+          state = state.copyWith(
+            isLoadingLocation: false,
+            currentAddressLabel: '',
+            hasSelectedLocation: false,
+          );
         }
       } else {
-        state = state.copyWith(isLoadingLocation: false);
+        state = state.copyWith(
+          isLoadingLocation: false,
+          currentAddressLabel: '',
+          hasSelectedLocation: false,
+        );
       }
     } catch (e) {
-      debugPrint('Müşteri konumu alınamadı (varsayılan kullanılıyor): $e');
+      debugPrint('Müşteri konumu alınamadı: $e');
       if (!mounted) return;
-      state = state.copyWith(isLoadingLocation: false);
+      state = state.copyWith(
+        isLoadingLocation: false,
+        currentAddressLabel: '',
+        hasSelectedLocation: false,
+      );
     }
 
     if (!mounted) return;
@@ -196,6 +213,13 @@ class CustomerMapController extends StateNotifier<CustomerMapState> {
   }
 
   List<NearbyUstaModel> _filterAndSortUstalar(List<NearbyUstaModel> list) {
+    // Konum henüz seçilmemişse veya (0,0) ise sahte mesafe filtresi uygulama; vitrindeki aktif ustaları puanına göre göster
+    if (!state.hasSelectedLocation || (state.currentLat == 0.0 && state.currentLng == 0.0)) {
+      final activeList = list.where((u) => u.isOnline).toList();
+      activeList.sort((a, b) => b.puan.compareTo(a.puan));
+      return activeList;
+    }
+
     // Bölgesel hizmet yarıçapı: Müşterinin seçtiği arama yarıçapı (varsayılan 25 km, maks 35 km).
     // Asla şehirlerarası (örneğin İstanbul'da Afyonkarahisar veya tersi) usta gösterilmez.
     final maxRadius = state.searchRadiusMeter > 0

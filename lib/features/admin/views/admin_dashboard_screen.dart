@@ -10382,20 +10382,30 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Logo
-                Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    color: AppTheme.ustaPrimary,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.ustaPrimary.withValues(alpha: 0.4),
-                        blurRadius: 20,
+                Image.asset(
+                  'assets/images/ustagelio_logo.png',
+                  height: 46,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Image.asset(
+                    'assets/images/app_logo.png',
+                    height: 46,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 58,
+                      height: 58,
+                      decoration: BoxDecoration(
+                        color: AppTheme.ustaPrimary,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.ustaPrimary.withValues(alpha: 0.4),
+                            blurRadius: 20,
+                          ),
+                        ],
                       ),
-                    ],
+                      child: const Icon(Icons.handyman_rounded, color: Colors.white, size: 30),
+                    ),
                   ),
-                  child: const Icon(Icons.handyman_rounded, color: Colors.white, size: 30),
                 ),
                 const SizedBox(height: 18),
                 const Text(

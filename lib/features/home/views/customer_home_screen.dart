@@ -896,13 +896,17 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                             children: [
                               Flexible(
                                 child: Text(
-                                  mapState.currentAddressLabel,
+                                  mapState.currentAddressLabel.isNotEmpty
+                                      ? mapState.currentAddressLabel
+                                      : 'Konum Belirleyin',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w800,
-                                    color: Color(0xFF0F172A),
+                                    color: mapState.currentAddressLabel.isNotEmpty
+                                        ? const Color(0xFF0F172A)
+                                        : AppTheme.customerPrimary,
                                   ),
                                 ),
                               ),

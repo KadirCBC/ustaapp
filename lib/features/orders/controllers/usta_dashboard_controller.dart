@@ -177,6 +177,7 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
 
   /// Ustanın mevcut konumunu günceller ve ters jeokodlama ile canlı adresini belirler
   Future<void> _updateCurrentUstaCoordinates() async {
+    if (kIsWeb) return; // Web üzerinde gereksiz GPS bloklaması yapma
     try {
       final hasPermission = await _locationService.checkAndRequestPermissions();
       if (hasPermission) {
@@ -187,8 +188,8 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
 
         try {
           final fresh = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.high,
-            timeLimit: const Duration(seconds: 8),
+            desiredAccuracy: LocationAccuracy.medium,
+            timeLimit: const Duration(seconds: 3),
           );
           pos = fresh;
         } catch (_) {}
@@ -299,15 +300,30 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
     try {
       unawaited(_updateCurrentUstaCoordinates());
 
-      // 1. Aktif oturumu AppDataService'den al
-      final session = await _appDataService.getActiveSession();
+      // 1. Oturum, ustalar, çağrılar ve finansal verileri paralel yükle (Sıfır gecikme)
+      final sessionFuture = _appDataService.getActiveSession();
+      final ustalarFuture = _appDataService.getUstalar();
+      final cagrilarFuture = _appDataService.getCagrilar(forceRefresh: forceRefresh);
+      final transactionsFuture = _appDataService.getFinancialTransactions(forceRefresh: forceRefresh);
+
+      final results = await Future.wait([
+        sessionFuture,
+        ustalarFuture,
+        cagrilarFuture,
+        transactionsFuture,
+      ]);
+
+      final session = results[0] as Map<String, dynamic>?;
+      final ustalar = results[1] as List<NearbyUstaModel>;
+      final cagrilar = results[2] as List<CagriModel>;
+      final transactions = results[3] as List<Map<String, dynamic>>;
+
       final sessionPhone = session?['phone'] as String? ?? '';
       final sessionFullName = session?['full_name'] as String? ?? '';
       final normPhone = AppDataService.normalizePhone(sessionPhone);
       final uid = currentUserId;
 
       // 2. Ustalar listesinden / AppDataService'den ustayı bul
-      final ustalar = await _appDataService.getUstalar();
       NearbyUstaModel? matchedUsta;
 
       if (normPhone.isNotEmpty) {
@@ -341,8 +357,6 @@ class UstaDashboardController extends StateNotifier<UstaDashboardState> {
       }
 
       // 4. Gerçek İstatistikleri Hesapla (Hem cagrilar hem financial_transactions)
-      final cagrilar = await _appDataService.getCagrilar(forceRefresh: forceRefresh);
-      final transactions = await _appDataService.getFinancialTransactions(forceRefresh: forceRefresh);
 
       final ustaCalls = cagrilar.where((c) {
         final cPhone = AppDataService.normalizePhone(c.ustaPhone ?? '');

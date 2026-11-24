@@ -264,9 +264,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   child: FadeTransition(
                     opacity: _logoFade,
                     child: Image.asset(
-                      'assets/images/app_logo.png',
+                      'assets/images/ustagelio_logo.png',
                       height: 56,
                       fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Image.asset(
+                        'assets/images/app_logo.png',
+                        height: 56,
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
                 ),

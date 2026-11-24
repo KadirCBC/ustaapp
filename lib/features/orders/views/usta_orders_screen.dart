@@ -695,13 +695,18 @@ class _UstaOrdersScreenState extends ConsumerState<UstaOrdersScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              'assets/images/app_logo.png',
-              height: 28,
+              'assets/images/ustagelio_logo.png',
+              height: 30,
               fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.handyman_rounded,
-                size: 24,
-                color: AppTheme.ustaPrimary,
+              errorBuilder: (_, __, ___) => Image.asset(
+                'assets/images/app_logo.png',
+                height: 30,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.handyman_rounded,
+                  size: 24,
+                  color: AppTheme.ustaPrimary,
+                ),
               ),
             ),
             const SizedBox(height: 2),
